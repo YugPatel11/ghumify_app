@@ -4,10 +4,13 @@ import 'app/routes/app_router.dart';
 import 'app/theme/app_theme.dart';
 import 'core/providers/app_settings_provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await dotenv.load(fileName: ".env");
+
   // Mocking Firebase initialization since we don't have config
   // await Firebase.initializeApp(
   //   options: DefaultFirebaseOptions.currentPlatform,

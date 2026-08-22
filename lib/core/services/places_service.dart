@@ -5,9 +5,8 @@ import '../models/place_model.dart';
 
 /// Service for Google Places API integration
 class PlacesService {
-  static const String _baseUrl =
-      'https://maps.googleapis.com/maps/api/place';
-  static const String _apiKey = ApiKeys.googleMapsApiKey;
+  static String get _baseUrl => 'https://maps.googleapis.com/maps/api/place';
+  static String get _apiKey => ApiKeys.googleMapsApiKey;
 
   /// Search for places nearby a location
   Future<List<PlaceModel>> searchNearby({

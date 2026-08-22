@@ -7,7 +7,7 @@ import '../constants/app_constants.dart';
 /// Service for Google Cloud Translation API with Firestore caching
 class TranslationService {
   static const String _baseUrl = AppConstants.translateBaseUrl;
-  static const String _apiKey = ApiKeys.googleTranslateApiKey;
+  static String get _apiKey => ApiKeys.googleTranslateApiKey;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // In-memory cache for session
