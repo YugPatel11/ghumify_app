@@ -135,21 +135,58 @@ class _TripInputScreenState extends State<TripInputScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Plan Your Trip'),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).scaffoldBackgroundColor,
+                Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
+              ],
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, size: 20),
+          ),
           onPressed: () => context.pop(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // City Input
-              Text('Where are you going?',
-                  style: Theme.of(context).textTheme.titleLarge),
+      extendBodyBehindAppBar: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Text(
+                  'Where to next?',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Let AI curate the perfect itinerary for you.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.neutral500,
+                      ),
+                ),
+                const SizedBox(height: 32),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -277,29 +314,50 @@ class _TripInputScreenState extends State<TripInputScreen> {
                   style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 12,
+                runSpacing: 12,
                 children: AppConstants.interestTags.map((interest) {
                   final isSelected = _selectedInterests.contains(interest);
-                  return FilterChip(
-                    label: Text(interest),
-                    selected: isSelected,
-                    onSelected: (selected) {
+                  return GestureDetector(
+                    onTap: () {
                       setState(() {
-                        if (selected) {
-                          _selectedInterests.add(interest);
-                        } else {
+                        if (isSelected) {
                           _selectedInterests.remove(interest);
+                        } else {
+                          _selectedInterests.add(interest);
                         }
                       });
                     },
-                    selectedColor: AppColors.primaryOrange.withOpacity(0.2),
-                    checkmarkColor: AppColors.primaryOrange,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primaryOrange : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primaryOrange.withOpacity(0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                )
+                              ]
+                            : [],
+                      ),
+                      child: Text(
+                        interest,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   );
                 }).toList(),
               ),
 
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // Travel Mode
               Text('Travel Mode',
@@ -336,22 +394,53 @@ class _TripInputScreenState extends State<TripInputScreen> {
               // Generate Button
               SizedBox(
                 width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _generateItinerary,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: const Text('Generate Itinerary'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryOrange,
-                    foregroundColor: Colors.white,
+                height: 60,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppColors.heroGradient,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryOrange.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _generateItinerary,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_awesome, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Generate Itinerary',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
             ],
           ),
         ),
+      ),
       ),
     );
   }

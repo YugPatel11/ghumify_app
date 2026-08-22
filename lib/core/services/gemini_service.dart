@@ -10,16 +10,7 @@ class GeminiService {
   late final GenerativeModel _model;
 
   GeminiService() {
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: ApiKeys.geminiApiKey,
-      generationConfig: GenerationConfig(
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 4096,
-      ),
-    );
+    // Model initialization skipped for mock mode
   }
 
   /// Generate a complete itinerary based on user inputs
@@ -35,46 +26,47 @@ class GeminiService {
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) async {
-    try {
-      final prompt = _buildItineraryPrompt(
-        city: city,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
-        interests: interests,
-        travelMode: travelMode,
-        pace: pace,
-        weather: weather,
-        knownPlaces: knownPlaces,
-      );
-
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
-      final responseText = response.text;
-
-      if (responseText == null || responseText.isEmpty) {
-        throw GeminiException('Received empty response from AI');
-      }
-
-      // Parse the JSON response
-      final itinerary = _parseItineraryResponse(
-        responseText: responseText,
-        userId: userId,
-        city: city,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
-        interests: interests,
-        travelMode: travelMode,
-        pace: pace,
-        weather: weather,
-      );
-
-      return itinerary;
-    } catch (e) {
-      if (e is GeminiException) rethrow;
-      throw GeminiException('Failed to generate itinerary: $e');
-    }
+    await Future.delayed(const Duration(seconds: 2)); // Mock delay
+    
+    return ItineraryModel(
+      id: 'mock_itinerary_123',
+      userId: userId,
+      city: city,
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      totalDurationMinutes: 240,
+      interests: interests,
+      travelMode: travelMode,
+      pace: pace,
+      weatherSummary: 'Sunny and pleasant',
+      whatToCarry: ['Water bottle', 'Sunglasses', 'Camera'],
+      aiSummary: 'A wonderful mock day out in $city focusing on ${interests.join(', ')}.',
+      stops: [
+        ItineraryStop(
+          name: 'City Museum',
+          type: 'place',
+          startTime: startTime,
+          endTime: '12:00',
+          durationMinutes: 120,
+          description: 'Explore the rich history and culture of $city.',
+          travelMode: travelMode,
+          travelMinutes: 15,
+          tips: ['Buy tickets online', 'Photography is allowed without flash'],
+        ),
+        ItineraryStop(
+          name: 'Local Food Market',
+          type: 'food',
+          startTime: '12:15',
+          endTime: '13:15',
+          durationMinutes: 60,
+          description: 'Try the famous local dishes and street food.',
+          travelMode: 'walking',
+          travelMinutes: 15,
+          tips: ['Try the spicy noodles', 'Carry cash'],
+        ),
+      ],
+    );
   }
 
   /// Build a structured prompt for itinerary generation
@@ -249,25 +241,8 @@ IMPORTANT:
     required String placeName,
     required String city,
   }) async {
-    try {
-      final prompt = '''
-Write a brief but engaging history and description of "$placeName" in $city, India.
-Include:
-- Historical significance
-- Key facts (when built, by whom, architectural style)
-- What visitors can expect to see
-- Cultural importance
-- Best time to visit
-
-Keep it under 300 words. Write in a friendly, informative travel guide style.
-''';
-
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
-      return response.text ?? 'Information not available.';
-    } catch (e) {
-      throw GeminiException('Failed to generate place history: $e');
-    }
+    await Future.delayed(const Duration(seconds: 1));
+    return 'This is a mock history and description of $placeName in $city. Built many years ago, it remains one of the most culturally significant and visually stunning landmarks in the region. Visitors can expect to see magnificent architecture and learn about local traditions. The best time to visit is during the early morning hours to avoid the crowds.';
   }
 
   /// Generate "What to Carry" suggestions based on context
@@ -277,47 +252,14 @@ Keep it under 300 words. Write in a friendly, informative travel guide style.
     WeatherModel? weather,
     required String timeOfDay, // morning, afternoon, evening
   }) async {
-    try {
-      final prompt = '''
-Suggest what a tourist should carry when visiting $city, India.
-
-Context:
-- Types of places: ${placeTypes.join(', ')}
-- Time of day: $timeOfDay
-${weather != null ? '- Weather: ${weather.conditionDescription}, ${weather.temperatureDisplay}' : ''}
-
-Return ONLY a JSON array of strings, each a carry suggestion with an emoji prefix.
-Example: ["☔ Umbrella", "💧 Water bottle", "🧴 Sunscreen"]
-Output ONLY the JSON array, nothing else.
-''';
-
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
-      final text = response.text?.trim() ?? '[]';
-
-      // Clean up response
-      String cleanJson = text;
-      if (cleanJson.startsWith('```json')) {
-        cleanJson = cleanJson.substring(7);
-      } else if (cleanJson.startsWith('```')) {
-        cleanJson = cleanJson.substring(3);
-      }
-      if (cleanJson.endsWith('```')) {
-        cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-      }
-
-      final list = json.decode(cleanJson.trim()) as List;
-      return list.map((e) => e.toString()).toList();
-    } catch (e) {
-      // Return default suggestions on failure
-      return [
-        '📱 Fully charged phone',
-        '💧 Water bottle',
-        '💰 Some cash',
-        '🧴 Sunscreen',
-        '🎒 Comfortable backpack',
-      ];
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    return [
+      '📱 Fully charged phone',
+      '💧 Water bottle',
+      '💰 Some cash',
+      '🧴 Sunscreen',
+      '🎒 Comfortable backpack',
+    ];
   }
 }
 

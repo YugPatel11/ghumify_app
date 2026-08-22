@@ -11,87 +11,65 @@ class WeatherService {
 
   /// Get current weather for a city
   Future<WeatherModel> getCurrentWeather(String city) async {
-    try {
-      final url = Uri.parse(
-          '$_baseUrl/weather?q=$city,IN&appid=$_apiKey&units=metric');
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return WeatherModel.fromJson(data);
-      } else {
-        throw WeatherException(
-          'Failed to fetch weather: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (e is WeatherException) rethrow;
-      throw WeatherException('Network error fetching weather: $e');
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _getMockWeather(city);
   }
 
   /// Get current weather by coordinates
   Future<WeatherModel> getCurrentWeatherByCoords(
       double lat, double lon) async {
-    try {
-      final url = Uri.parse(
-          '$_baseUrl/weather?lat=$lat&lon=$lon&appid=$_apiKey&units=metric');
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return WeatherModel.fromJson(data);
-      } else {
-        throw WeatherException(
-          'Failed to fetch weather: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (e is WeatherException) rethrow;
-      throw WeatherException('Network error fetching weather: $e');
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _getMockWeather('Mock City');
   }
 
   /// Get 5-day forecast for a city
   Future<ForecastModel> getForecast(String city) async {
-    try {
-      final url = Uri.parse(
-          '$_baseUrl/forecast?q=$city,IN&appid=$_apiKey&units=metric');
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return ForecastModel.fromJson(data);
-      } else {
-        throw WeatherException(
-          'Failed to fetch forecast: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (e is WeatherException) rethrow;
-      throw WeatherException('Network error fetching forecast: $e');
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _getMockForecast(city);
   }
 
   /// Get 5-day forecast by coordinates
   Future<ForecastModel> getForecastByCoords(double lat, double lon) async {
-    try {
-      final url = Uri.parse(
-          '$_baseUrl/forecast?lat=$lat&lon=$lon&appid=$_apiKey&units=metric');
-      final response = await http.get(url);
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _getMockForecast('Mock City');
+  }
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return ForecastModel.fromJson(data);
-      } else {
-        throw WeatherException(
-          'Failed to fetch forecast: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      if (e is WeatherException) rethrow;
-      throw WeatherException('Network error fetching forecast: $e');
+  WeatherModel _getMockWeather(String city) {
+    return WeatherModel(
+      city: city,
+      temperature: 28.5,
+      feelsLike: 30.0,
+      tempMin: 25.0,
+      tempMax: 32.0,
+      humidity: 65,
+      condition: 'Clear',
+      conditionDescription: 'clear sky',
+      iconCode: '01d',
+      windSpeed: 4.5,
+      visibility: 10000,
+      timestamp: DateTime.now(),
+    );
+  }
+
+  ForecastModel _getMockForecast(String city) {
+    final List<WeatherModel> hourly = [];
+    final now = DateTime.now();
+    for (int i = 0; i < 40; i++) {
+      hourly.add(WeatherModel(
+        city: city,
+        temperature: 25.0 + (i % 5),
+        feelsLike: 26.0 + (i % 5),
+        tempMin: 24.0,
+        tempMax: 30.0,
+        humidity: 60 + (i % 10),
+        condition: i % 3 == 0 ? 'Clouds' : 'Clear',
+        conditionDescription: i % 3 == 0 ? 'broken clouds' : 'clear sky',
+        iconCode: i % 3 == 0 ? '04d' : '01d',
+        windSpeed: 3.0 + (i % 3),
+        timestamp: now.add(Duration(hours: i * 3)),
+      ));
     }
+    return ForecastModel(city: city, hourly: hourly);
   }
 
   /// Generate weather-based suggestions for "What to Carry"

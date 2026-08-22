@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
@@ -21,18 +20,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _init() {
-    _authService.authStateChanges.listen((User? firebaseUser) async {
-      if (firebaseUser != null) {
-        try {
-          _user = await _authService.getCurrentUserModel();
-        } catch (_) {
-          _user = null;
-        }
-      } else {
-        _user = null;
-      }
-      notifyListeners();
-    });
+    // Mock user login state (set to true to auto-login, or false to require login click)
+    _user = null;
+    notifyListeners();
   }
 
   /// Sign up with email
@@ -47,23 +37,17 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      _user = await _authService.signUpWithEmail(
-        name: name,
-        email: email,
-        password: password,
-        preferredLanguage: preferredLanguage,
-        interests: interests,
-      );
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
+    _user = UserModel(
+      uid: 'mock_uid_123',
+      name: name,
+      email: email,
+      preferredLanguage: preferredLanguage,
+      interests: interests,
+    );
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Sign in with email
@@ -75,20 +59,17 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      _user = await _authService.signInWithEmail(
-        email: email,
-        password: password,
-      );
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
+    _user = UserModel(
+      uid: 'mock_uid_123',
+      name: 'Mock User',
+      email: email,
+      preferredLanguage: 'en',
+      interests: ['Food', 'Culture'],
+    );
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Sign in with Google
@@ -97,34 +78,29 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      _user = await _authService.signInWithGoogle();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
+    _user = UserModel(
+      uid: 'mock_uid_123',
+      name: 'Google User',
+      email: 'google@example.com',
+      preferredLanguage: 'en',
+      interests: [],
+    );
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Update user profile
   Future<void> updateProfile(UserModel updatedUser) async {
-    try {
-      await _authService.updateUserProfile(updatedUser);
-      _user = updatedUser;
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    _user = updatedUser;
+    notifyListeners();
   }
 
   /// Sign out
   Future<void> signOut() async {
-    await _authService.signOut();
+    await Future.delayed(const Duration(milliseconds: 500));
     _user = null;
     notifyListeners();
   }
@@ -135,17 +111,10 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    try {
-      await _authService.sendPasswordResetEmail(email);
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
+    await Future.delayed(const Duration(seconds: 1));
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   /// Clear error

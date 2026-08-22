@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/services/gemini_service.dart';
 import '../../../core/services/weather_service.dart';
@@ -103,16 +102,9 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         knownPlaces: knownPlaces.take(15).toList(),
       );
 
-      // Step 4: Save to Firestore
+      // Step 4: Save trip (mocked)
       setState(() => _loadingMessage = 'Saving your trip... 💾');
-      try {
-        await FirebaseFirestore.instance
-            .collection(AppConstants.itinerariesCollection)
-            .doc(itinerary.id)
-            .set(itinerary.toFirestore());
-      } catch (_) {
-        // Save failure is non-critical
-      }
+      await Future.delayed(const Duration(milliseconds: 500));
 
       setState(() {
         _itinerary = itinerary;
@@ -257,35 +249,51 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
             SliverToBoxAdapter(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryOrange.withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.auto_awesome, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
                           'AI Summary',
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Text(
                       itinerary.aiSummary!,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                        height: 1.5,
+                        color: Colors.white.withOpacity(0.95),
+                        fontSize: 15,
+                        height: 1.6,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -316,13 +324,35 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
               ),
             ),
 
-          // Trip timeline
+          // Trip timeline header
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              child: Text(
-                'Your Itinerary',
-                style: Theme.of(context).textTheme.headlineSmall,
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+              child: Row(
+                children: [
+                  Text(
+                    'Your Itinerary',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryOrange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${itinerary.stops.length} Stops',
+                      style: const TextStyle(
+                        color: AppColors.primaryOrange,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -476,114 +506,157 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
             // Content
             Expanded(
               child: Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? AppColors.surfaceDarkCard 
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    if (Theme.of(context).brightness == Brightness.light)
+                      BoxShadow(
+                        color: AppColors.neutral900.withOpacity(0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                  ],
                   border: Border.all(
-                    color: Theme.of(context).dividerColor.withOpacity(0.3),
+                    color: iconColor.withOpacity(0.1),
+                    width: 1.5,
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Time
+                    // Time and Duration
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
+                            horizontal: 12,
+                            vertical: 6,
                           ),
                           decoration: BoxDecoration(
                             color: iconColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             '${stop.startTime} – ${stop.endTime}',
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
                               color: iconColor,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${stop.durationMinutes} min',
-                          style: Theme.of(context).textTheme.labelSmall,
+                        const Spacer(),
+                        Row(
+                          children: [
+                            Icon(Icons.timer_outlined, size: 14, color: AppColors.neutral500),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${stop.durationMinutes}m',
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.neutral500,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
 
                     // Name
                     Text(
                       stop.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
                           ),
                     ),
 
                     // Description
                     if (stop.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         stop.description,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? AppColors.neutral300 
+                                  : AppColors.neutral600,
+                              height: 1.5,
+                            ),
                       ),
                     ],
 
                     // Travel info
                     if (stop.travelMinutes != null &&
                         stop.travelMinutes! > 0) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.directions,
-                            size: 14,
-                            color: AppColors.neutral400,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${stop.travelMinutes} min ${stop.travelMode ?? "drive"} from previous',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: AppColors.neutral400),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.directions,
+                              size: 16,
+                              color: AppColors.neutral500,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${stop.travelMinutes} min ${stop.travelMode ?? "drive"}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(color: AppColors.neutral500, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
 
                     // Tips
                     if (stop.tips.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      ...stop.tips.take(2).map((tip) => Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('💡 ', style: TextStyle(fontSize: 12)),
-                                Expanded(
-                                  child: Text(
-                                    tip,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          fontStyle: FontStyle.italic,
-                                          color: AppColors.accentGreen,
-                                        ),
-                                  ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentGreen.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.accentGreen.withOpacity(0.1)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: stop.tips.take(2).map((tip) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('💡 ', style: TextStyle(fontSize: 14)),
+                                    Expanded(
+                                      child: Text(
+                                        tip,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.accentGreen,
+                                              height: 1.4,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          )),
+                              )).toList(),
+                        ),
+                      ),
                     ],
                   ],
                 ),
