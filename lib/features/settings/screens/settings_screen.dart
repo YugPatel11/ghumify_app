@@ -184,8 +184,13 @@ class SettingsScreen extends StatelessWidget {
         border: Border.all(color: AppColors.borderLight),
         boxShadow: AppTokens.shadow(level: 1),
       ),
-      child: Column(
-        children: children,
+      child: Material(
+        color: Colors.transparent,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        child: Column(
+          children: children,
+        ),
       ),
     );
   }

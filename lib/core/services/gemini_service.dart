@@ -7,10 +7,37 @@ import '../models/place_model.dart';
 
 /// Service for generating AI-powered itineraries using Google Gemini
 class GeminiService {
-  late final GenerativeModel _model;
+  int _currentKeyIndex = 0;
 
-  GeminiService() {
-    // Model initialization skipped for mock mode
+  GeminiService();
+
+  /// Helper to execute a Generative AI call with automatic API key rotation on failure
+  Future<String> _executeWithFailover(String prompt) async {
+    for (int i = 0; i < ApiKeys.geminiApiKeys.length; i++) {
+      try {
+        final apiKey = ApiKeys.geminiApiKeys[_currentKeyIndex];
+        if (apiKey.startsWith('YOUR_GEMINI_')) {
+          throw Exception('API key not configured.');
+        }
+
+        final model = GenerativeModel(
+          model: 'gemini-2.5-pro',
+          apiKey: apiKey,
+        );
+
+        final content = [Content.text(prompt)];
+        final response = await model.generateContent(content);
+        
+        if (response.text != null) {
+          return response.text!;
+        }
+      } catch (e) {
+        print('Gemini API key $_currentKeyIndex failed: $e');
+        // Rotate to the next key
+        _currentKeyIndex = (_currentKeyIndex + 1) % ApiKeys.geminiApiKeys.length;
+      }
+    }
+    throw GeminiException('All Gemini API keys failed.');
   }
 
   /// Generate a complete itinerary based on user inputs
@@ -26,47 +53,36 @@ class GeminiService {
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) async {
-    await Future.delayed(const Duration(seconds: 2)); // Mock delay
-    
-    return ItineraryModel(
-      id: 'mock_itinerary_123',
-      userId: userId,
+    final prompt = _buildItineraryPrompt(
       city: city,
       date: date,
       startTime: startTime,
       endTime: endTime,
-      totalDurationMinutes: 240,
       interests: interests,
       travelMode: travelMode,
       pace: pace,
-      weatherSummary: 'Sunny and pleasant',
-      whatToCarry: ['Water bottle', 'Sunglasses', 'Camera'],
-      aiSummary: 'A wonderful mock day out in $city focusing on ${interests.join(', ')}.',
-      stops: [
-        ItineraryStop(
-          name: 'City Museum',
-          type: 'place',
-          startTime: startTime,
-          endTime: '12:00',
-          durationMinutes: 120,
-          description: 'Explore the rich history and culture of $city.',
-          travelMode: travelMode,
-          travelMinutes: 15,
-          tips: ['Buy tickets online', 'Photography is allowed without flash'],
-        ),
-        ItineraryStop(
-          name: 'Local Food Market',
-          type: 'food',
-          startTime: '12:15',
-          endTime: '13:15',
-          durationMinutes: 60,
-          description: 'Try the famous local dishes and street food.',
-          travelMode: 'walking',
-          travelMinutes: 15,
-          tips: ['Try the spicy noodles', 'Carry cash'],
-        ),
-      ],
+      weather: weather,
+      knownPlaces: knownPlaces,
     );
+
+    try {
+      final responseText = await _executeWithFailover(prompt);
+      return _parseItineraryResponse(
+        responseText: responseText,
+        userId: userId,
+        city: city,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        interests: interests,
+        travelMode: travelMode,
+        pace: pace,
+        weather: weather,
+      );
+    } catch (e) {
+      if (e is GeminiException) rethrow;
+      throw GeminiException('Failed to generate itinerary: $e');
+    }
   }
 
   /// Build a structured prompt for itinerary generation
@@ -220,7 +236,7 @@ IMPORTANT:
         aiSummary: data['aiSummary'] as String?,
       );
     } catch (e) {
-      throw GeminiException('Failed to parse itinerary response: $e');
+      throw GeminiException('Failed to parse itinerary response: $e\nResponse was: $responseText');
     }
   }
 
@@ -241,8 +257,12 @@ IMPORTANT:
     required String placeName,
     required String city,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
-    return 'This is a mock history and description of $placeName in $city. Built many years ago, it remains one of the most culturally significant and visually stunning landmarks in the region. Visitors can expect to see magnificent architecture and learn about local traditions. The best time to visit is during the early morning hours to avoid the crowds.';
+    final prompt = 'Write a concise, engaging historical and cultural description (around 60-80 words) for $placeName in $city. Make it sound like a premium travel magazine feature.';
+    try {
+      return await _executeWithFailover(prompt);
+    } catch (e) {
+      return 'Editorial information is currently unavailable due to an error: $e';
+    }
   }
 
   /// Generate "What to Carry" suggestions based on context
@@ -252,14 +272,19 @@ IMPORTANT:
     WeatherModel? weather,
     required String timeOfDay, // morning, afternoon, evening
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return [
-      '📱 Fully charged phone',
-      '💧 Water bottle',
-      '💰 Some cash',
-      '🧴 Sunscreen',
-      '🎒 Comfortable backpack',
-    ];
+    final prompt = 'List exactly 5 short, emoji-prefixed items to carry for a trip to $city during the $timeOfDay. Weather is ${weather?.conditionDescription ?? "unknown"}. Places visiting: ${placeTypes.join(", ")}. Return only the 5 lines of text, no other formatting.';
+    try {
+      final response = await _executeWithFailover(prompt);
+      return response.split('\n').where((line) => line.trim().isNotEmpty).take(5).toList();
+    } catch (e) {
+      return [
+        '📱 Fully charged phone',
+        '💧 Water bottle',
+        '💰 Some cash',
+        '🧴 Sunscreen',
+        '🎒 Comfortable backpack',
+      ];
+    }
   }
 }
 

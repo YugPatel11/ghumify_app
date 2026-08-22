@@ -8,6 +8,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/models/weather_model.dart';
+import '../../../core/widgets/premium_background.dart';
+import '../../../core/widgets/premium_card.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/category_grid.dart';
 import '../widgets/popular_cities.dart';
@@ -57,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen>
         });
       }
     } catch (e) {
-      // Fallback — try with a default city
+      // Fallback
       try {
         final weather = await _weatherService.getCurrentWeather('New Delhi');
         if (mounted) {
@@ -78,101 +80,117 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    final greeting = _getGreeting();
-
+    
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
+      extendBodyBehindAppBar: true,
+      body: PremiumBackground(
+        imageUrl: 'https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=2000&auto=format&fit=crop', // Stunning India Landscape
+        imageHeight: 500,
+        overlayOpacity: 0.5,
         child: RefreshIndicator(
           onRefresh: _loadWeather,
           color: AppColors.brand,
           child: CustomScrollView(
             slivers: [
-              // Header
+              // ── Header (Logo & Location) ──
               SliverToBoxAdapter(
                 child: FadeTransition(
                   opacity: _animController,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                greeting,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(color: AppColors.textMuted),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.md, AppTokens.lg, 0),
+                      child: Row(
+                        children: [
+                          if (_currentCity != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withOpacity(0.2)),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                user?.name ?? 'Traveler',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 14, color: Colors.white),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _currentCity!.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                          const Spacer(),
+                          // Logo / App branding
+                          Text(
+                            'GHUMIFY',
+                            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              color: Colors.white,
+                              fontSize: 18,
+                              letterSpacing: 3,
+                            ),
                           ),
-                        ),
-                        // Logo
-                        Hero(
-                          tag: 'app_logo',
-                          child: Image.asset(
-                            AppConstants.logoPath,
-                            height: 48,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // Location
-              if (_currentCity != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: AppColors.brand,
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+              // ── Welcome Text ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getGreeting(),
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.5,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _currentCity!,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.brand,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Explore the\nUnexplored.',
+                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          color: Colors.white,
+                          fontSize: 56,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
               const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
-              // Plan Trip CTA
+              // ── Plan Trip Card (Editorial) ──
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
                   child: _buildPlanTripCard(context),
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
+              // ── Below the fold (Solid Background section) ──
               // Weather Card
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
                   child: WeatherCard(
                     weather: _weather,
                     isLoading: _loadingWeather,
@@ -181,45 +199,41 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
-              // Categories
+              // Categories Header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
                   child: Text(
-                    'Explore by Category',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    'Experiences',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
               ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
-
-              SliverToBoxAdapter(
-                child: const CategoryGrid(),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
+              const SliverToBoxAdapter(
+                child: CategoryGrid(),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
               // Popular Cities
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
                   child: Text(
                     'Popular Destinations',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
               ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
-
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
               const SliverToBoxAdapter(
                 child: PopularCities(),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
         ),
@@ -231,11 +245,18 @@ class _HomeScreenState extends State<HomeScreen>
     return GestureDetector(
       onTap: () => context.push('/plan-trip'),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppTokens.xl),
         decoration: BoxDecoration(
-          gradient: AppColors.heroGradient,
-          borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-          boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
+          color: Colors.white.withOpacity(0.95), // Solid luxury white
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: Border.all(color: Colors.white.withOpacity(0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -243,50 +264,49 @@ class _HomeScreenState extends State<HomeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Plan Your Trip ✈️',
+                  Text(
+                    'CURATED JOURNEYS',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
+                      color: AppColors.textSoft,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: 2,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Tell us your time & interests.\nAI will create the perfect itinerary!',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                      height: 1.4,
+                    'Craft Your\nPerfect Itinerary',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: AppColors.text,
+                      fontSize: 26,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                    ),
-                    child: const Text(
-                      'Start Planning →',
-                      style: TextStyle(
-                        color: AppColors.brandDeep,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                  const SizedBox(height: AppTokens.lg),
+                  Row(
+                    children: [
+                      Text(
+                        'START PLANNING',
+                        style: TextStyle(
+                          color: AppColors.brand,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          letterSpacing: 1.5,
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward, size: 16, color: AppColors.brand),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            Icon(
-              Icons.map_outlined,
-              size: 64,
-              color: Colors.white.withOpacity(0.2),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.brandSoft,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.map_outlined, color: AppColors.brand, size: 32),
             ),
           ],
         ),
@@ -296,8 +316,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning 🌅';
-    if (hour < 17) return 'Good Afternoon ☀️';
-    return 'Good Evening 🌙';
+    if (hour < 12) return 'GOOD MORNING';
+    if (hour < 17) return 'GOOD AFTERNOON';
+    return 'GOOD EVENING';
   }
 }

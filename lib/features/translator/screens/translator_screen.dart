@@ -3,6 +3,8 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/translation_service.dart';
+import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_background.dart';
 
 class TranslatorScreen extends StatefulWidget {
   const TranslatorScreen({super.key});
@@ -55,7 +57,7 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to translate: $e';
+        _error = 'Failed to translate. Please try again.';
         _isTranslating = false;
       });
     }
@@ -74,122 +76,106 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Translator',
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-              ),
-            ),
-
-            // Language Selector Card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                  border: Border.all(color: AppColors.borderLight, width: AppTokens.borderMedium),
-                  boxShadow: AppTokens.shadow(level: 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildLanguageSelector(
-                        value: _sourceLanguage,
-                        onChanged: (val) {
-                          if (val != null) setState(() => _sourceLanguage = val);
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _swapLanguages,
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.brandSoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.swap_horiz,
-                          color: AppColors.brand,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(
+          'TRANSLATOR',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.0,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+      ),
+      body: PremiumBackground(
+        imageUrl: 'https://images.unsplash.com/photo-1528181304800-259b08848526?q=80&w=2000&auto=format&fit=crop', // Minimal temple architecture
+        imageHeight: 300,
+        overlayOpacity: 0.5,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // Language Selector Card
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                child: PremiumCard(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildLanguageSelector(
+                          value: _sourceLanguage,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _sourceLanguage = val);
+                          },
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: _buildLanguageSelector(
-                        value: _targetLanguage,
-                        onChanged: (val) {
-                          if (val != null) setState(() => _targetLanguage = val);
-                        },
+                      IconButton(
+                        onPressed: _swapLanguages,
+                        icon: const Icon(Icons.swap_horiz, color: AppColors.textMuted),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: _buildLanguageSelector(
+                          value: _targetLanguage,
+                          onChanged: (val) {
+                            if (val != null) setState(() => _targetLanguage = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: AppTokens.lg),
+              const SizedBox(height: AppTokens.lg),
 
-            // Input Area
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Input TextField
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: AppColors.border, width: AppTokens.borderMedium),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _inputController,
-                            maxLines: 4,
-                            minLines: 3,
-                            decoration: const InputDecoration(
-                              hintText: 'Enter text to translate...',
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              fillColor: Colors.transparent,
-                            ),
-                            onSubmitted: (_) => _translate(),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: AppColors.cherryGradient,
-                                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+              // Input Area
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Input TextField
+                      PremiumCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(AppTokens.lg),
+                              child: TextField(
+                                controller: _inputController,
+                                maxLines: 4,
+                                minLines: 3,
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  height: 1.5,
                                 ),
+                                decoration: const InputDecoration(
+                                  hintText: 'Enter text to translate...',
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  fillColor: Colors.transparent,
+                                ),
+                                onSubmitted: (_) => _translate(),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(AppTokens.md),
+                              child: Align(
+                                alignment: Alignment.centerRight,
                                 child: ElevatedButton(
                                   onPressed: _isTranslating ? null : _translate,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
+                                    backgroundColor: AppColors.text, // Charcoal
+                                    foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 24,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                      vertical: 16,
                                     ),
                                   ),
                                   child: _isTranslating
@@ -208,87 +194,77 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    if (_error != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: AppColors.error),
-                        ),
-                      ),
-
-                    // Result Area
-                    if (_translatedText != null) ...[
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.brandSoft,
-                          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                          border: Border.all(color: AppColors.brand.withOpacity(0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Translation',
-                                  style: TextStyle(
-                                    color: AppColors.brandDeep,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.copy, size: 20),
-                                      color: AppColors.brand,
-                                      onPressed: () {
-                                        // Copy to clipboard
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _translatedText!,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: AppColors.text,
-                                  ),
-                            ),
                           ],
                         ),
                       ),
-                    ],
 
-                    if (_history.isNotEmpty) ...[
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Recent Translations',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(color: AppColors.error),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      ..._history.map((entry) => _buildHistoryItem(entry)),
+
+                      // Result Area
+                      if (_translatedText != null) ...[
+                        const SizedBox(height: AppTokens.xl),
+                        Container(
+                          padding: const EdgeInsets.all(AppTokens.xl),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandSoft,
+                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                            border: Border.all(color: AppColors.brandDeep.withOpacity(0.1)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'TRANSLATION',
+                                    style: TextStyle(
+                                      color: AppColors.brandDeep,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                  Icon(Icons.copy, size: 18, color: AppColors.brandDeep),
+                                ],
+                              ),
+                              const SizedBox(height: AppTokens.md),
+                              Text(
+                                _translatedText!,
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                      color: AppColors.brandDeep,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      if (_history.isNotEmpty) ...[
+                        const SizedBox(height: AppTokens.xxl),
+                        Text(
+                          'Recent',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: AppTokens.md),
+                        ..._history.map((entry) => _buildHistoryItem(entry)),
+                      ],
+                      const SizedBox(height: 100),
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -298,78 +274,60 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
     required String value,
     required ValueChanged<String?> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textMuted),
-          items: AppConstants.supportedLanguages.entries.map((entry) {
-            return DropdownMenuItem<String>(
-              value: entry.key,
-              child: Text(
-                entry.value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: value,
+        isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textMuted),
+        items: AppConstants.supportedLanguages.entries.map((entry) {
+          return DropdownMenuItem<String>(
+            value: entry.key,
+            child: Text(
+              entry.value,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-            );
-          }).toList(),
-          onChanged: onChanged,
-        ),
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
       ),
     );
   }
 
   Widget _buildHistoryItem(_TranslationEntry entry) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '${AppConstants.supportedLanguages[entry.from]} → ${AppConstants.supportedLanguages[entry.to]}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.md),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(AppTokens.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${AppConstants.supportedLanguages[entry.from]} → ${AppConstants.supportedLanguages[entry.to]}'.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 10,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            entry.source,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSoft,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            entry.translated,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
+            const SizedBox(height: AppTokens.sm),
+            Text(
+              entry.source,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSoft,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppTokens.xs),
+            Text(
+              entry.translated,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

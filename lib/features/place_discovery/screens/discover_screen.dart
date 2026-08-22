@@ -4,6 +4,8 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/models/place_model.dart';
+import '../../../core/widgets/premium_background.dart';
+import '../../../core/widgets/premium_card.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -23,7 +25,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   String _searchCity = '';
 
   final Map<String, IconData> _categoryIcons = {
-    'all': Icons.apps,
+    'all': Icons.public,
     'heritage': Icons.account_balance,
     'temples': Icons.temple_hindu,
     'food': Icons.restaurant,
@@ -97,133 +99,169 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-              child: Text(
-                'Discover',
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
-            ),
-            const SizedBox(height: AppTokens.md),
-
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search city (e.g. Indore)',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _places = [];
-                                    _searchCity = '';
-                                  });
-                                },
-                              )
-                            : null,
-                      ),
-                      onSubmitted: (_) => _searchPlaces(),
-                    ),
-                  ),
-                  const SizedBox(width: AppTokens.md),
-                  Container(
-                    height: 56,
-                    width: 56,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.cherryGradient,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                      boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 1),
-                    ),
-                    child: IconButton(
-                      onPressed: _searchPlaces,
-                      icon: const Icon(Icons.search, color: Colors.white, size: 28),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppTokens.lg),
-
-            // Category filter
-            SizedBox(
-              height: 48,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                children: _categoryIcons.entries.map((entry) {
-                  final isSelected = _selectedCategory == entry.key;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            entry.value,
-                            size: 16,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.brand,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Discover'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        centerTitle: false,
+        titleTextStyle: Theme.of(context).textTheme.displaySmall?.copyWith(
+          color: Colors.white,
+          fontSize: 28,
+        ),
+      ),
+      body: PremiumBackground(
+        imageUrl: 'https://images.unsplash.com/photo-1596422846543-74c6fc0e241e?q=80&w=2000&auto=format&fit=crop', // Varanasi ghats / cultural
+        imageHeight: 380,
+        overlayOpacity: 0.5,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppTokens.xl),
+              // ── Search Header ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                          border: Border.all(color: Colors.white.withOpacity(0.5)),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          decoration: InputDecoration(
+                            hintText: 'Search city (e.g. Jaipur)',
+                            hintStyle: TextStyle(color: AppColors.textSoft.withOpacity(0.7)),
+                            prefixIcon: const Icon(Icons.search, color: AppColors.textSoft),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, color: AppColors.textSoft),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {
+                                        _places = [];
+                                        _searchCity = '';
+                                      });
+                                    },
+                                  )
+                                : null,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            entry.key == 'all'
-                                ? 'All'
-                                : entry.key[0].toUpperCase() +
-                                    entry.key.substring(1),
-                          ),
-                        ],
-                      ),
-                      selected: isSelected,
-                      onSelected: (_) {
-                        setState(() => _selectedCategory = entry.key);
-                        if (_searchCity.isNotEmpty) _searchPlaces();
-                      },
-                      selectedColor: AppColors.brand,
-                      backgroundColor: AppColors.card,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                          onSubmitted: (_) => _searchPlaces(),
+                        ),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: AppTokens.md),
-
-            // Results
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
+                    const SizedBox(width: AppTokens.sm),
+                    Container(
+                      height: 56,
+                      width: 56,
+                      decoration: BoxDecoration(
                         color: AppColors.brand,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                       ),
-                    )
-                  : _error != null
-                      ? _buildError()
-                      : _places.isEmpty
-                          ? _buildEmptyState()
-                          : _buildPlacesList(),
-            ),
-          ],
+                      child: IconButton(
+                        onPressed: _searchPlaces,
+                        icon: const Icon(Icons.arrow_forward, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppTokens.lg),
+
+              // ── Categories ──
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  children: _categoryIcons.entries.map((entry) {
+                    final isSelected = _selectedCategory == entry.key;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: AppTokens.sm),
+                      child: FilterChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              entry.value,
+                              size: 16,
+                              color: isSelected ? Colors.white : AppColors.brand,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              entry.key == 'all'
+                                  ? 'All Places'
+                                  : entry.key[0].toUpperCase() + entry.key.substring(1),
+                            ),
+                          ],
+                        ),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          setState(() => _selectedCategory = entry.key);
+                          if (_searchCity.isNotEmpty) _searchPlaces();
+                        },
+                        selectedColor: AppColors.text,
+                        backgroundColor: isSelected ? AppColors.text : Colors.white.withOpacity(0.85),
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : AppColors.text,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.text : Colors.transparent,
+                          ),
+                        ),
+                        showCheckmark: false,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(height: AppTokens.lg),
+
+              // ── Results Body ──
+              Expanded(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.bg,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppTokens.radiusXl),
+                      topRight: Radius.circular(AppTokens.radiusXl),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppTokens.radiusXl),
+                      topRight: Radius.circular(AppTokens.radiusXl),
+                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(color: AppColors.brand),
+                          )
+                        : _error != null
+                            ? _buildError()
+                            : _places.isEmpty
+                                ? _buildEmptyState()
+                                : _buildPlacesList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -235,33 +273,32 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppTokens.xl),
             decoration: const BoxDecoration(
               color: AppColors.cardAlt,
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.explore_outlined,
-              size: 64,
-              color: AppColors.border,
+              size: 48,
+              color: AppColors.textMuted,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppTokens.lg),
           Text(
             _searchCity.isEmpty
-                ? 'Search for a city to discover places'
+                ? 'Discover hidden gems'
                 : 'No places found in $_searchCity',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.textSoft,
-                  fontWeight: FontWeight.w600,
                 ),
             textAlign: TextAlign.center,
           ),
           if (_searchCity.isEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppTokens.sm),
             Text(
-              'Try "Indore", "Jaipur", or "Varanasi"',
-              style: Theme.of(context).textTheme.bodySmall,
+              'Try searching "Indore", "Jaipur", or "Varanasi"',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ],
@@ -278,7 +315,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           const SizedBox(height: 16),
           Text(_error ?? 'Unknown error', style: const TextStyle(color: AppColors.textSoft)),
           const SizedBox(height: 16),
-          ElevatedButton(
+          OutlinedButton(
             onPressed: _searchPlaces,
             child: const Text('Retry'),
           ),
@@ -289,7 +326,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _buildPlacesList() {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+      padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
       itemCount: _places.length,
       itemBuilder: (context, index) {
         final place = _places[index];
@@ -299,123 +336,113 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _buildPlaceCard(PlaceModel place) {
-    return GestureDetector(
-      onTap: () {
-        context.push('/place/${place.id}', extra: {
-          'name': place.name,
-          'city': place.city,
-          'category': place.category,
-          'latitude': place.latitude,
-          'longitude': place.longitude,
-          'rating': place.rating,
-          'address': place.address,
-          'googlePlaceId': place.googlePlaceId,
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppTokens.md),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.md),
+      child: PremiumCard(
+        onTap: () {
+          context.push('/place/${place.id}', extra: {
+            'name': place.name,
+            'city': place.city,
+            'category': place.category,
+            'latitude': place.latitude,
+            'longitude': place.longitude,
+            'rating': place.rating,
+            'address': place.address,
+            'googlePlaceId': place.googlePlaceId,
+          });
+        },
         padding: const EdgeInsets.all(AppTokens.md),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-            color: AppColors.borderLight,
-            width: AppTokens.borderMedium,
-          ),
-          boxShadow: AppTokens.shadow(level: 1),
-        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category icon
+            // Category Icon Block
             Container(
-              width: 56,
-              height: 56,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                color: _getCategoryColor(place.category).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                color: _getCategoryColor(place.category).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                border: Border.all(color: _getCategoryColor(place.category).withOpacity(0.2)),
               ),
-              child: Icon(
-                _getCategoryIcon(place.category),
-                color: _getCategoryColor(place.category),
-                size: 28,
+              child: Center(
+                child: Icon(
+                  _getCategoryIcon(place.category),
+                  color: _getCategoryColor(place.category),
+                  size: 32,
+                ),
               ),
             ),
-            const SizedBox(width: AppTokens.md),
+            const SizedBox(width: AppTokens.lg),
 
-            // Info
+            // Content Block
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    place.name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    place.category.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: _getCategoryColor(place.category),
+                      letterSpacing: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  if (place.address != null && place.address!.isNotEmpty)
-                    Text(
-                      place.address!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    place.name,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(place.category).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          place.category.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: _getCategoryColor(place.category),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      if (place.rating != null) ...[
-                        const SizedBox(width: 8),
-                        const Icon(Icons.star, size: 14, color: AppColors.warning),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (place.address != null && place.address!.isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on, size: 14, color: AppColors.textMuted),
                         const SizedBox(width: 4),
-                        Text(
-                          place.rating!.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSoft,
+                        Expanded(
+                          child: Text(
+                            place.address!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),
-
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: AppColors.bg,
-                shape: BoxShape.circle,
+            
+            // Rating Block
+            if (place.rating != null) ...[
+              const SizedBox(width: AppTokens.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.accentSoft,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star, size: 12, color: AppColors.accentDeep),
+                    const SizedBox(width: 4),
+                    Text(
+                      place.rating!.toStringAsFixed(1),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.accentDeep,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.brand,
-                size: 20,
-              ),
-            ),
+            ],
           ],
         ),
       ),
@@ -440,10 +467,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         return AppColors.teal;
       case 'culture':
         return const Color(0xFFD946EF);
-      case 'adventure':
-        return const Color(0xFFF97316);
       default:
-        return AppColors.brand;
+        return AppColors.textSoft;
     }
   }
 }

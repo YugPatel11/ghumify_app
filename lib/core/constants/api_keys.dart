@@ -15,7 +15,16 @@ class ApiKeys {
   /// Get from: https://console.cloud.google.com/apis/credentials
   static const String googleTranslateApiKey = 'YOUR_GOOGLE_TRANSLATE_API_KEY';
 
-  /// Google Gemini AI API Key
+  /// Google Gemini AI API Keys (8 keys for failover rotation)
   /// Get from: https://aistudio.google.com/app/apikey
-  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
+  static const List<String> geminiApiKeys = [
+    'YOUR_GEMINI_API_KEY_1',
+    'YOUR_GEMINI_API_KEY_2',
+    'YOUR_GEMINI_API_KEY_3',
+    'YOUR_GEMINI_API_KEY_4',
+    'YOUR_GEMINI_API_KEY_5',
+    'YOUR_GEMINI_API_KEY_6',
+    'YOUR_GEMINI_API_KEY_7',
+    'YOUR_GEMINI_API_KEY_8',
+  ];
 }

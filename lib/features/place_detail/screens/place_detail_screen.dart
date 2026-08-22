@@ -4,6 +4,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/services/gemini_service.dart';
+import '../../../core/widgets/premium_card.dart';
 
 class PlaceDetailScreen extends StatefulWidget {
   final String placeId;
@@ -29,8 +30,6 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   bool _isLoading = true;
   bool _isLoadingHistory = true;
   late AnimationController _animController;
-  
-  bool _isAudioPlaying = false;
 
   String get _name => widget.placeData?['name'] ?? 'Place';
   String get _city => widget.placeData?['city'] ?? '';
@@ -57,38 +56,39 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   }
 
   Future<void> _loadDetails() async {
-    if (_googlePlaceId == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    try {
-      final details = await _placesService.getPlaceDetails(_googlePlaceId!);
-      if (mounted) {
+    if (_googlePlaceId != null) {
+      try {
+        final details = await _placesService.getPlaceDetails(_googlePlaceId!);
         setState(() {
           _details = details;
           _isLoading = false;
         });
         _animController.forward();
+      } catch (e) {
+        setState(() => _isLoading = false);
+        _animController.forward();
       }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+    } else {
+      setState(() => _isLoading = false);
+      _animController.forward();
     }
   }
 
   Future<void> _loadHistory() async {
     try {
-      final prompt =
-          "Write a 3 paragraph historical summary and cultural significance of $_name in $_city, India. Make it engaging for a tourist. Format it in plain text without markdown.";
-      final history = await _geminiService.generateText(prompt);
-      if (mounted) {
-        setState(() {
-          _history = history;
-          _isLoadingHistory = false;
-        });
-      }
+      final history = await _geminiService.generatePlaceHistory(
+        placeName: _name,
+        city: _city,
+      );
+      setState(() {
+        _history = history;
+        _isLoadingHistory = false;
+      });
     } catch (e) {
-      if (mounted) setState(() => _isLoadingHistory = false);
+      setState(() {
+        _history = 'Editorial information is currently unavailable.';
+        _isLoadingHistory = false;
+      });
     }
   }
 
@@ -98,358 +98,186 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
       backgroundColor: AppColors.bg,
       body: CustomScrollView(
         slivers: [
-          // App Bar
+          // ── Editorial Hero Header ──
           SliverAppBar(
-            expandedHeight: 300,
+            expandedHeight: 400,
             pinned: true,
+            backgroundColor: AppColors.brandDeep,
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
                   shape: BoxShape.circle,
+                  color: Colors.black.withOpacity(0.3),
                 ),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
+                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
               ),
               onPressed: () => context.pop(),
             ),
-            actions: [
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.favorite_border, color: Colors.white),
-                ),
-                onPressed: () {},
-              ),
-              const SizedBox(width: 8),
-            ],
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: _getCategoryGradient(_category),
+              titlePadding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.lg),
+              title: Text(
+                _name,
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  color: Colors.white,
+                  fontSize: 24,
+                  shadows: [
+                    Shadow(blurRadius: 10, color: Colors.black.withOpacity(0.5)),
+                  ],
                 ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Subtle pattern overlay could go here
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 160,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              AppColors.bg,
-                              AppColors.bg.withOpacity(0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 24,
-                      left: 24,
-                      right: 24,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                ),
-                                child: Text(
-                                  _category.toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ),
-                              if (_rating != null) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.4),
-                                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.star,
-                                          color: AppColors.accentLight, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _rating!.toStringAsFixed(1),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _name,
-                            style: const TextStyle(
-                              color: AppColors.text,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on,
-                                  color: AppColors.brand, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                _city,
-                                style: const TextStyle(
-                                  color: AppColors.textSoft,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    'https://images.unsplash.com/photo-1582510003544-4d00b7f7415e?q=80&w=2000&auto=format&fit=crop', // Taj Mahal / Heritage fallback
+                    fit: BoxFit.cover,
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.2),
+                          Colors.black.withOpacity(0.0),
+                          Colors.black.withOpacity(0.8),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // Content
+          // ── Content Area ──
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Quick Actions
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildActionButton(
-                          icon: _isAudioPlaying ? Icons.pause_circle : Icons.headset,
-                          label: 'Audio Guide',
-                          onTap: () {
-                            setState(() => _isAudioPlaying = !_isAudioPlaying);
-                          },
-                          isPrimary: true,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildActionButton(
-                          icon: Icons.directions_car,
-                          label: 'Book Ride',
-                          onTap: () {},
-                          isPrimary: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  if (_isAudioPlaying) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandSoft,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.volume_up, color: AppColors.brandDeep),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Playing Audio Guide...', style: TextStyle(color: AppColors.brandDeep, fontWeight: FontWeight.w700, fontSize: 13)),
-                                const SizedBox(height: 4),
-                                LinearProgressIndicator(
-                                  value: 0.3,
-                                  backgroundColor: AppColors.brand.withOpacity(0.2),
-                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.brandDeep),
-                                )
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                    )
-                  ],
-
-                  const SizedBox(height: 32),
-
-                  // History Section
-                  Row(
-                    children: [
-                      const Icon(Icons.history_edu, color: AppColors.brand),
-                      const SizedBox(width: 8),
-                      Text(
-                        'History & Culture',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  if (_isLoadingHistory)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: AppColors.brand),
-                      ),
-                    )
-                  else if (_history != null)
-                    Text(
-                      _history!,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.textSoft,
-                            height: 1.6,
-                          ),
-                    )
-                  else
-                    const Text('History not available.'),
-
-                  const SizedBox(height: 32),
-
-                  // Location Details
-                  if (_address != null) ...[
+            child: FadeTransition(
+              opacity: _animController,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Metadata Row ──
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, color: AppColors.brand),
-                        const SizedBox(width: 8),
                         Text(
-                          'Location',
-                          style: Theme.of(context).textTheme.headlineSmall,
+                          _category.toUpperCase(),
+                          style: TextStyle(
+                            color: AppColors.accentDeep,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2,
+                            fontSize: 12,
+                          ),
                         ),
+                        if (_rating != null) ...[
+                          const Spacer(),
+                          const Icon(Icons.star, size: 16, color: AppColors.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            _rating!.toStringAsFixed(1),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: AppColors.borderLight),
-                        boxShadow: AppTokens.shadow(level: 1),
-                      ),
-                      child: Row(
+                    const SizedBox(height: AppTokens.lg),
+
+                    // ── Location Details ──
+                    if (_address != null && _address!.isNotEmpty)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.brandSoft,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.map, color: AppColors.brand),
+                          const Icon(
+                            Icons.location_on_outlined,
+                            size: 20,
+                            color: AppColors.textMuted,
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: AppTokens.sm),
                           Expanded(
                             child: Text(
                               _address!,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSoft,
-                                height: 1.4,
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: AppColors.textSoft,
+                                  ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
 
-                  // Details API Data
-                  if (_isLoading)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: AppColors.brand),
-                      ),
-                    )
-                  else if (_details != null) ...[
-                    if (_details!['opening_hours'] != null) ...[
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time, color: AppColors.brand),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Opening Hours',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                          border: Border.all(color: AppColors.borderLight),
-                          boxShadow: AppTokens.shadow(level: 1),
-                        ),
-                        child: Column(
-                          children: (_details!['opening_hours']['weekday_text']
-                                  as List<dynamic>)
-                              .map((day) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.check_circle,
-                                            size: 16, color: AppColors.teal),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            day.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: AppColors.textSoft,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ),
+                    if (_details?['opening_hours'] != null) ...[
+                      const SizedBox(height: AppTokens.md),
+                      _buildOpeningHours(),
                     ],
+
+                    const SizedBox(height: AppTokens.xl),
+
+                    // ── Editorial History / About ──
+                    Text(
+                      'The Story',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(fontSize: 28),
+                    ),
+                    const SizedBox(height: AppTokens.md),
+                    _isLoadingHistory
+                        ? Column(
+                            children: List.generate(
+                              4,
+                              (index) => Container(
+                                height: 16,
+                                margin: const EdgeInsets.only(bottom: AppTokens.sm),
+                                decoration: BoxDecoration(
+                                  color: AppColors.borderLight,
+                                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Text(
+                            _history ?? 'Information not available.',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: AppColors.text,
+                                  height: 1.8, // Editorial line height
+                                  letterSpacing: 0.2,
+                                ),
+                          ),
+
+                    const SizedBox(height: AppTokens.xxl),
+
+                    // ── Reviews ──
+                    if (_details?['reviews'] != null) ...[
+                      Text(
+                        'Voices',
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(fontSize: 28),
+                      ),
+                      const SizedBox(height: AppTokens.md),
+                      ..._buildReviews(),
+                      const SizedBox(height: AppTokens.xl),
+                    ],
+
+                    // ── Action Button ──
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          context.push('/plan-trip', extra: {'city': _city});
+                        },
+                        icon: const Icon(Icons.map_outlined),
+                        label: const Text('Add to Itinerary'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.brand,
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.xl),
                   ],
-                  const SizedBox(height: 60), // bottom padding
-                ],
+                ),
               ),
             ),
           ),
@@ -458,62 +286,93 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required bool isPrimary,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          gradient: isPrimary ? AppColors.cherryGradient : null,
-          color: isPrimary ? null : AppColors.card,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: isPrimary ? null : Border.all(color: AppColors.border),
-          boxShadow: isPrimary ? AppTokens.coloredShadow(AppColors.brand, level: 1) : AppTokens.shadow(level: 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildOpeningHours() {
+    final hours = _details?['opening_hours'];
+    if (hours == null) return const SizedBox.shrink();
+
+    final isOpen = hours['open_now'] as bool? ?? false;
+    final weekdayText = hours['weekday_text'] as List? ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
             Icon(
-              icon,
+              Icons.access_time,
               size: 20,
-              color: isPrimary ? Colors.white : AppColors.text,
+              color: isOpen ? AppColors.brand : AppColors.error,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTokens.sm),
             Text(
-              label,
-              style: TextStyle(
-                color: isPrimary ? Colors.white : AppColors.text,
-                fontSize: 14,
+              isOpen ? 'Open Now' : 'Closed',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: isOpen ? AppColors.brand : AppColors.error,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
-      ),
+        if (weekdayText.isNotEmpty) ...[
+          const SizedBox(height: AppTokens.sm),
+          ...weekdayText.take(7).map((day) => Padding(
+                padding: const EdgeInsets.only(bottom: 4, left: 28),
+                child: Text(
+                  day.toString(),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSoft,
+                      ),
+                ),
+              )),
+        ],
+      ],
     );
   }
 
-  LinearGradient _getCategoryGradient(String category) {
-    switch (category) {
-      case 'heritage':
-        return AppColors.cherryGradient;
-      case 'temples':
-        return AppColors.saffronGradient;
-      case 'food':
-        return AppColors.roseGradient;
-      case 'markets':
-        return AppColors.indigoGradient;
-      case 'nature':
-        return AppColors.tealGradient;
-      case 'culture':
-        return AppColors.sunsetGradient;
-      default:
-        return AppColors.cherryGradient;
-    }
+  List<Widget> _buildReviews() {
+    final reviews = _details?['reviews'] as List? ?? [];
+    return reviews.take(3).map((review) {
+      final r = review as Map<String, dynamic>;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppTokens.md),
+        child: PremiumCard(
+          padding: const EdgeInsets.all(AppTokens.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    (r['author_name'] ?? 'Anonymous').toString().toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      letterSpacing: 1.2,
+                      color: AppColors.textSoft,
+                    ),
+                  ),
+                  const Spacer(),
+                  ...List.generate(
+                    (r['rating'] as num?)?.toInt() ?? 0,
+                    (_) => const Icon(Icons.star, size: 14, color: AppColors.text),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTokens.sm),
+              Text(
+                r['text'] ?? '',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  height: 1.5,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.text,
+                ),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 }
