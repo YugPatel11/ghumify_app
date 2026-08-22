@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
 import '../models/user_model.dart';
 
 /// Auth state provider
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
 
   UserModel? _user;
   bool _isLoading = false;
