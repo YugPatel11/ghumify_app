@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 
 class CategoryGrid extends StatelessWidget {
   const CategoryGrid({super.key});
 
-  static final List<_CategoryItem> _categories = [
-    _CategoryItem('Heritage', Icons.account_balance, AppColors.primaryOrange, 'heritage'),
-    _CategoryItem('Temples', Icons.temple_hindu, AppColors.accentGreen, 'temples'),
-    _CategoryItem('Food', Icons.restaurant, AppColors.error, 'food'),
-    _CategoryItem('Markets', Icons.storefront, AppColors.secondaryBlue, 'markets'),
-    _CategoryItem('Nature', Icons.park, Color(0xFF66BB6A), 'nature'),
-    _CategoryItem('Culture', Icons.theater_comedy, Color(0xFFAB47BC), 'culture'),
-    _CategoryItem('Adventure', Icons.hiking, Color(0xFFFF7043), 'adventure'),
-    _CategoryItem('Hidden Gems', Icons.auto_awesome, Color(0xFFFFCA28), 'hidden_gems'),
+  static const List<_CategoryItem> _categories = [
+    _CategoryItem('Heritage', Icons.account_balance, AppColors.brand, 'heritage'),
+    _CategoryItem('Temples', Icons.temple_hindu, AppColors.accent, 'temples'),
+    _CategoryItem('Food', Icons.restaurant, AppColors.rose, 'food'),
+    _CategoryItem('Markets', Icons.storefront, AppColors.indigo, 'markets'),
+    _CategoryItem('Nature', Icons.park, AppColors.teal, 'nature'),
+    _CategoryItem('Culture', Icons.theater_comedy, Color(0xFFD946EF), 'culture'),
+    _CategoryItem('Adventure', Icons.hiking, Color(0xFFF97316), 'adventure'),
+    _CategoryItem('Hidden Gems', Icons.auto_awesome, Color(0xFFEAB308), 'hidden_gems'),
   ];
 
   @override
@@ -25,8 +26,8 @@ class CategoryGrid extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 12,
+          mainAxisSpacing: AppTokens.md,
+          crossAxisSpacing: AppTokens.sm,
           childAspectRatio: 0.8,
         ),
         itemCount: _categories.length,
@@ -44,7 +45,7 @@ class CategoryGrid extends StatelessWidget {
                   height: 56,
                   decoration: BoxDecoration(
                     color: cat.color.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                   ),
                   child: Icon(
                     cat.icon,
@@ -52,12 +53,12 @@ class CategoryGrid extends StatelessWidget {
                     size: 28,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTokens.sm),
                 Text(
                   cat.label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
                       ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -78,5 +79,5 @@ class _CategoryItem {
   final Color color;
   final String id;
 
-  _CategoryItem(this.label, this.icon, this.color, this.id);
+  const _CategoryItem(this.label, this.icon, this.color, this.id);
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/weather_service.dart';
@@ -80,10 +81,11 @@ class _HomeScreenState extends State<HomeScreen>
     final greeting = _getGreeting();
 
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadWeather,
-          color: AppColors.primaryOrange,
+          color: AppColors.brand,
           child: CustomScrollView(
             slivers: [
               // Header
@@ -103,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
-                                    ?.copyWith(color: AppColors.neutral500),
+                                    ?.copyWith(color: AppColors.textMuted),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -136,18 +138,18 @@ class _HomeScreenState extends State<HomeScreen>
                     padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
                     child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.location_on,
                           size: 16,
-                          color: AppColors.primaryOrange,
+                          color: AppColors.brand,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           _currentCity!,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.primaryOrange,
-                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.brand,
+                                    fontWeight: FontWeight.w600,
                                   ),
                         ),
                       ],
@@ -155,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
               // Plan Trip CTA
               SliverToBoxAdapter(
@@ -165,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
               // Weather Card
               SliverToBoxAdapter(
@@ -179,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
               // Categories
               SliverToBoxAdapter(
@@ -192,13 +194,13 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
 
               SliverToBoxAdapter(
                 child: const CategoryGrid(),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
               // Popular Cities
               SliverToBoxAdapter(
@@ -211,13 +213,13 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
 
               const SliverToBoxAdapter(
                 child: PopularCities(),
               ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
             ],
           ),
         ),
@@ -232,14 +234,8 @@ class _HomeScreenState extends State<HomeScreen>
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: AppColors.heroGradient,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryOrange.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+          boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
         ),
         child: Row(
           children: [
@@ -252,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen>
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -272,13 +268,13 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                     ),
                     child: const Text(
                       'Start Planning →',
                       style: TextStyle(
-                        color: AppColors.primaryOrangeDark,
-                        fontWeight: FontWeight.w600,
+                        color: AppColors.brandDeep,
+                        fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
                     ),
@@ -287,10 +283,10 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             const SizedBox(width: 12),
-            const Icon(
+            Icon(
               Icons.map_outlined,
               size: 64,
-              color: Colors.white24,
+              color: Colors.white.withOpacity(0.2),
             ),
           ],
         ),

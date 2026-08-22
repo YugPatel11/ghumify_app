@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 
 /// Main shell with bottom navigation bar
 class MainShell extends StatelessWidget {
@@ -41,9 +42,13 @@ class MainShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: AppColors.card,
+          border: const Border(
+            top: BorderSide(color: AppColors.borderLight, width: 1),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: AppColors.text.withOpacity(0.04),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -54,26 +59,28 @@ class MainShell extends StatelessWidget {
           onDestinationSelected: (index) => _onItemTapped(context, index),
           animationDuration: const Duration(milliseconds: 400),
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          indicatorColor: AppColors.primaryOrange.withOpacity(0.15),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: AppColors.brandSoft,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded, color: AppColors.primaryOrange),
+              selectedIcon: Icon(Icons.home_rounded, color: AppColors.brand),
               label: 'Home',
             ),
             NavigationDestination(
               icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore_rounded, color: AppColors.primaryOrange),
+              selectedIcon: Icon(Icons.explore_rounded, color: AppColors.brand),
               label: 'Discover',
             ),
             NavigationDestination(
               icon: Icon(Icons.translate_outlined),
-              selectedIcon: Icon(Icons.translate_rounded, color: AppColors.primaryOrange),
+              selectedIcon: Icon(Icons.translate_rounded, color: AppColors.brand),
               label: 'Translate',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded, color: AppColors.primaryOrange),
+              selectedIcon: Icon(Icons.settings_rounded, color: AppColors.brand),
               label: 'Settings',
             ),
           ],

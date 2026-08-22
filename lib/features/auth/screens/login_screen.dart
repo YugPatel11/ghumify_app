@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_provider.dart';
 
@@ -93,9 +94,10 @@ class _LoginScreenState extends State<LoginScreen>
     final isLoading = context.watch<AuthProvider>().isLoading;
 
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.xl),
           child: FadeTransition(
             opacity: _fadeAnim,
             child: SlideTransition(
@@ -115,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTokens.xl),
 
                   // Welcome text
                   Text(
@@ -123,11 +125,11 @@ class _LoginScreenState extends State<LoginScreen>
                     style: Theme.of(context).textTheme.displaySmall,
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTokens.sm),
                   Text(
                     'Sign in to continue exploring',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.neutral500,
+                          color: AppColors.textMuted,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -158,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppTokens.lg),
 
                         // Password
                         TextFormField(
@@ -192,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen>
                             return null;
                           },
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppTokens.md),
 
                         // Forgot password
                         Align(
@@ -204,24 +206,45 @@ class _LoginScreenState extends State<LoginScreen>
                             child: const Text('Forgot Password?'),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppTokens.xl),
 
                         // Login button
                         SizedBox(
                           width: double.infinity,
                           height: 56,
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : _handleLogin,
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: AppColors.cherryGradient,
+                              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                              boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 1),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: isLoading ? null : _handleLogin,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                                ),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign In',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  )
-                                : const Text('Sign In'),
+                            ),
                           ),
                         ),
                       ],
@@ -233,19 +256,21 @@ class _LoginScreenState extends State<LoginScreen>
                   // Divider
                   Row(
                     children: [
-                      const Expanded(child: Divider()),
+                      const Expanded(child: Divider(color: AppColors.border)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'OR',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
                         ),
                       ),
-                      const Expanded(child: Divider()),
+                      const Expanded(child: Divider(color: AppColors.border)),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTokens.xl),
 
                   // Google Sign In
                   SizedBox(
@@ -272,7 +297,9 @@ class _LoginScreenState extends State<LoginScreen>
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSoft,
+                            ),
                       ),
                       GestureDetector(
                         onTap: () => context.go('/signup'),
@@ -280,14 +307,14 @@ class _LoginScreenState extends State<LoginScreen>
                           'Sign Up',
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.primaryOrange,
-                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.brand,
+                                    fontWeight: FontWeight.w700,
                                   ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTokens.xl),
                 ],
               ),
             ),
@@ -302,7 +329,9 @@ class _LoginScreenState extends State<LoginScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        ),
         title: const Text('Reset Password'),
         content: Column(
           mainAxisSize: MainAxisSize.min,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../../app/theme/app_tokens.dart';
+import '../../../core/services/gemini_service.dart';
 import '../../../core/services/location_service.dart';
-import '../../../core/services/places_service.dart';
 
 class TripInputScreen extends StatefulWidget {
   const TripInputScreen({super.key});
@@ -13,28 +13,45 @@ class TripInputScreen extends StatefulWidget {
 }
 
 class _TripInputScreenState extends State<TripInputScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _cityController = TextEditingController();
+  final _geminiService = GeminiService();
   final _locationService = LocationService();
-  final _placesService = PlacesService();
+  final _cityController = TextEditingController();
 
-  TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 18, minute: 0);
-  String _travelMode = 'driving';
-  String _pace = 'moderate';
-  final Set<String> _selectedInterests = {'Famous Places', 'Local Food'};
-  bool _isDetectingLocation = false;
-  List<Map<String, String>> _citySuggestions = [];
-  bool _showSuggestions = false;
+  int _days = 2;
+  String _interests = 'Culture, Food, Heritage';
+  bool _isLoading = false;
+
+  final List<String> _commonInterests = [
+    'Culture',
+    'Food',
+    'Heritage',
+    'Nature',
+    'Shopping',
+    'Adventure',
+    'Temples',
+    'Photography',
+  ];
+  
+  final Set<String> _selectedInterests = {'Culture', 'Food', 'Heritage'};
 
   @override
   void initState() {
     super.initState();
-    // Check if city was passed via extra
+    _loadCurrentCity();
+  }
+
+  Future<void> _loadCurrentCity() async {
+    try {
+      final city = await _locationService.getCurrentCity();
+      if (mounted && _cityController.text.isEmpty) {
+        _cityController.text = city;
+      }
+    } catch (_) {}
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
       if (extra != null && extra['city'] != null) {
-        _cityController.text = extra['city'] as String;
+        _cityController.text = extra['city'];
       }
     });
   }
@@ -45,481 +62,298 @@ class _TripInputScreenState extends State<TripInputScreen> {
     super.dispose();
   }
 
-  Future<void> _detectLocation() async {
-    setState(() => _isDetectingLocation = true);
-    try {
-      final city = await _locationService.getCurrentCity();
-      _cityController.text = city;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not detect location: $e')),
-        );
-      }
-    }
-    setState(() => _isDetectingLocation = false);
-  }
-
-  Future<void> _searchCity(String query) async {
-    if (query.length < 2) {
-      setState(() {
-        _citySuggestions = [];
-        _showSuggestions = false;
-      });
-      return;
-    }
-
-    final suggestions = await _placesService.autocomplete(query);
+  void _toggleInterest(String interest) {
     setState(() {
-      _citySuggestions = suggestions;
-      _showSuggestions = suggestions.isNotEmpty;
+      if (_selectedInterests.contains(interest)) {
+        if (_selectedInterests.length > 1) {
+          _selectedInterests.remove(interest);
+        }
+      } else {
+        _selectedInterests.add(interest);
+      }
+      _interests = _selectedInterests.join(', ');
     });
   }
 
-  Future<void> _pickTime(bool isStart) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? _startTime : _endTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            timePickerTheme: TimePickerThemeData(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          _startTime = picked;
-        } else {
-          _endTime = picked;
-        }
-      });
-    }
-  }
-
-  int get _durationHours {
-    final startMinutes = _startTime.hour * 60 + _startTime.minute;
-    final endMinutes = _endTime.hour * 60 + _endTime.minute;
-    return ((endMinutes - startMinutes) / 60).round().clamp(1, 24);
-  }
-
-  void _generateItinerary() {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedInterests.isEmpty) {
+  Future<void> _generateItinerary() async {
+    final city = _cityController.text.trim();
+    if (city.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one interest')),
+        const SnackBar(
+          content: Text('Please enter a destination city'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
 
-    final data = {
-      'city': _cityController.text.trim(),
-      'startTime': '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-      'endTime': '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
-      'interests': _selectedInterests.toList(),
-      'travelMode': _travelMode,
-      'pace': _pace,
-      'date': DateTime.now().toString().split(' ').first,
-    };
+    setState(() => _isLoading = true);
 
-    context.push('/itinerary', extra: data);
+    try {
+      final prompt = '''
+Create a detailed, day-by-day $_days-day travel itinerary for $city, India.
+Focus on these interests: $_interests.
+Format the response using Markdown. 
+Include timing, exact places to visit, and local food recommendations.
+''';
+      final result = await _geminiService.generateText(prompt);
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        context.push('/itinerary', extra: {
+          'city': city,
+          'days': _days,
+          'itinerary': result,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate itinerary: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: const Text('Plan Your Trip'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).scaffoldBackgroundColor,
-                Theme.of(context).scaffoldBackgroundColor.withOpacity(0.0),
-              ],
-            ),
-          ),
-        ),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            ),
-            child: const Icon(Icons.arrow_back_rounded, size: 20),
-          ),
-          onPressed: () => context.pop(),
-        ),
+        backgroundColor: AppColors.bg,
       ),
-      extendBodyBehindAppBar: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Text(
-                  'Where to next?',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Let AI curate the perfect itinerary for you.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.neutral500,
-                      ),
-                ),
-                const SizedBox(height: 32),
-              const SizedBox(height: 12),
-              Row(
+      body: _isLoading
+          ? _buildLoadingState()
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cityController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter city name',
-                        prefixIcon: Icon(Icons.location_city),
-                      ),
-                      onChanged: _searchCity,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a city';
-                        }
-                        return null;
-                      },
+                  // Header
+                  Text(
+                    'Design Your Perfect Journey',
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tell us where and what you love, and our AI will craft a custom itinerary.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSoft,
+                        ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Destination
+                  _buildSectionLabel(Icons.location_on, 'Destination'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _cityController,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Jaipur, Varanasi, Goa',
+                      prefixIcon: Icon(Icons.place_outlined),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // GPS button
+                  const SizedBox(height: 32),
+
+                  // Duration
+                  _buildSectionLabel(Icons.calendar_today, 'Duration'),
+                  const SizedBox(height: 12),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.primaryOrange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      border: Border.all(color: AppColors.borderLight),
+                      boxShadow: AppTokens.shadow(level: 1),
                     ),
-                    child: IconButton(
-                      onPressed:
-                          _isDetectingLocation ? null : _detectLocation,
-                      icon: _isDetectingLocation
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(
-                              Icons.my_location,
-                              color: AppColors.primaryOrange,
-                            ),
-                      tooltip: 'Use GPS location',
-                    ),
-                  ),
-                ],
-              ),
-
-              // City suggestions
-              if (_showSuggestions)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _citySuggestions.length.clamp(0, 5),
-                    itemBuilder: (context, index) {
-                      final suggestion = _citySuggestions[index];
-                      return ListTile(
-                        leading: const Icon(Icons.location_on_outlined,
-                            size: 20),
-                        title: Text(
-                          suggestion['description'] ?? '',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        dense: true,
-                        onTap: () {
-                          final desc = suggestion['description'] ?? '';
-                          _cityController.text =
-                              desc.split(',').first.trim();
-                          setState(() => _showSuggestions = false);
-                        },
-                      );
-                    },
-                  ),
-                ),
-
-              const SizedBox(height: 28),
-
-              // Time Range
-              Text('Available Time',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTimePicker(
-                      label: 'Start',
-                      time: _startTime,
-                      onTap: () => _pickTime(true),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(Icons.arrow_forward, color: AppColors.neutral400),
-                  ),
-                  Expanded(
-                    child: _buildTimePicker(
-                      label: 'End',
-                      time: _endTime,
-                      onTap: () => _pickTime(false),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '⏱️ Total: $_durationHours hours',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.primaryOrange,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Interests
-              Text('What interests you?',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: AppConstants.interestTags.map((interest) {
-                  final isSelected = _selectedInterests.contains(interest);
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selectedInterests.remove(interest);
-                        } else {
-                          _selectedInterests.add(interest);
-                        }
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryOrange : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.primaryOrange.withOpacity(0.4),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                )
-                              ]
-                            : [],
-                      ),
-                      child: Text(
-                        interest,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Travel Mode
-              Text('Travel Mode',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildModeChip('🚗 Driving', 'driving'),
-                  const SizedBox(width: 8),
-                  _buildModeChip('🚶 Walking', 'walking'),
-                  const SizedBox(width: 8),
-                  _buildModeChip('🚌 Transit', 'transit'),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Pace
-              Text('Pace Preference',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildModeChip('🐢 Relaxed', 'relaxed', isPace: true),
-                  const SizedBox(width: 8),
-                  _buildModeChip('🚶 Moderate', 'moderate', isPace: true),
-                  const SizedBox(width: 8),
-                  _buildModeChip('🏃 Fast', 'fast', isPace: true),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-
-              // Generate Button
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.heroGradient,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryOrange.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _generateItinerary,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
                       children: [
-                        Icon(Icons.auto_awesome, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          'Generate Itinerary',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$_days Days',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.brandDeep,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandSoft,
+                                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                              ),
+                              child: const Text(
+                                'Recommended: 2-5 days',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.brand,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SliderTheme(
+                          data: SliderThemeData(
+                            activeTrackColor: AppColors.brand,
+                            inactiveTrackColor: AppColors.border,
+                            thumbColor: AppColors.brand,
+                            overlayColor: AppColors.brand.withOpacity(0.12),
+                            trackHeight: 6,
+                          ),
+                          child: Slider(
+                            value: _days.toDouble(),
+                            min: 1,
+                            max: 10,
+                            divisions: 9,
+                            label: _days.toString(),
+                            onChanged: (val) => setState(() => _days = val.toInt()),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 32),
 
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
-      ),
-      ),
+                  // Interests
+                  _buildSectionLabel(Icons.favorite_border, 'Your Interests'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 12,
+                    children: _commonInterests.map((interest) {
+                      final isSelected = _selectedInterests.contains(interest);
+                      return FilterChip(
+                        label: Text(interest),
+                        selected: isSelected,
+                        onSelected: (_) => _toggleInterest(interest),
+                        selectedColor: AppColors.brand,
+                        backgroundColor: AppColors.card,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : AppColors.text,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.brand : AppColors.border,
+                            width: AppTokens.borderMedium,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        showCheckmark: true,
+                        checkmarkColor: Colors.white,
+                      ),
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.cherryGradient,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                        boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: _generateItinerary,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.auto_awesome, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              'Generate Itinerary',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
-  Widget _buildTimePicker({
-    required String label,
-    required TimeOfDay time,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).inputDecorationTheme.fillColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.neutral200),
+  Widget _buildSectionLabel(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.brand, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.access_time, size: 20, color: AppColors.primaryOrange),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: Theme.of(context).textTheme.labelSmall),
-                Text(
-                  time.format(context),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
-  Widget _buildModeChip(String label, String value, {bool isPace = false}) {
-    final isSelected = isPace ? _pace == value : _travelMode == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            if (isPace) {
-              _pace = value;
-            } else {
-              _travelMode = value;
-            }
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.primaryOrange.withOpacity(0.15)
-                : Theme.of(context).inputDecorationTheme.fillColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? AppColors.primaryOrange
-                  : AppColors.neutral200,
-              width: isSelected ? 2 : 1,
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: AppColors.cherryGradient,
+              shape: BoxShape.circle,
+              boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 48,
             ),
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected
-                    ? AppColors.primaryOrange
-                    : Theme.of(context).colorScheme.onSurface,
-              ),
+          const SizedBox(height: 32),
+          Text(
+            'Crafting your magic itinerary...',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Analyzing best routes, foods, and spots.',
+            style: TextStyle(color: AppColors.textSoft),
+          ),
+          const SizedBox(height: 32),
+          const SizedBox(
+            width: 200,
+            child: LinearProgressIndicator(
+              color: AppColors.brand,
+              backgroundColor: AppColors.border,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

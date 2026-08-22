@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/services/gemini_service.dart';
 
@@ -28,6 +29,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   bool _isLoading = true;
   bool _isLoadingHistory = true;
   late AnimationController _animController;
+  
+  bool _isAudioPlaying = false;
 
   String get _name => widget.placeData?['name'] ?? 'Place';
   String get _city => widget.placeData?['city'] ?? '';
@@ -54,105 +57,188 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   }
 
   Future<void> _loadDetails() async {
-    if (_googlePlaceId != null) {
-      try {
-        final details =
-            await _placesService.getPlaceDetails(_googlePlaceId!);
+    if (_googlePlaceId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final details = await _placesService.getPlaceDetails(_googlePlaceId!);
+      if (mounted) {
         setState(() {
           _details = details;
           _isLoading = false;
         });
         _animController.forward();
-      } catch (e) {
-        setState(() => _isLoading = false);
-        _animController.forward();
       }
-    } else {
-      setState(() => _isLoading = false);
-      _animController.forward();
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadHistory() async {
     try {
-      final history = await _geminiService.generatePlaceHistory(
-        placeName: _name,
-        city: _city,
-      );
-      setState(() {
-        _history = history;
-        _isLoadingHistory = false;
-      });
+      final prompt =
+          "Write a 3 paragraph historical summary and cultural significance of $_name in $_city, India. Make it engaging for a tourist. Format it in plain text without markdown.";
+      final history = await _geminiService.generateText(prompt);
+      if (mounted) {
+        setState(() {
+          _history = history;
+          _isLoadingHistory = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _history = 'Historical information is currently unavailable.';
-        _isLoadingHistory = false;
-      });
+      if (mounted) setState(() => _isLoadingHistory = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: CustomScrollView(
         slivers: [
-          // Hero app bar
+          // App Bar
           SliverAppBar(
-            expandedHeight: 260,
+            expandedHeight: 300,
             pinned: true,
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => context.pop(),
-              ),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                _name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  shadows: [
-                    Shadow(blurRadius: 8, color: Colors.black54),
-                  ],
+            leading: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
               ),
+              onPressed: () => context.pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.favorite_border, color: Colors.white),
+                ),
+                onPressed: () {},
+              ),
+              const SizedBox(width: 8),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      _getCategoryColor(_category),
-                      _getCategoryColor(_category).withOpacity(0.7),
-                    ],
-                  ),
+                  gradient: _getCategoryGradient(_category),
                 ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Category icon as background
-                    Center(
-                      child: Icon(
-                        _getCategoryIcon(_category),
-                        size: 100,
-                        color: Colors.white.withOpacity(0.2),
+                    // Subtle pattern overlay could go here
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 160,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              AppColors.bg,
+                              AppColors.bg.withOpacity(0.0),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    // Gradient overlay
-                    const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black45],
-                        ),
+                    Positioned(
+                      bottom: 24,
+                      left: 24,
+                      right: 24,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                ),
+                                child: Text(
+                                  _category.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              if (_rating != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.star,
+                                          color: AppColors.accentLight, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _rating!.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _name,
+                            style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on,
+                                  color: AppColors.brand, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                _city,
+                                style: const TextStyle(
+                                  color: AppColors.textSoft,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -163,162 +249,207 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
 
           // Content
           SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _animController,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Quick info row
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quick Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: _isAudioPlaying ? Icons.pause_circle : Icons.headset,
+                          label: 'Audio Guide',
+                          onTap: () {
+                            setState(() => _isAudioPlaying = !_isAudioPlaying);
+                          },
+                          isPrimary: true,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.directions_car,
+                          label: 'Book Ride',
+                          onTap: () {},
+                          isPrimary: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  if (_isAudioPlaying) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoft,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.volume_up, color: AppColors.brandDeep),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Playing Audio Guide...', style: TextStyle(color: AppColors.brandDeep, fontWeight: FontWeight.w700, fontSize: 13)),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value: 0.3,
+                                  backgroundColor: AppColors.brand.withOpacity(0.2),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.brandDeep),
+                                )
+                              ],
+                            ),
+                          )
+                        ],
+                      ),
+                    )
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // History Section
+                  Row(
+                    children: [
+                      const Icon(Icons.history_edu, color: AppColors.brand),
+                      const SizedBox(width: 8),
+                      Text(
+                        'History & Culture',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_isLoadingHistory)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: AppColors.brand),
+                      ),
+                    )
+                  else if (_history != null)
+                    Text(
+                      _history!,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: AppColors.textSoft,
+                            height: 1.6,
+                          ),
+                    )
+                  else
+                    const Text('History not available.'),
+
+                  const SizedBox(height: 32),
+
+                  // Location Details
+                  if (_address != null) ...[
                     Row(
                       children: [
-                        // Category badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(_category)
-                                .withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _getCategoryIcon(_category),
-                                size: 16,
-                                color: _getCategoryColor(_category),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _category[0].toUpperCase() +
-                                    _category.substring(1),
-                                style: TextStyle(
-                                  color: _getCategoryColor(_category),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                        const Icon(Icons.location_on_outlined, color: AppColors.brand),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Location',
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-
-                        // Rating
-                        if (_rating != null) ...[
-                          const SizedBox(width: 12),
-                          Icon(Icons.star, size: 18, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            _rating!.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
-
-                    // Address
-                    if (_address != null && _address!.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                        border: Border.all(color: AppColors.borderLight),
+                        boxShadow: AppTokens.shadow(level: 1),
+                      ),
+                      child: Row(
                         children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 18,
-                            color: AppColors.neutral500,
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.brandSoft,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.map, color: AppColors.brand),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Text(
                               _address!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(color: AppColors.neutral600),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSoft,
+                                height: 1.4,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ],
-
-                    // Opening hours
-                    if (_details?['opening_hours'] != null) ...[
-                      const SizedBox(height: 16),
-                      _buildOpeningHours(),
-                    ],
-
-                    const SizedBox(height: 24),
-                    const Divider(),
-                    const SizedBox(height: 24),
-
-                    // History
-                    Text(
-                      'About & History',
-                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 12),
-                    _isLoadingHistory
-                        ? Column(
-                            children: List.generate(
-                              5,
-                              (index) => Container(
-                                height: 14,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.neutral200,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                            ),
-                          )
-                        : Text(
-                            _history ?? 'Information not available.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(height: 1.7),
-                          ),
-
-                    // Reviews from Google
-                    if (_details?['reviews'] != null) ...[
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Visitor Reviews',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 12),
-                      ..._buildReviews(),
-                    ],
-
                     const SizedBox(height: 32),
-
-                    // Actions
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              context.push('/plan-trip',
-                                  extra: {'city': _city});
-                            },
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text('Plan Trip Here'),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
                   ],
-                ),
+
+                  // Details API Data
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: AppColors.brand),
+                      ),
+                    )
+                  else if (_details != null) ...[
+                    if (_details!['opening_hours'] != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time, color: AppColors.brand),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Opening Hours',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                          border: Border.all(color: AppColors.borderLight),
+                          boxShadow: AppTokens.shadow(level: 1),
+                        ),
+                        child: Column(
+                          children: (_details!['opening_hours']['weekday_text']
+                                  as List<dynamic>)
+                              .map((day) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.check_circle,
+                                            size: 16, color: AppColors.teal),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            day.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: AppColors.textSoft,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 60), // bottom padding
+                ],
               ),
             ),
           ),
@@ -327,108 +458,62 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
     );
   }
 
-  Widget _buildOpeningHours() {
-    final hours = _details?['opening_hours'];
-    if (hours == null) return const SizedBox.shrink();
-
-    final isOpen = hours['open_now'] as bool? ?? false;
-    final weekdayText = hours['weekday_text'] as List? ?? [];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool isPrimary,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          gradient: isPrimary ? AppColors.cherryGradient : null,
+          color: isPrimary ? null : AppColors.card,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: isPrimary ? null : Border.all(color: AppColors.border),
+          boxShadow: isPrimary ? AppTokens.coloredShadow(AppColors.brand, level: 1) : AppTokens.shadow(level: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.access_time,
-              size: 18,
-              color: isOpen ? AppColors.success : AppColors.error,
+              icon,
+              size: 20,
+              color: isPrimary ? Colors.white : AppColors.text,
             ),
             const SizedBox(width: 8),
             Text(
-              isOpen ? 'Open Now' : 'Closed',
+              label,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isOpen ? AppColors.success : AppColors.error,
+                color: isPrimary ? Colors.white : AppColors.text,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
-        if (weekdayText.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          ...weekdayText.take(7).map((day) => Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  day.toString(),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              )),
-        ],
-      ],
+      ),
     );
   }
 
-  List<Widget> _buildReviews() {
-    final reviews = _details?['reviews'] as List? ?? [];
-    return reviews.take(3).map((review) {
-      final r = review as Map<String, dynamic>;
-      return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  r['author_name'] ?? 'Anonymous',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                ...List.generate(
-                  (r['rating'] as num?)?.toInt() ?? 0,
-                  (_) => const Icon(Icons.star, size: 14, color: Colors.amber),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              r['text'] ?? '',
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      );
-    }).toList();
-  }
-
-  Color _getCategoryColor(String category) {
+  LinearGradient _getCategoryGradient(String category) {
     switch (category) {
-      case 'heritage': return AppColors.primaryOrange;
-      case 'temples': return AppColors.accentGreen;
-      case 'food': return AppColors.error;
-      case 'markets': return AppColors.secondaryBlue;
-      case 'nature': return const Color(0xFF66BB6A);
-      case 'culture': return const Color(0xFFAB47BC);
-      default: return AppColors.primaryOrange;
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'heritage': return Icons.account_balance;
-      case 'temples': return Icons.temple_hindu;
-      case 'food': return Icons.restaurant;
-      case 'markets': return Icons.storefront;
-      case 'nature': return Icons.park;
-      case 'culture': return Icons.theater_comedy;
-      default: return Icons.place;
+      case 'heritage':
+        return AppColors.cherryGradient;
+      case 'temples':
+        return AppColors.saffronGradient;
+      case 'food':
+        return AppColors.roseGradient;
+      case 'markets':
+        return AppColors.indigoGradient;
+      case 'nature':
+        return AppColors.tealGradient;
+      case 'culture':
+        return AppColors.sunsetGradient;
+      default:
+        return AppColors.cherryGradient;
     }
   }
 }

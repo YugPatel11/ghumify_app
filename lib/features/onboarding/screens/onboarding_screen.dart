@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_settings_provider.dart';
 
@@ -22,28 +23,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Discover Hidden Gems',
       description:
           'Explore famous places, local food, markets, and cultural experiences across Indian cities.',
-      gradient: AppColors.primaryGradient,
+      gradient: AppColors.cherryGradient,
+      softColor: AppColors.brandSoft,
     ),
     _OnboardingPage(
       icon: Icons.schedule_outlined,
       title: 'AI Trip Planner',
       description:
           'Tell us your time and interests — our AI creates a perfect, time-boxed itinerary just for you.',
-      gradient: AppColors.oceanGradient,
+      gradient: AppColors.indigoGradient,
+      softColor: AppColors.indigoSoft,
     ),
     _OnboardingPage(
       icon: Icons.wb_sunny_outlined,
       title: 'Weather-Smart',
       description:
           'Get weather-aware suggestions, packing tips, and the best times to visit outdoor spots.',
-      gradient: AppColors.forestGradient,
+      gradient: AppColors.tealGradient,
+      softColor: AppColors.tealSoft,
     ),
     _OnboardingPage(
       icon: Icons.translate_outlined,
       title: 'Break Language Barriers',
       description:
           'Available in 10 Indian languages with built-in translator for on-the-ground conversations.',
-      gradient: AppColors.sunsetGradient,
+      gradient: AppColors.saffronGradient,
+      softColor: AppColors.accentSoft,
     ),
   ];
 
@@ -75,19 +80,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           children: [
             // Skip button
             Align(
               alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _completeOnboarding,
-                child: Text(
-                  'Skip',
-                  style: TextStyle(
-                    color: AppColors.neutral500,
-                    fontSize: 16,
+              child: Padding(
+                padding: const EdgeInsets.only(right: AppTokens.sm, top: AppTokens.sm),
+                child: TextButton(
+                  onPressed: _completeOnboarding,
+                  child: Text(
+                    'Skip',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -115,14 +125,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           decoration: BoxDecoration(
                             gradient: page.gradient,
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: page.gradient.colors.first
-                                    .withOpacity(0.3),
-                                blurRadius: 30,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
+                            boxShadow: AppTokens.coloredShadow(
+                              page.gradient.colors.first,
+                              level: 2,
+                            ),
                           ),
                           child: Icon(
                             page.icon,
@@ -145,7 +151,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           page.description,
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppColors.neutral500,
+                                    color: AppColors.textSoft,
                                     height: 1.6,
                                   ),
                           textAlign: TextAlign.center,
@@ -174,8 +180,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentPage == index
-                              ? AppColors.primaryOrange
-                              : AppColors.neutral300,
+                              ? AppColors.brand
+                              : AppColors.border,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -193,15 +199,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         vertical: 16,
                       ),
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryOrange.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        gradient: AppColors.cherryGradient,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                        boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -213,7 +213,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -241,11 +241,13 @@ class _OnboardingPage {
   final String title;
   final String description;
   final LinearGradient gradient;
+  final Color softColor;
 
   _OnboardingPage({
     required this.icon,
     required this.title,
     required this.description,
     required this.gradient,
+    required this.softColor,
   });
 }

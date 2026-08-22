@@ -29,14 +29,11 @@ class GhumifyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settingsProvider = context.watch<AppSettingsProvider>();
-
     return MaterialApp.router(
       title: 'Ghumify',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: settingsProvider.themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: AppRouter.router(context),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/models/place_model.dart';
 
@@ -34,7 +35,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    // Check if category was passed
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
       if (extra != null && extra['category'] != null) {
@@ -74,7 +74,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           results = await _placesService.searchTouristAttractions(city);
       }
 
-      // Filter by category if needed
       if (_selectedCategory != 'all' &&
           _selectedCategory != 'food' &&
           _selectedCategory != 'markets') {
@@ -98,6 +97,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +110,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 style: Theme.of(context).textTheme.displaySmall,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTokens.md),
 
             // Search bar
             Padding(
@@ -121,7 +121,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search city (e.g. Indore, Jaipur)',
+                        hintText: 'Search city (e.g. Indore)',
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -139,26 +139,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       onSubmitted: (_) => _searchPlaces(),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppTokens.md),
                   Container(
+                    height: 56,
+                    width: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryOrange,
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: AppColors.cherryGradient,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 1),
                     ),
                     child: IconButton(
                       onPressed: _searchPlaces,
-                      icon: const Icon(Icons.search, color: Colors.white),
+                      icon: const Icon(Icons.search, color: Colors.white, size: 28),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTokens.lg),
 
             // Category filter
             SizedBox(
-              height: 44,
+              height: 48,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -175,7 +178,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             size: 16,
                             color: isSelected
                                 ? Colors.white
-                                : AppColors.neutral600,
+                                : AppColors.brand,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -191,28 +194,29 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         setState(() => _selectedCategory = entry.key);
                         if (_searchCity.isNotEmpty) _searchPlaces();
                       },
-                      selectedColor: AppColors.primaryOrange,
+                      selectedColor: AppColors.brand,
+                      backgroundColor: AppColors.card,
                       labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.neutral600,
+                        color: isSelected ? Colors.white : AppColors.text,
                         fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
-                      showCheckmark: false,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                   );
                 }).toList(),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: AppTokens.md),
 
             // Results
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.brand,
+                      ),
+                    )
                   : _error != null
                       ? _buildError()
                       : _places.isEmpty
@@ -230,18 +234,26 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.explore_outlined,
-            size: 80,
-            color: AppColors.neutral300,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: AppColors.cardAlt,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.explore_outlined,
+              size: 64,
+              color: AppColors.border,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
             _searchCity.isEmpty
                 ? 'Search for a city to discover places'
                 : 'No places found in $_searchCity',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.neutral500,
+                  color: AppColors.textSoft,
+                  fontWeight: FontWeight.w600,
                 ),
             textAlign: TextAlign.center,
           ),
@@ -264,7 +276,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         children: [
           const Icon(Icons.error_outline, size: 48, color: AppColors.error),
           const SizedBox(height: 16),
-          Text(_error ?? 'Unknown error'),
+          Text(_error ?? 'Unknown error', style: const TextStyle(color: AppColors.textSoft)),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _searchPlaces,
@@ -277,7 +289,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _buildPlacesList() {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       itemCount: _places.length,
       itemBuilder: (context, index) {
         final place = _places[index];
@@ -301,32 +313,34 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         });
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: AppTokens.md),
+        padding: const EdgeInsets.all(AppTokens.md),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
           border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.2),
+            color: AppColors.borderLight,
+            width: AppTokens.borderMedium,
           ),
+          boxShadow: AppTokens.shadow(level: 1),
         ),
         child: Row(
           children: [
             // Category icon
             Container(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
                 color: _getCategoryColor(place.category).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               ),
               child: Icon(
                 _getCategoryIcon(place.category),
                 color: _getCategoryColor(place.category),
-                size: 24,
+                size: 28,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppTokens.md),
 
             // Info
             Expanded(
@@ -336,7 +350,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   Text(
                     place.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -349,37 +363,38 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
-                          vertical: 2,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: _getCategoryColor(place.category)
-                              .withOpacity(0.1),
+                          color: _getCategoryColor(place.category).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          place.category,
+                          place.category.toUpperCase(),
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                             color: _getCategoryColor(place.category),
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                       if (place.rating != null) ...[
                         const SizedBox(width: 8),
-                        Icon(Icons.star, size: 14, color: Colors.amber),
-                        const SizedBox(width: 2),
+                        const Icon(Icons.star, size: 14, color: AppColors.warning),
+                        const SizedBox(width: 4),
                         Text(
                           place.rating!.toStringAsFixed(1),
                           style: const TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSoft,
                           ),
                         ),
                       ],
@@ -389,9 +404,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ),
             ),
 
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.neutral400,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppColors.bg,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.brand,
+                size: 20,
+              ),
             ),
           ],
         ),
@@ -406,21 +429,21 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'heritage':
-        return AppColors.primaryOrange;
+        return AppColors.brand;
       case 'temples':
-        return AppColors.accentGreen;
+        return AppColors.accent;
       case 'food':
-        return AppColors.error;
+        return AppColors.rose;
       case 'markets':
-        return AppColors.secondaryBlue;
+        return AppColors.indigo;
       case 'nature':
-        return const Color(0xFF66BB6A);
+        return AppColors.teal;
       case 'culture':
-        return const Color(0xFFAB47BC);
+        return const Color(0xFFD946EF);
       case 'adventure':
-        return const Color(0xFFFF7043);
+        return const Color(0xFFF97316);
       default:
-        return AppColors.primaryOrange;
+        return AppColors.brand;
     }
   }
 }

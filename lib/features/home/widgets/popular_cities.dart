@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/app_tokens.dart';
 
 class PopularCities extends StatelessWidget {
   const PopularCities({super.key});
 
   static const List<_CityData> _cities = [
-    _CityData('Jaipur', 'The Pink City', '🏰', [Color(0xFFE91E63), Color(0xFFC2185B)]),
-    _CityData('Varanasi', 'The Spiritual Capital', '🛕', [Color(0xFFFF9800), Color(0xFFE65100)]),
-    _CityData('Udaipur', 'City of Lakes', '🏞️', [Color(0xFF2196F3), Color(0xFF0D47A1)]),
-    _CityData('Indore', 'Food Capital of India', '🍜', [Color(0xFF4CAF50), Color(0xFF1B5E20)]),
-    _CityData('Goa', 'Beach Paradise', '🏖️', [Color(0xFF00BCD4), Color(0xFF006064)]),
-    _CityData('Agra', 'City of Taj', '🕌', [Color(0xFF9C27B0), Color(0xFF4A148C)]),
-    _CityData('Delhi', 'Heart of India', '🏛️', [Color(0xFF795548), Color(0xFF3E2723)]),
-    _CityData('Mumbai', 'City of Dreams', '🌆', [Color(0xFF607D8B), Color(0xFF263238)]),
-    _CityData('Rishikesh', 'Yoga Capital', '🧘', [Color(0xFF8BC34A), Color(0xFF33691E)]),
-    _CityData('Mysore', 'City of Palaces', '👑', [Color(0xFFFFEB3B), Color(0xFFF57F17)]),
+    _CityData('Jaipur', 'The Pink City', '🏰', AppColors.cherryGradient),
+    _CityData('Varanasi', 'The Spiritual Capital', '🛕', AppColors.saffronGradient),
+    _CityData('Udaipur', 'City of Lakes', '🏞️', AppColors.indigoGradient),
+    _CityData('Indore', 'Food Capital of India', '🍜', AppColors.tealGradient),
+    _CityData('Goa', 'Beach Paradise', '🏖️', AppColors.sunsetGradient),
+    _CityData('Agra', 'City of Taj', '🕌', AppColors.roseGradient),
+    _CityData('Delhi', 'Heart of India', '🏛️', AppColors.saffronGradient),
+    _CityData('Mumbai', 'City of Dreams', '🌆', AppColors.indigoGradient),
+    _CityData('Rishikesh', 'Yoga Capital', '🧘', AppColors.forestGradient),
+    _CityData('Mysore', 'City of Palaces', '👑', AppColors.cherryGradient),
   ];
 
   @override
@@ -34,21 +35,11 @@ class PopularCities extends StatelessWidget {
             },
             child: Container(
               width: 130,
-              margin: EdgeInsets.only(right: index < _cities.length - 1 ? 12 : 0),
+              margin: EdgeInsets.only(right: index < _cities.length - 1 ? AppTokens.md : 0),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: city.gradientColors,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: city.gradientColors.first.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                gradient: city.gradient,
+                borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                boxShadow: AppTokens.coloredShadow(city.gradient.colors.first, level: 1),
               ),
               child: Stack(
                 children: [
@@ -74,15 +65,16 @@ class PopularCities extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           city.subtitle,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withOpacity(0.9),
                             fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -104,7 +96,7 @@ class _CityData {
   final String name;
   final String subtitle;
   final String emoji;
-  final List<Color> gradientColors;
+  final LinearGradient gradient;
 
-  const _CityData(this.name, this.subtitle, this.emoji, this.gradientColors);
+  const _CityData(this.name, this.subtitle, this.emoji, this.gradient);
 }
