@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_tokens.dart';
@@ -11,6 +12,7 @@ class PremiumCard extends StatefulWidget {
   final EdgeInsetsGeometry padding;
   final bool hasImage;
   final bool isTransparent;
+  final bool isGlass;
 
   const PremiumCard({
     super.key,
@@ -19,6 +21,7 @@ class PremiumCard extends StatefulWidget {
     this.padding = const EdgeInsets.all(AppTokens.lg),
     this.hasImage = false,
     this.isTransparent = false,
+    this.isGlass = false,
   });
 
   @override
@@ -52,17 +55,31 @@ class _PremiumCardState extends State<PremiumCard> with SingleTickerProviderStat
     Widget cardContent = Container(
       padding: widget.hasImage ? EdgeInsets.zero : widget.padding,
       decoration: BoxDecoration(
-        color: widget.isTransparent ? Colors.transparent : AppColors.card,
+        color: widget.isTransparent
+            ? Colors.transparent
+            : (widget.isGlass ? AppColors.glassWhite : AppColors.card),
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(
-          color: widget.isTransparent ? Colors.transparent : AppColors.border,
+          color: widget.isTransparent
+              ? Colors.transparent
+              : (widget.isGlass ? AppColors.borderGlass : AppColors.border),
           width: AppTokens.borderThin,
         ),
-        boxShadow: widget.isTransparent ? null : AppTokens.shadow(level: 1),
+        boxShadow: (widget.isTransparent || widget.isGlass) ? null : AppTokens.shadow(level: 1),
       ),
       clipBehavior: Clip.antiAlias,
       child: widget.child,
     );
+
+    if (widget.isGlass) {
+      cardContent = ClipRRect(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: cardContent,
+        ),
+      );
+    }
 
     if (widget.onTap != null) {
       return GestureDetector(

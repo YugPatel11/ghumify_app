@@ -8,7 +8,7 @@ import '../constants/app_constants.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
@@ -77,14 +77,14 @@ class AuthService {
   /// Sign in with Google
   Future<UserModel> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn();
+      final googleUser = await _googleSignIn.authenticate();
       if (googleUser == null) {
         throw AuthException('Google sign-in was cancelled');
       }
 
-      final googleAuth = await googleUser.authentication;
+      // v7: authentication is now synchronous, accessToken removed
+      final googleAuth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
@@ -166,7 +166,7 @@ class AuthService {
 
   /// Sign out
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    await _googleSignIn.disconnect();
     await _auth.signOut();
   }
 

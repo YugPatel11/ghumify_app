@@ -1,14 +1,11 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../constants/api_keys.dart';
 import '../constants/app_constants.dart';
+import 'gemini_rest_client.dart';
 
-/// Service for Google Cloud Translation API with Firestore caching
+/// Service for generating translations using Gemini API with Firestore caching
 class TranslationService {
-  static const String _baseUrl = AppConstants.translateBaseUrl;
-  static String get _apiKey => ApiKeys.googleTranslateApiKey;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GeminiRestClient _geminiClient = GeminiRestClient();
 
   // In-memory cache for session
   final Map<String, String> _memoryCache = {};
@@ -19,7 +16,7 @@ class TranslationService {
     required String targetLanguage,
     String sourceLanguage = 'en',
   }) async {
-    if (text.isEmpty) return text;
+    if (text.trim().isEmpty) return text;
     if (sourceLanguage == targetLanguage) return text;
 
     // Check memory cache first
@@ -28,11 +25,27 @@ class TranslationService {
       return _memoryCache[cacheKey]!;
     }
 
-    await Future.delayed(const Duration(milliseconds: 300));
-    final mockTranslation = '[Mock $targetLanguage] $text';
-    
-    _memoryCache[cacheKey] = mockTranslation;
-    return mockTranslation;
+    try {
+      final prompt = '''
+Translate the following text from ${getLanguageName(sourceLanguage)} to ${getLanguageName(targetLanguage)}.
+Return ONLY the translated text, with no extra context or formatting.
+
+Text to translate:
+$text
+''';
+
+      final responseText = await _geminiClient.generateContent(
+        prompt: prompt,
+        taskType: GeminiTaskType.translation,
+      );
+
+      final result = responseText.trim();
+      _memoryCache[cacheKey] = result;
+      return result;
+    } catch (e) {
+      if (e is GeminiRestException) rethrow;
+      throw TranslationException('Translation failed: $e');
+    }
   }
 
   /// Translate multiple texts at once (batch)
@@ -44,32 +57,14 @@ class TranslationService {
     if (texts.isEmpty) return [];
     if (sourceLanguage == targetLanguage) return texts;
 
-    await Future.delayed(const Duration(milliseconds: 300));
-    return texts.map((t) => '[Mock $targetLanguage] $t').toList();
-  }
-
-  // Firestore calls mocked out
-  Future<String?> _getFromFirestoreCache({
-    required String text,
-    required String source,
-    required String target,
-  }) async {
-    return null;
-  }
-
-  Future<void> _cacheInFirestore({
-    required String text,
-    required String translated,
-    required String source,
-    required String target,
-  }) async {
-    // No-op
-  }
-
-  String _generateCacheId(String text, String source, String target) {
-    // Simple hash for document ID
-    final hash = text.hashCode.abs().toString();
-    return '${source}_${target}_$hash';
+    // Simple implementation: just run in parallel
+    // (can be optimized later with a single batch prompt if needed)
+    final futures = texts.map((t) => translate(
+          text: t,
+          targetLanguage: targetLanguage,
+          sourceLanguage: sourceLanguage,
+        ));
+    return await Future.wait(futures);
   }
 
   /// Get the language name in that language

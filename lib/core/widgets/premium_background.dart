@@ -30,10 +30,10 @@ class PremiumBackground extends StatelessWidget {
           child: Image.network(
             imageUrl,
             fit: BoxFit.cover,
-            color: Colors.black.withOpacity(overlayOpacity),
-            colorBlendMode: BlendMode.darken,
+            color: Colors.white.withOpacity(overlayOpacity),
+            colorBlendMode: BlendMode.lighten,
             errorBuilder: (context, error, stackTrace) => Container(
-              color: AppColors.brandDeep,
+              color: AppColors.brandSoft,
             ),
           ),
         ),

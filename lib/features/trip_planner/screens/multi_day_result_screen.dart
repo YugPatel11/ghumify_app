@@ -10,32 +10,34 @@ import '../../../core/services/gemini_service.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/models/itinerary_model.dart';
+import '../../../core/models/multi_day_itinerary_model.dart';
 import '../../../core/models/weather_model.dart';
 import '../../../core/models/place_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 
-class ItineraryResultScreen extends StatefulWidget {
+class MultiDayResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
 
-  const ItineraryResultScreen({super.key, this.itineraryData});
+  const MultiDayResultScreen({super.key, this.itineraryData});
 
   @override
-  State<ItineraryResultScreen> createState() => _ItineraryResultScreenState();
+  State<MultiDayResultScreen> createState() => _MultiDayResultScreenState();
 }
 
-class _ItineraryResultScreenState extends State<ItineraryResultScreen>
-    with SingleTickerProviderStateMixin {
+class _MultiDayResultScreenState extends State<MultiDayResultScreen>
+    with TickerProviderStateMixin {
   final GeminiService _geminiService = GeminiService();
   final WeatherService _weatherService = WeatherService();
   final PlacesService _placesService = PlacesService();
 
-  ItineraryModel? _itinerary;
+  MultiDayItineraryModel? _itinerary;
   bool _isLoading = true;
   String? _error;
-  String _loadingMessage = 'Curating your experience...';
+  String _loadingMessage = 'Planning your adventure...';
   late AnimationController _animController;
+  TabController? _tabController;
   late String _heroImage;
   late String _cityName;
 
@@ -54,6 +56,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -73,39 +76,51 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     final interests = List<String>.from(data['interests'] ?? []);
     final travelMode = data['travelMode'] as String? ?? 'driving';
     final pace = data['pace'] as String? ?? 'moderate';
-    final date = data['date'] as String? ?? DateTime.now().toString().split(' ').first;
+    final startDate = data['startDate'] as String? ??
+        DateTime.now().toString().split(' ').first;
+    final endDate = data['endDate'] as String? ??
+        DateTime.now().toString().split(' ').first;
+    final numberOfDays = data['numberOfDays'] as int? ?? 2;
 
     try {
-      setState(() => _loadingMessage = 'Analyzing local weather...');
+      setState(() => _loadingMessage = 'Checking weather forecast...');
       WeatherModel? weather;
       try {
         weather = await _weatherService.getCurrentWeather(city);
       } catch (_) {}
 
-      setState(() => _loadingMessage = 'Sourcing the best spots...');
+      setState(() => _loadingMessage = 'Discovering local gems...');
       List<PlaceModel> knownPlaces = [];
       try {
         knownPlaces = await _placesService.searchTouristAttractions(city);
       } catch (_) {}
 
-      setState(() => _loadingMessage = 'Crafting editorial itinerary...');
+      setState(() =>
+          _loadingMessage = 'Crafting your $numberOfDays-day experience...');
       final userId = context.read<AuthProvider>().user?.uid ?? 'anonymous';
 
-      final itinerary = await _geminiService.generateItinerary(
+      final itinerary = await _geminiService.generateMultiDayItinerary(
         userId: userId,
         city: city,
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
+        startDate: startDate,
+        endDate: endDate,
+        numberOfDays: numberOfDays,
+        dailyStartTime: startTime,
+        dailyEndTime: endTime,
         interests: interests,
         travelMode: travelMode,
         pace: pace,
         weather: weather,
-        knownPlaces: knownPlaces.take(15).toList(),
+        knownPlaces: knownPlaces.take(20).toList(),
       );
 
       setState(() => _loadingMessage = 'Finalizing details...');
       await Future.delayed(const Duration(milliseconds: 500));
+
+      _tabController = TabController(
+        length: itinerary.days.length,
+        vsync: this,
+      );
 
       setState(() {
         _itinerary = itinerary;
@@ -121,14 +136,13 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   }
 
   void _openChat() {
-    if (_itinerary == null) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ItineraryChatSheet(
-        itinerary: _itinerary,
-        onItineraryUpdated: (updated) {
+        multiDayItinerary: _itinerary,
+        onMultiDayItineraryUpdated: (updated) {
           setState(() => _itinerary = updated);
           Navigator.pop(context);
         },
@@ -173,7 +187,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
               onPressed: _openChat,
               backgroundColor: AppColors.brand,
               icon: const Icon(Icons.auto_awesome, color: Colors.white),
-              label: const Text('Tweak Itinerary', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: const Text('Tweak Trip', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             )
           : null,
       body: Stack(
@@ -327,38 +341,217 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
 
     return FadeTransition(
       opacity: _animController,
-      child: CustomScrollView(
-        slivers: [
+      child: Column(
+        children: [
           // ── Title Header ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${itinerary.numberOfDays}-Day Trip',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        color: AppColors.text,
+                        fontSize: 48,
+                        height: 1.1,
+                      ),
+                ),
+                const SizedBox(height: AppTokens.sm),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandDeep,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${itinerary.startDate} — ${itinerary.endDate} • CURATED FOR YOU',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Day Tabs ──
+          if (_tabController != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.sm),
+              decoration: BoxDecoration(
+                color: AppColors.cardAlt,
+                borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                boxShadow: AppTokens.shadow(level: 1),
+              ),
+              child: TabBar(
+                isScrollable: true,
+                controller: _tabController,
+                labelColor: AppColors.brandDeep,
+                unselectedLabelColor: AppColors.textSoft,
+                indicatorPadding: const EdgeInsets.all(4),
+                indicator: BoxDecoration(
+                  color: AppColors.brandSoft,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerHeight: 0,
+                tabs: List.generate(itinerary.days.length, (i) {
+                  return Tab(text: 'Day ${i + 1}');
+                }),
+              ),
+            ),
+
+          const SizedBox(height: AppTokens.sm),
+
+          // ── Tab Content ──
+          Expanded(
+            child: _tabController != null
+                ? TabBarView(
+                    controller: _tabController,
+                    children: itinerary.days.map((day) {
+                      return _buildDayContent(day, itinerary);
+                    }).toList(),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayContent(
+      ItineraryModel day, MultiDayItineraryModel overall) {
+    return CustomScrollView(
+      slivers: [
+        // ── Day Summary ──
+        if (day.aiSummary != null)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.md),
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.md),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppTokens.xl),
+                    decoration: BoxDecoration(
+                      color: AppColors.glassWhiteLight,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                      border: Border.all(color: AppColors.borderGlass),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'DAY ${day.dayNumber} OVERVIEW',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.textSoft,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: AppTokens.sm),
+                        Text(
+                          day.aiSummary!,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: AppColors.text,
+                            height: 1.6,
+                          ),
+                        ),
+                        if (day.dayNumber == 1 && overall.weatherSummary != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: AppTokens.md),
+                            child: Divider(color: AppColors.borderLight),
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.wb_cloudy_outlined, size: 20, color: AppColors.textSoft),
+                              const SizedBox(width: AppTokens.sm),
+                              Expanded(
+                                child: Text(
+                                  overall.weatherSummary!,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSoft,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
+
+        // ── Schedule Header ──
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+            child: Text(
+              'Schedule',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.text),
+            ),
+          ),
+        ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
+
+        // ── Stops ──
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final stop = day.stops[index];
+              final isLast = index == day.stops.length - 1;
+              return _buildStopCard(stop, isLast, index);
+            },
+            childCount: day.stops.length,
+          ),
+        ),
+
+        // ── Essentials (show on first tab only) ──
+        if (day.dayNumber == 1 && overall.whatToCarry.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppTokens.lg, AppTokens.xxl, AppTokens.lg, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'The Itinerary',
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                          color: AppColors.text,
-                          fontSize: 48,
-                          height: 1.1,
-                        ),
-                  ),
-                  const SizedBox(height: AppTokens.sm),
+                  Text('Essentials',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.text)),
+                  const SizedBox(height: AppTokens.md),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.all(AppTokens.lg),
                     decoration: BoxDecoration(
-                      color: AppColors.brandDeep,
-                      borderRadius: BorderRadius.circular(20),
+                      color: AppColors.glassWhiteLight,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                      border: Border.all(color: AppColors.borderGlass),
                     ),
-                    child: Text(
-                      '${itinerary.stops.length} STOPS • CURATED FOR YOU',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2.0,
-                      ),
+                    child: Column(
+                      children: overall.whatToCarry.map((item) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('•', style: TextStyle(color: AppColors.brand, fontSize: 18, fontWeight: FontWeight.bold)),
+                              const SizedBox(width: AppTokens.sm),
+                              Expanded(
+                                child: Text(item, style: Theme.of(context).textTheme.bodyMedium),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
@@ -366,144 +559,10 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
             ),
           ),
 
-          // ── Summary Box ──
-          if (itinerary.aiSummary != null)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(AppTokens.lg),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTokens.xl),
-                      decoration: BoxDecoration(
-                        color: AppColors.glassWhiteLight,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: AppColors.borderGlass),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'OVERVIEW',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textSoft,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: AppTokens.sm),
-                          Text(
-                            itinerary.aiSummary!,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppColors.text,
-                              height: 1.6,
-                            ),
-                          ),
-                          if (itinerary.weatherSummary != null) ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: AppTokens.md),
-                              child: Divider(color: AppColors.borderLight),
-                            ),
-                            Row(
-                              children: [
-                                const Icon(Icons.wb_cloudy_outlined, size: 20, color: AppColors.textSoft),
-                                const SizedBox(width: AppTokens.sm),
-                                Expanded(
-                                  child: Text(
-                                    itinerary.weatherSummary!,
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.textSoft,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            
-          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
+        const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
-          // ── Timeline Header ──
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-              child: Text(
-                'Schedule',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.text),
-              ),
-            ),
-          ),
-          
-          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
-
-          // ── Stops ──
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final stop = itinerary.stops[index];
-                final isLast = index == itinerary.stops.length - 1;
-                return _buildStopCard(stop, isLast, index);
-              },
-              childCount: itinerary.stops.length,
-            ),
-          ),
-
-          // ── Essentials ──
-          if (itinerary.whatToCarry.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xxl, AppTokens.lg, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Essentials',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppColors.text),
-                    ),
-                    const SizedBox(height: AppTokens.md),
-                    Container(
-                      padding: const EdgeInsets.all(AppTokens.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.glassWhiteLight,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: AppColors.borderGlass),
-                      ),
-                      child: Column(
-                        children: itinerary.whatToCarry.map((item) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('•', style: TextStyle(color: AppColors.brand, fontSize: 18, fontWeight: FontWeight.bold)),
-                                const SizedBox(width: AppTokens.sm),
-                                Expanded(
-                                  child: Text(
-                                    item,
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-          // ── Save Button ──
+        // ── Save Button ──
+        if (day.dayNumber == 1) // Only show on first tab to avoid clutter
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
@@ -523,7 +582,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                           _itinerary = updatedItinerary;
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Trip securely saved to your itineraries!')),
+                          const SnackBar(content: Text('Multi-day trip securely saved to your itineraries!')),
                         );
                       }
                     } catch (e) {
@@ -547,9 +606,8 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
             ),
           ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
-        ],
-      ),
+        const SliverToBoxAdapter(child: SizedBox(height: 120)),
+      ],
     );
   }
 
@@ -560,7 +618,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Minimalist Timeline Column ──
+            // ── Timeline Column ──
             SizedBox(
               width: 32,
               child: Column(
@@ -592,10 +650,9 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                 ],
               ),
             ),
-
             const SizedBox(width: AppTokens.sm),
 
-            // ── Editorial Content Card ──
+            // ── Content ──
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: AppTokens.xl),
@@ -655,7 +712,6 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                               ),
                         ),
                       ],
-
                       if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || stop.tips.isNotEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: AppTokens.md),
@@ -686,7 +742,6 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                             ],
                           ),
                         ),
-
                       if (stop.tips.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.all(AppTokens.md),
@@ -723,12 +778,11 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                 ),
               ),
             ),
-          ),
+            ),
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
+  }
 }
-}
-

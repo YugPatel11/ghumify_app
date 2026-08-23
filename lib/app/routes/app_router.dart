@@ -10,9 +10,11 @@ import '../../features/home/screens/home_screen.dart';
 import '../../features/home/screens/main_shell.dart';
 import '../../features/trip_planner/screens/trip_input_screen.dart';
 import '../../features/trip_planner/screens/itinerary_result_screen.dart';
+import '../../features/trip_planner/screens/multi_day_result_screen.dart';
 import '../../features/place_discovery/screens/discover_screen.dart';
 import '../../features/place_detail/screens/place_detail_screen.dart';
 import '../../features/translator/screens/translator_screen.dart';
+import '../../features/trip_planner/screens/saved_itineraries_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
 
@@ -117,6 +119,17 @@ class AppRouter {
             final extra = state.extra as Map<String, dynamic>?;
             return ItineraryResultScreen(itineraryData: extra);
           },
+        ),
+        GoRoute(
+          path: '/multi-day-itinerary',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            return MultiDayResultScreen(itineraryData: extra);
+          },
+        ),
+        GoRoute(
+          path: '/saved-itineraries',
+          builder: (context, state) => const SavedItinerariesScreen(),
         ),
 
         // Place detail

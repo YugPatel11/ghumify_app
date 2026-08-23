@@ -103,10 +103,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       appBar: AppBar(
         title: const Text('Discover'),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.text,
         centerTitle: false,
         titleTextStyle: Theme.of(context).textTheme.displaySmall?.copyWith(
-          color: Colors.white,
+          color: AppColors.text,
           fontSize: 28,
         ),
       ),
@@ -460,7 +460,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       case 'temples':
         return AppColors.accent;
       case 'food':
-        return AppColors.rose;
+        return AppColors.warning;
       case 'markets':
         return AppColors.indigo;
       case 'nature':

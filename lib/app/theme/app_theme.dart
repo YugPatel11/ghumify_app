@@ -38,9 +38,9 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.text,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.playfairDisplay(
+        titleTextStyle: GoogleFonts.outfit(
           fontSize: 22,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           color: AppColors.text,
         ),
       ),
@@ -177,37 +177,37 @@ class AppTheme {
     const Color secondaryTextColor = AppColors.textSoft;
 
     return TextTheme(
-      displayLarge: GoogleFonts.playfairDisplay(
+      displayLarge: GoogleFonts.outfit(
         fontSize: 48,
         fontWeight: FontWeight.w800,
         color: textColor,
         height: 1.1,
       ),
-      displayMedium: GoogleFonts.playfairDisplay(
+      displayMedium: GoogleFonts.outfit(
         fontSize: 36,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.2,
       ),
-      displaySmall: GoogleFonts.playfairDisplay(
+      displaySmall: GoogleFonts.outfit(
         fontSize: 30,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.25,
       ),
-      headlineLarge: GoogleFonts.playfairDisplay(
+      headlineLarge: GoogleFonts.outfit(
         fontSize: 26,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.3,
       ),
-      headlineMedium: GoogleFonts.playfairDisplay(
+      headlineMedium: GoogleFonts.outfit(
         fontSize: 22,
         fontWeight: FontWeight.w600,
         color: textColor,
         height: 1.3,
       ),
-      headlineSmall: GoogleFonts.playfairDisplay(
+      headlineSmall: GoogleFonts.outfit(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: textColor,

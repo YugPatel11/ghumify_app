@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Ghumify global design tokens — editorial spacing, crisp radius, subtle shadows.
+/// Ghumify global design tokens — modern, glassmorphism-ready, premium.
 class AppTokens {
   AppTokens._();
 
-  // ── Generous Editorial Spacing ──
+  // ── Generous Spacing ──
   static const double xs = 8;
   static const double sm = 12;
   static const double md = 20;
@@ -12,12 +12,11 @@ class AppTokens {
   static const double xl = 48;
   static const double xxl = 64;
 
-  // ── Crisp Border Radius ──
-  // Moving away from AI pill shapes to sharp, structural editorial boxes.
-  static const double radiusSm = 4;
-  static const double radiusMd = 8;
-  static const double radiusLg = 12;
-  static const double radiusXl = 16;
+  // ── Soft Border Radius ──
+  static const double radiusSm = 8;
+  static const double radiusMd = 16;
+  static const double radiusLg = 24;
+  static const double radiusXl = 32;
   static const double radiusPill = 999;
 
   // ── Border Width ──
@@ -37,26 +36,26 @@ class AppTokens {
   static const double elevationMedium = 2;
   static const double elevationHigh = 4;
 
-  /// Diffuse, barely-there shadows for high-end editorial feel
+  /// Diffuse, barely-there shadows for high-end floating feel
   static List<BoxShadow> shadow({int level = 1}) {
     switch (level) {
       case 1:
         return [
           BoxShadow(
-            color: const Color(0xFF1F2937).withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF0F172A).withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ];
       case 2:
         return [
           BoxShadow(
-            color: const Color(0xFF1F2937).withOpacity(0.04),
+            color: const Color(0xFF0F172A).withOpacity(0.06),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: const Color(0xFF1F2937).withOpacity(0.02),
+            color: const Color(0xFF0F172A).withOpacity(0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -64,13 +63,13 @@ class AppTokens {
       case 3:
         return [
           BoxShadow(
-            color: const Color(0xFF1F2937).withOpacity(0.06),
-            blurRadius: 32,
+            color: const Color(0xFF0F172A).withOpacity(0.08),
+            blurRadius: 40,
             offset: const Offset(0, 16),
           ),
           BoxShadow(
-            color: const Color(0xFF1F2937).withOpacity(0.02),
-            blurRadius: 8,
+            color: const Color(0xFF0F172A).withOpacity(0.03),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ];
@@ -83,9 +82,9 @@ class AppTokens {
   static List<BoxShadow> coloredShadow(Color color, {int level = 1}) {
     return [
       BoxShadow(
-        color: color.withOpacity(0.12 + level * 0.05),
-        blurRadius: 16.0 + level * 8,
-        offset: Offset(0, 6.0 + level * 2),
+        color: color.withOpacity(0.15 + level * 0.05),
+        blurRadius: 20.0 + level * 10,
+        offset: Offset(0, 8.0 + level * 4),
       ),
     ];
   }

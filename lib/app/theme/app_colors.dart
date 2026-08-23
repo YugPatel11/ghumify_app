@@ -1,124 +1,111 @@
 import 'package:flutter/material.dart';
 
-/// Ghumify Earthy Luxury Brand Palette — Editorial, Human-Designed, Premium.
-/// Deep Forest Green + Warm Sand/Beige + Dark Charcoal.
+/// Ghumify Premium Travel UI Palette
+/// Clean whites, soft neutrals, and vibrant accents for light glassmorphism.
 class AppColors {
   AppColors._();
 
-  // ── Brand Primary: Deep Forest Green ──
-  static const Color brand = Color(0xFF064E3B);
-  static const Color brandDeep = Color(0xFF022C22);
-  static const Color brandLight = Color(0xFF10B981);
-  static const Color brandSoft = Color(0xFFECFDF5);
+  // ── Brand Primary: Sky/Oceanic Blue ──
+  static const Color brand = Color(0xFF0EA5E9); // Tailwind Sky 500
+  static const Color brandDeep = Color(0xFF0369A1); // Sky 700
+  static const Color brandLight = Color(0xFF7DD3FC); // Sky 300
+  static const Color brandSoft = Color(0xFFE0F2FE); // Sky 100
 
-  // ── Accent: Premium Gold / Sand ──
-  static const Color accent = Color(0xFFD97706);
-  static const Color accentDeep = Color(0xFF92400E);
-  static const Color accentLight = Color(0xFFFBBF24);
-  static const Color accentSoft = Color(0xFFFEF3C7);
+  // ── Accent: Soft Coral / Sunset ──
+  static const Color accent = Color(0xFFF43F5E); // Rose 500
+  static const Color accentDeep = Color(0xFFBE123C); // Rose 700
+  static const Color accentLight = Color(0xFFFDA4AF); // Rose 300
+  static const Color accentSoft = Color(0xFFFFE4E6); // Rose 100
 
   // ── Teal / Sage (Secondary) ──
-  static const Color teal = Color(0xFF0D9488);
-  static const Color tealDeep = Color(0xFF115E59);
-  static const Color tealSoft = Color(0xFFF0FDFA);
-
-  // ── Rose / Terracotta (Secondary) ──
-  static const Color rose = Color(0xFFBE123C);
-  static const Color roseSoft = Color(0xFFFFF1F2);
+  static const Color teal = Color(0xFF14B8A6); // Teal 500
+  static const Color tealDeep = Color(0xFF0F766E);
+  static const Color tealSoft = Color(0xFFCCFBF1);
 
   // ── Indigo / Slate (Secondary) ──
-  static const Color indigo = Color(0xFF4338CA);
-  static const Color indigoSoft = Color(0xFFEEF2FF);
+  static const Color indigo = Color(0xFF6366F1); // Indigo 500
+  static const Color indigoSoft = Color(0xFFE0E7FF);
 
-  // ── Surfaces (Warm, Editorial Light Theme) ──
-  static const Color bg = Color(0xFFFDFBF7); // Warm paper/sand
+  // ── Surfaces (Clean, bright, for glassmorphism) ──
+  static const Color bg = Color(0xFFFAFAFA); // Very light grey/white
   static const Color bgElevated = Color(0xFFFFFFFF);
   static const Color card = Color(0xFFFFFFFF);
-  static const Color cardAlt = Color(0xFFF9F9F9); // Crisp grey-white
+  static const Color cardAlt = Color(0xFFF1F5F9); // Slate 100
+
+  // ── Glass Surfaces ──
+  static const Color glassWhite = Color(0xCCFFFFFF); // 80% White
+  static const Color glassWhiteLight = Color(0x80FFFFFF); // 50% White
+  static const Color glassDark = Color(0x1A000000);  // 10% Black (for subtle shadows/overlays)
 
   // ── Text ──
-  static const Color text = Color(0xFF1F2937); // Dark Charcoal
-  static const Color textSoft = Color(0xFF4B5563);
-  static const Color textMuted = Color(0xFF9CA3AF);
+  static const Color text = Color(0xFF0F172A); // Slate 900
+  static const Color textSoft = Color(0xFF475569); // Slate 600
+  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
+  static const Color textLight = Color(0xFFFFFFFF); // White for overlays
 
   // ── Border ──
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color borderLight = Color(0xFFF3F4F6);
+  static const Color border = Color(0xFFE2E8F0); // Slate 200
+  static const Color borderLight = Color(0xFFF1F5F9); // Slate 100
+  static const Color borderGlass = Color(0x4DFFFFFF); // 30% White border
 
-  // ── Semantic ──
-  static const Color success = Color(0xFF059669);
-  static const Color warning = Color(0xFFD97706);
-  static const Color error = Color(0xFFDC2626);
-  static const Color info = Color(0xFF2563EB);
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF3B82F6);
 
-  // ── Legacy Named Gradients (Re-mapped to earthy tones so nothing breaks) ──
+  // ── Gradients ──
   static const LinearGradient cherryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF064E3B), Color(0xFF047857), Color(0xFF10B981)], // Remapped to Forest
+    colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
   );
 
   static const LinearGradient saffronGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFD97706), Color(0xFFF59E0B), Color(0xFFFBBF24)], // Remapped to Gold
+    colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
   );
 
   static const LinearGradient tealGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFF5EEAD4)], // Remapped to Slate Teal
+    colors: [Color(0xFF2DD4BF), Color(0xFF0F766E)],
   );
 
   static const LinearGradient indigoGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF374151), Color(0xFF4B5563), Color(0xFF6B7280)], // Remapped to Charcoal
+    colors: [Color(0xFF818CF8), Color(0xFF4F46E5)],
   );
 
   static const LinearGradient sunsetGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF991B1B), Color(0xFFB91C1C), Color(0xFFEF4444)], // Remapped to Terracotta
-  );
-
-  static const LinearGradient roseGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF9F1239), Color(0xFFBE123C), Color(0xFFE11D48)], // Remapped to Rose
+    colors: [Color(0xFFFB7185), Color(0xFFE11D48)],
   );
 
   static const LinearGradient forestGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF064E3B), Color(0xFF047857), Color(0xFF10B981)],
+    colors: [Color(0xFF34D399), Color(0xFF059669)],
   );
 
   static const LinearGradient heroGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF1F2937), Color(0xFF374151), Color(0xFF4B5563)], // Remapped to Charcoal
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Colors.transparent, Color(0xCCFFFFFF)], // Fades to 80% white
   );
 
   // ── Gradient by name (for dynamic usage) ──
   static LinearGradient gradientByName(String name) {
     switch (name) {
-      case 'cherry':
-        return cherryGradient;
-      case 'saffron':
-        return saffronGradient;
-      case 'teal':
-        return tealGradient;
-      case 'indigo':
-        return indigoGradient;
-      case 'sunset':
-        return sunsetGradient;
-      case 'rose':
-        return roseGradient;
-      case 'forest':
-        return forestGradient;
-      default:
-        return cherryGradient;
+      case 'cherry': return cherryGradient;
+      case 'saffron': return saffronGradient;
+      case 'teal': return tealGradient;
+      case 'indigo': return indigoGradient;
+      case 'sunset': return sunsetGradient;
+      case 'forest': return forestGradient;
+      default: return cherryGradient;
     }
   }
 }

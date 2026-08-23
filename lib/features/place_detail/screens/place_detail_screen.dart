@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
@@ -95,123 +96,151 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: CustomScrollView(
-        slivers: [
-          // ── Editorial Hero Header ──
-          SliverAppBar(
-            expandedHeight: 400,
-            pinned: true,
-            backgroundColor: AppColors.brandDeep,
-            leading: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withOpacity(0.3),
-                ),
-                child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-              ),
-              onPressed: () => context.pop(),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // ── Dynamic Full-Screen Background ──
+          Positioned.fill(
+            child: Image.network(
+              'https://images.unsplash.com/photo-1582510003544-4d00b7f7415e?q=80&w=2000&auto=format&fit=crop', // Taj Mahal / Heritage fallback
+              fit: BoxFit.cover,
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.lg),
-              title: Text(
-                _name,
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  color: Colors.white,
-                  fontSize: 24,
-                  shadows: [
-                    Shadow(blurRadius: 10, color: Colors.black.withOpacity(0.5)),
+          ),
+          // ── Atmospheric Overlay ──
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.4),
+                    Colors.white.withOpacity(0.8),
+                    Colors.white.withOpacity(0.95),
                   ],
+                  stops: const [0.0, 0.4, 1.0],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    'https://images.unsplash.com/photo-1582510003544-4d00b7f7415e?q=80&w=2000&auto=format&fit=crop', // Taj Mahal / Heritage fallback
-                    fit: BoxFit.cover,
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.2),
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.8),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
-
-          // ── Content Area ──
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _animController,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Metadata Row ──
-                    Row(
-                      children: [
-                        Text(
-                          _category.toUpperCase(),
-                          style: TextStyle(
-                            color: AppColors.accentDeep,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 2,
-                            fontSize: 12,
-                          ),
+          CustomScrollView(
+            slivers: [
+              // ── Editorial Hero Header ──
+              SliverAppBar(
+                expandedHeight: 250,
+                pinned: true,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.glassWhiteLight,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.borderGlass),
                         ),
-                        if (_rating != null) ...[
-                          const Spacer(),
-                          const Icon(Icons.star, size: 16, color: AppColors.accent),
-                          const SizedBox(width: 4),
-                          Text(
-                            _rating!.toStringAsFixed(1),
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.lg),
-
-                    // ── Location Details ──
-                    if (_address != null && _address!.isNotEmpty)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 20,
-                            color: AppColors.textMuted,
-                          ),
-                          const SizedBox(width: AppTokens.sm),
-                          Expanded(
-                            child: Text(
-                              _address!,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppColors.textSoft,
-                                  ),
-                            ),
-                          ),
-                        ],
+                        child: const Icon(Icons.arrow_back, color: AppColors.brandDeep, size: 20),
                       ),
+                    ),
+                  ),
+                  onPressed: () => context.pop(),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  titlePadding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.lg),
+                  title: Text(
+                    _name,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: AppColors.brandDeep,
+                      fontSize: 24,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
 
-                    if (_details?['opening_hours'] != null) ...[
+              // ── Content Area ──
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _animController,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppTokens.xl),
+                          decoration: BoxDecoration(
+                            color: AppColors.glassWhite,
+                            borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                            border: Border.all(color: AppColors.borderGlass),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              )
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ── Metadata Row ──
+                              Row(
+                                children: [
+                                  Text(
+                                    _category.toUpperCase(),
+                                    style: TextStyle(
+                                      color: AppColors.accentDeep,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  if (_rating != null) ...[
+                                    const Spacer(),
+                                    const Icon(Icons.star, size: 16, color: AppColors.accent),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _rating!.toStringAsFixed(1),
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: AppTokens.lg),
+
+                              // ── Location Details ──
+                              if (_address != null && _address!.isNotEmpty)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_outlined,
+                                      size: 20,
+                                      color: AppColors.textMuted,
+                                    ),
+                                    const SizedBox(width: AppTokens.sm),
+                                    Expanded(
+                                      child: Text(
+                                        _address!,
+                                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                              color: AppColors.textSoft,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                              if (_details?['opening_hours'] != null) ...[
                       const SizedBox(height: AppTokens.md),
                       _buildOpeningHours(),
                     ],
@@ -280,8 +309,13 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
                 ),
               ),
             ),
+            ),
+            ),
           ),
+        ),
         ],
+      ),
+      ],
       ),
     );
   }

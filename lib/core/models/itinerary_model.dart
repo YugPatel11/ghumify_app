@@ -86,6 +86,7 @@ class ItineraryModel {
   final List<String> whatToCarry;
   final String? aiSummary; // AI-generated overview
   final bool isSaved;
+  final int dayNumber; // Day number in multi-day trip (1-indexed, defaults to 1)
   final DateTime createdAt;
 
   ItineraryModel({
@@ -104,6 +105,7 @@ class ItineraryModel {
     this.whatToCarry = const [],
     this.aiSummary,
     this.isSaved = false,
+    this.dayNumber = 1,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -127,6 +129,7 @@ class ItineraryModel {
       whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
       aiSummary: data['aiSummary'],
       isSaved: data['isSaved'] ?? false,
+      dayNumber: data['dayNumber'] ?? 1,
       createdAt:
           (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -148,6 +151,7 @@ class ItineraryModel {
       'whatToCarry': whatToCarry,
       'aiSummary': aiSummary,
       'isSaved': isSaved,
+      'dayNumber': dayNumber,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -158,6 +162,7 @@ class ItineraryModel {
     List<String>? whatToCarry,
     String? aiSummary,
     bool? isSaved,
+    int? dayNumber,
   }) {
     return ItineraryModel(
       id: id,
@@ -175,6 +180,7 @@ class ItineraryModel {
       whatToCarry: whatToCarry ?? this.whatToCarry,
       aiSummary: aiSummary ?? this.aiSummary,
       isSaved: isSaved ?? this.isSaved,
+      dayNumber: dayNumber ?? this.dayNumber,
       createdAt: createdAt,
     );
   }
