@@ -2,11 +2,102 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../constants/api_keys.dart';
 import '../models/place_model.dart';
+import '../models/nearby_service_model.dart';
+import 'location_service.dart';
 
-/// Service for Google Places API integration
+/// Service for Google Places API integration and OSM Overpass for emergency services
 class PlacesService {
   static String get _baseUrl => 'https://maps.googleapis.com/maps/api/place';
   static String get _apiKey => ApiKeys.googleMapsApiKey;
+
+  static const String _overpassUrl = 'https://overpass-api.de/api/interpreter';
+  final LocationService _locationService = LocationService();
+
+  /// Search for nearby hospitals and police stations using free Overpass API (OpenStreetMap)
+  Future<List<NearbyServiceModel>> searchNearbyEmergencyServices({
+    required double latitude,
+    required double longitude,
+    int radiusMeters = 5000,
+  }) async {
+    try {
+      // Overpass QL query for hospitals and police stations
+      final query = '''
+[out:json][timeout:10];
+(
+  node["amenity"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  node["amenity"="clinic"](around:$radiusMeters,$latitude,$longitude);
+  node["amenity"="police"](around:$radiusMeters,$latitude,$longitude);
+  way["amenity"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  way["amenity"="clinic"](around:$radiusMeters,$latitude,$longitude);
+  way["amenity"="police"](around:$radiusMeters,$latitude,$longitude);
+);
+out center body;
+''';
+
+      final response = await http.post(
+        Uri.parse(_overpassUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'data=${Uri.encodeComponent(query)}',
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final elements = data['elements'] as List? ?? [];
+
+        final results = <NearbyServiceModel>[];
+        final seenNames = <String>{};
+
+        for (final element in elements) {
+          final tags = element['tags'] as Map<String, dynamic>? ?? {};
+          final name = tags['name'] as String? ?? tags['name:en'] as String?;
+
+          // Skip unnamed entries and duplicates
+          if (name == null || name.isEmpty) continue;
+          if (seenNames.contains(name.toLowerCase())) continue;
+          seenNames.add(name.toLowerCase());
+
+          // Get coordinates (for ways, use center)
+          double lat;
+          double lon;
+          if (element['type'] == 'way' && element['center'] != null) {
+            lat = (element['center']['lat'] as num?)?.toDouble() ?? 0.0;
+            lon = (element['center']['lon'] as num?)?.toDouble() ?? 0.0;
+          } else {
+            lat = (element['lat'] as num?)?.toDouble() ?? 0.0;
+            lon = (element['lon'] as num?)?.toDouble() ?? 0.0;
+          }
+
+          if (lat == 0.0 && lon == 0.0) continue;
+
+          final distance = _locationService.calculateDistance(
+            latitude, longitude, lat, lon,
+          );
+
+          final amenity = tags['amenity'] as String? ?? '';
+          results.add(NearbyServiceModel(
+            name: name,
+            type: amenity == 'police' ? 'police' : 'hospital',
+            latitude: lat,
+            longitude: lon,
+            address: tags['addr:full'] as String? ??
+                tags['addr:street'] as String?,
+            distanceKm: distance,
+          ));
+        }
+
+        // Sort by distance
+        results.sort((a, b) =>
+            (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
+
+        return results;
+      } else {
+        throw PlacesException('Overpass API error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is PlacesException) rethrow;
+      throw PlacesException('Failed to fetch nearby services: $e');
+    }
+  }
 
   /// Search for places nearby a location
   Future<List<PlaceModel>> searchNearby({
@@ -65,7 +156,7 @@ class PlacesService {
   /// Get place photo URL
   static String getPhotoUrl(String photoReference, {int maxWidth = 400}) {
     // Return a placeholder image since we don't have real photo references
-    return 'https://via.placeholder.com/$maxWidth\x3Ftext=Place+Photo';
+    return 'https://placehold.co/${maxWidth}x300/png?text=Place+Photo';
   }
 
   /// Get distance and duration between two points
@@ -83,11 +174,6 @@ class PlacesService {
       'duration': '15 mins',
       'durationValue': 900,
     };
-  }
-
-  /// Get city name from coordinates
-  Future<String> _getCityFromCoords(double lat, double lon) async {
-    return 'Mock City';
   }
 
   /// Helper to generate mock places
@@ -115,3 +201,4 @@ class PlacesException implements Exception {
   @override
   String toString() => message;
 }
+

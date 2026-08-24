@@ -202,11 +202,18 @@ class GeminiService {
         updatedItinerary: updatedItinerary,
       );
     } catch (e) {
+      String errorMessage;
+      if (e is GeminiRestException) {
+        errorMessage = 'The AI service is temporarily unavailable. Please try again in a moment.\n\nDetails: ${e.message}';
+      } else if (e.toString().contains('TimeoutException') || e.toString().contains('SocketException')) {
+        errorMessage = 'Could not reach the AI service. Please check your internet connection and try again.';
+      } else {
+        errorMessage = 'Sorry, something went wrong. Please try again.';
+      }
       return ChatMessageModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         role: 'assistant',
-        content:
-            'Sorry, I couldn\'t process your request right now. Please try again.',
+        content: errorMessage,
       );
     }
   }

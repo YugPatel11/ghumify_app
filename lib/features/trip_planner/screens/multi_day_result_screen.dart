@@ -16,6 +16,7 @@ import '../../../core/models/place_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
+import '../widgets/nearby_services_section.dart';
 
 class MultiDayResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -555,6 +556,20 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+        // ── Nearby Emergency Services (show on first tab only) ──
+        if (day.dayNumber == 1)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, 0),
+              child: NearbyServicesSection(
+                latitude: day.stops.isNotEmpty ? day.stops.first.latitude : null,
+                longitude: day.stops.isNotEmpty ? day.stops.first.longitude : null,
               ),
             ),
           ),

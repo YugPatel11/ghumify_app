@@ -4,36 +4,36 @@ import 'package:flutter/material.dart';
 /// It provides beautiful landmarks or representative images based on the destination name.
 class ImageResolver {
   static const String _fallbackImage =
-      'https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=2868&auto=format&fit=crop'; // Beautiful generic travel landscape
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/1280px-Taj_Mahal_%28Edited%29.jpeg';
 
   static const Map<String, List<String>> _destinationImages = {
     'jaipur': [
-      'https://images.unsplash.com/photo-1599661046289-e31897846140?q=80&w=2827&auto=format&fit=crop', // Hawa Mahal
-      'https://images.unsplash.com/photo-1571536802807-30451e3955d8?q=80&w=2787&auto=format&fit=crop', // Amer Fort
-      'https://images.unsplash.com/photo-1599827552599-2f3f334f6bb2?q=80&w=2803&auto=format&fit=crop', // City Palace
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Hawa_Mahal_2011.jpg/1280px-Hawa_Mahal_2011.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Amber_Fort_and_Maota_Lake.jpg/1280px-Amber_Fort_and_Maota_Lake.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/City_Palace_Jaipur_2014.jpg/1280px-City_Palace_Jaipur_2014.jpg',
     ],
     'agra': [
-      'https://images.unsplash.com/photo-1564507592208-528711542977?q=80&w=2800&auto=format&fit=crop', // Taj Mahal
-      'https://images.unsplash.com/photo-1585506942812-e72b29cef752?q=80&w=2728&auto=format&fit=crop', // Agra Fort
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/1280px-Taj_Mahal_%28Edited%29.jpeg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Agra_Fort_Delhi_Gate.jpg/1280px-Agra_Fort_Delhi_Gate.jpg',
     ],
     'paris': [
-      'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?q=80&w=2920&auto=format&fit=crop', // Eiffel Tower
-      'https://images.unsplash.com/photo-1502602898657-3e907fa3a286?q=80&w=2942&auto=format&fit=crop', // Louvre
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/1280px-Tour_Eiffel_Wikimedia_Commons.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Louvre_Museum_Wikimedia_Commons.jpg/1280px-Louvre_Museum_Wikimedia_Commons.jpg',
     ],
     'dubai': [
-      'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=2940&auto=format&fit=crop', // Burj Khalifa
-      'https://images.unsplash.com/photo-1518684079-3c830dcef090?q=80&w=2787&auto=format&fit=crop', // Desert
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Burj_Khalifa_and_Dubai_skyline.jpg/1280px-Burj_Khalifa_and_Dubai_skyline.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Dubai_Desert_Safari.jpg/1280px-Dubai_Desert_Safari.jpg',
     ],
     'indore': [
-      'https://images.unsplash.com/photo-1623833917406-fcbb3d37ec00?q=80&w=2920&auto=format&fit=crop', // Rajwada Palace (Placeholder using general Indian palace)
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Rajwada_Palace%2C_Indore.jpg/1280px-Rajwada_Palace%2C_Indore.jpg',
     ],
     'delhi': [
-      'https://images.unsplash.com/photo-1587474260584-136574528ed5?q=80&w=2940&auto=format&fit=crop', // India Gate
-      'https://images.unsplash.com/photo-1565017042079-0db79fc40d34?q=80&w=2787&auto=format&fit=crop', // Red Fort
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/India_Gate_in_New_Delhi_03-2016.jpg/1280px-India_Gate_in_New_Delhi_03-2016.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Red_Fort_New_Delhi.jpg/1280px-Red_Fort_New_Delhi.jpg',
     ],
     'mumbai': [
-      'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?q=80&w=2865&auto=format&fit=crop', // Gateway of India
-      'https://images.unsplash.com/photo-1570168007204-dfb528c6858f?q=80&w=2805&auto=format&fit=crop', // Marine Drive
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Gateway_of_India_2021.jpg/1280px-Gateway_of_India_2021.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Marine_Drive_Mumbai_from_Malabar_Hill.jpg/1280px-Marine_Drive_Mumbai_from_Malabar_Hill.jpg',
     ]
   };
 
@@ -67,8 +67,9 @@ class ImageResolver {
     }
     // Fallback to different generic travel images if possible
     if (index == 1) {
-      return 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2940&auto=format&fit=crop';
+      return 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Golden_Temple_India.jpg/1280px-Golden_Temple_India.jpg';
     }
     return _fallbackImage;
   }
 }
+

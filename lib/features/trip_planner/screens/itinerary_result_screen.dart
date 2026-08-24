@@ -15,6 +15,7 @@ import '../../../core/models/place_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
+import '../widgets/nearby_services_section.dart';
 
 class ItineraryResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -500,6 +501,19 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                 ),
               ),
             ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+          // ── Nearby Emergency Services ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, 0),
+              child: NearbyServicesSection(
+                latitude: itinerary.stops.isNotEmpty ? itinerary.stops.first.latitude : null,
+                longitude: itinerary.stops.isNotEmpty ? itinerary.stops.first.longitude : null,
+              ),
+            ),
+          ),
 
           const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 

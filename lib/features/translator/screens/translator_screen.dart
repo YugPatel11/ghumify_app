@@ -60,7 +60,9 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to translate. Please try again.';
+        _error = e is TranslationException
+            ? e.message
+            : 'Translation failed. Please check your connection and try again.';
         _isTranslating = false;
       });
     }
