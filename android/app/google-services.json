@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "26333180974",
+    "project_id": "ghumify-52e7b",
+    "storage_bucket": "ghumify-52e7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:26333180974:android:a3fbe5825272705b1d9bbf",
+        "android_client_info": {
+          "package_name": "com.example.ghumify_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBXMTVFc17YQaXmWLm0aMkp_woou-u5m_w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

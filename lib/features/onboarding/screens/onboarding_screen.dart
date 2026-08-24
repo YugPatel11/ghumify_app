@@ -23,7 +23,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Discover Hidden Gems',
       description:
           'Explore famous places, local food, markets, and cultural experiences across Indian cities.',
-      gradient: AppColors.cherryGradient,
+      gradient: AppColors.brandGradient,
       softColor: AppColors.brandSoft,
     ),
     _OnboardingPage(
@@ -31,8 +31,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'AI Trip Planner',
       description:
           'Tell us your time and interests — our AI creates a perfect, time-boxed itinerary just for you.',
-      gradient: AppColors.indigoGradient,
-      softColor: AppColors.indigoSoft,
+      gradient: AppColors.premiumDarkGradient,
+      softColor: AppColors.cardAlt,
     ),
     _OnboardingPage(
       icon: Icons.wb_sunny_outlined,
@@ -40,14 +40,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description:
           'Get weather-aware suggestions, packing tips, and the best times to visit outdoor spots.',
       gradient: AppColors.tealGradient,
-      softColor: AppColors.tealSoft,
+      softColor: AppColors.bgElevated,
     ),
     _OnboardingPage(
       icon: Icons.translate_outlined,
       title: 'Break Language Barriers',
       description:
           'Available in 10 Indian languages with built-in translator for on-the-ground conversations.',
-      gradient: AppColors.saffronGradient,
+      gradient: AppColors.sunsetGradient,
       softColor: AppColors.accentSoft,
     ),
   ];
@@ -199,7 +199,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         vertical: 16,
                       ),
                       decoration: BoxDecoration(
-                        gradient: AppColors.cherryGradient,
+                        gradient: AppColors.brandGradient,
                         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                         boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
                       ),

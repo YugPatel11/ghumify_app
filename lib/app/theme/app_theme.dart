@@ -20,10 +20,10 @@ class AppTheme {
         onSecondary: Colors.white,
         secondaryContainer: AppColors.accentSoft,
         onSecondaryContainer: AppColors.accentDeep,
-        tertiary: AppColors.teal,
+        tertiary: AppColors.success,
         onTertiary: Colors.white,
-        tertiaryContainer: AppColors.tealSoft,
-        onTertiaryContainer: AppColors.tealDeep,
+        tertiaryContainer: AppColors.brandSoft,
+        onTertiaryContainer: AppColors.brandDeep,
         surface: AppColors.bgElevated,
         onSurface: AppColors.text,
         surfaceContainerHighest: AppColors.cardAlt,
@@ -38,7 +38,7 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.text,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.outfit(
+        titleTextStyle: GoogleFonts.fraunces(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: AppColors.text,
@@ -177,37 +177,37 @@ class AppTheme {
     const Color secondaryTextColor = AppColors.textSoft;
 
     return TextTheme(
-      displayLarge: GoogleFonts.outfit(
+      displayLarge: GoogleFonts.fraunces(
         fontSize: 48,
         fontWeight: FontWeight.w800,
         color: textColor,
         height: 1.1,
       ),
-      displayMedium: GoogleFonts.outfit(
+      displayMedium: GoogleFonts.fraunces(
         fontSize: 36,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.2,
       ),
-      displaySmall: GoogleFonts.outfit(
+      displaySmall: GoogleFonts.fraunces(
         fontSize: 30,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.25,
       ),
-      headlineLarge: GoogleFonts.outfit(
+      headlineLarge: GoogleFonts.fraunces(
         fontSize: 26,
         fontWeight: FontWeight.w700,
         color: textColor,
         height: 1.3,
       ),
-      headlineMedium: GoogleFonts.outfit(
+      headlineMedium: GoogleFonts.fraunces(
         fontSize: 22,
         fontWeight: FontWeight.w600,
         color: textColor,
         height: 1.3,
       ),
-      headlineSmall: GoogleFonts.outfit(
+      headlineSmall: GoogleFonts.fraunces(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: textColor,

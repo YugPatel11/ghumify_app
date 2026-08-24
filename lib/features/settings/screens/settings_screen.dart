@@ -108,7 +108,7 @@ class SettingsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: AppColors.cherryGradient,
+        gradient: AppColors.brandGradient,
         borderRadius: BorderRadius.circular(AppTokens.radiusXl),
         boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 2),
       ),

@@ -1,10 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 
-/// Main shell with floating glass bottom navigation bar
+/// Main shell with custom floating bottom navigation bar
 class MainShell extends StatelessWidget {
   final Widget child;
 
@@ -40,55 +39,52 @@ class MainShell extends StatelessWidget {
     final selectedIndex = _getSelectedIndex(context);
 
     return Scaffold(
-      extendBody: true, // Crucial for glassmorphism to show content underneath
+      extendBody: true,
       body: child,
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 20.0),
           child: Container(
+            height: 72,
             decoration: BoxDecoration(
-              color: AppColors.glassWhite,
-              borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-              border: Border.all(color: AppColors.borderGlass, width: 1),
-              boxShadow: AppTokens.shadow(level: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                child: NavigationBar(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (index) => _onItemTapped(context, index),
-                  animationDuration: const Duration(milliseconds: 300),
-                  labelBehavior: NavigationDestinationLabelBehavior.alwaysHide, // Cleaner look
-                  backgroundColor: Colors.transparent,
-                  surfaceTintColor: Colors.transparent,
-                  indicatorColor: AppColors.brandSoft.withOpacity(0.5),
-                  height: 64, // Slightly shorter for floating bar
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined, color: AppColors.textSoft),
-                      selectedIcon: Icon(Icons.home_rounded, color: AppColors.brandDeep),
-                      label: 'Home',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.explore_outlined, color: AppColors.textSoft),
-                      selectedIcon: Icon(Icons.explore_rounded, color: AppColors.brandDeep),
-                      label: 'Discover',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.translate_outlined, color: AppColors.textSoft),
-                      selectedIcon: Icon(Icons.translate_rounded, color: AppColors.brandDeep),
-                      label: 'Translate',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.person_outline, color: AppColors.textSoft),
-                      selectedIcon: Icon(Icons.person_rounded, color: AppColors.brandDeep),
-                      label: 'Profile',
-                    ),
-                  ],
+              color: AppColors.brandDeep,
+              borderRadius: BorderRadius.circular(36), // Fully pill-shaped
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brandDeep.withOpacity(0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
                 ),
-              ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _NavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Home',
+                  isSelected: selectedIndex == 0,
+                  onTap: () => _onItemTapped(context, 0),
+                ),
+                _NavItem(
+                  icon: Icons.explore_rounded,
+                  label: 'Explore',
+                  isSelected: selectedIndex == 1,
+                  onTap: () => _onItemTapped(context, 1),
+                ),
+                _NavItem(
+                  icon: Icons.translate_rounded,
+                  label: 'Translate',
+                  isSelected: selectedIndex == 2,
+                  onTap: () => _onItemTapped(context, 2),
+                ),
+                _NavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  isSelected: selectedIndex == 3,
+                  onTap: () => _onItemTapped(context, 3),
+                ),
+              ],
             ),
           ),
         ),
@@ -97,3 +93,54 @@ class MainShell extends StatelessWidget {
   }
 }
 
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppColors.brandDeep : Colors.white.withOpacity(0.5),
+              size: 24,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.brandDeep,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+}

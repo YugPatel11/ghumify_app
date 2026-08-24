@@ -6,6 +6,7 @@ import '../../../core/services/places_service.dart';
 import '../../../core/models/place_model.dart';
 import '../../../core/widgets/premium_background.dart';
 import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/selectable_chip.dart';
 
 class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
@@ -189,42 +190,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     final isSelected = _selectedCategory == entry.key;
                     return Padding(
                       padding: const EdgeInsets.only(right: AppTokens.sm),
-                      child: FilterChip(
-                        label: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              entry.value,
-                              size: 16,
-                              color: isSelected ? Colors.white : AppColors.brand,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              entry.key == 'all'
-                                  ? 'All Places'
-                                  : entry.key[0].toUpperCase() + entry.key.substring(1),
-                            ),
-                          ],
-                        ),
-                        selected: isSelected,
-                        onSelected: (_) {
+                      child: SelectableChip(
+                        label: entry.key == 'all'
+                            ? 'All Places'
+                            : entry.key[0].toUpperCase() + entry.key.substring(1),
+                        icon: entry.value,
+                        isSelected: isSelected,
+                        activeColor: AppColors.brandDeep,
+                        onTap: () {
                           setState(() => _selectedCategory = entry.key);
                           if (_searchCity.isNotEmpty) _searchPlaces();
                         },
-                        selectedColor: AppColors.text,
-                        backgroundColor: isSelected ? AppColors.text : Colors.white.withOpacity(0.85),
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : AppColors.text,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                          side: BorderSide(
-                            color: isSelected ? AppColors.text : Colors.transparent,
-                          ),
-                        ),
-                        showCheckmark: false,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     );
                   }).toList(),
@@ -325,17 +301,30 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _buildPlacesList() {
+    if (_places.length == 1) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
+        children: [_buildPlaceCard(_places[0], isFeatured: true)],
+      );
+    }
+    
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.xxl),
       itemCount: _places.length,
       itemBuilder: (context, index) {
         final place = _places[index];
-        return _buildPlaceCard(place);
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.xl),
+            child: _buildPlaceCard(place, isFeatured: true),
+          );
+        }
+        return _buildPlaceCard(place, isFeatured: false);
       },
     );
   }
 
-  Widget _buildPlaceCard(PlaceModel place) {
+  Widget _buildPlaceCard(PlaceModel place, {bool isFeatured = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTokens.md),
       child: PremiumCard(
@@ -355,10 +344,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category Icon Block
+            // Category Icon Block (Larger for featured)
             Container(
-              width: 80,
-              height: 80,
+              width: isFeatured ? 100 : 80,
+              height: isFeatured ? 100 : 80,
               decoration: BoxDecoration(
                 color: _getCategoryColor(place.category).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
@@ -368,7 +357,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 child: Icon(
                   _getCategoryIcon(place.category),
                   color: _getCategoryColor(place.category),
-                  size: 32,
+                  size: isFeatured ? 40 : 32,
                 ),
               ),
             ),
@@ -462,9 +451,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       case 'food':
         return AppColors.warning;
       case 'markets':
-        return AppColors.indigo;
+        return AppColors.brandDeep;
       case 'nature':
-        return AppColors.teal;
+        return AppColors.success;
       case 'culture':
         return const Color(0xFFD946EF);
       default:

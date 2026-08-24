@@ -123,7 +123,7 @@ class WeatherCard extends StatelessWidget {
   List<Color> _getGradientColors(String condition) {
     switch (condition.toLowerCase()) {
       case 'clear':
-        return AppColors.indigoGradient.colors.take(2).toList();
+        return AppColors.premiumDarkGradient.colors.take(2).toList();
       case 'clouds':
         return const [Color(0xFF8CA5B7), Color(0xFF678196)];
       case 'rain':

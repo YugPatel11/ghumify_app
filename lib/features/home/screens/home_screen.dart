@@ -8,10 +8,11 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/models/weather_model.dart';
-import '../../../core/utils/image_resolver.dart';
+import '../../../core/widgets/app_image.dart';
+import '../../../widgets/image_carousel.dart';
+import '../../../widgets/destination_hero.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/category_grid.dart';
-import '../widgets/popular_cities.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,38 +21,28 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final WeatherService _weatherService = WeatherService();
   final LocationService _locationService = LocationService();
   WeatherModel? _weather;
   String? _currentCity;
   bool _loadingWeather = true;
-  late AnimationController _animController;
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _animController.forward();
-    
     _scrollController.addListener(() {
       setState(() {
         _scrollOffset = _scrollController.offset;
       });
     });
-    
     _loadWeather();
   }
 
   @override
   void dispose() {
-    _animController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -68,7 +59,6 @@ class _HomeScreenState extends State<HomeScreen>
         });
       }
     } catch (e) {
-      // Fallback
       try {
         final weather = await _weatherService.getCurrentWeather('New Delhi');
         if (mounted) {
@@ -88,94 +78,174 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-    final heroImageUrl = ImageResolver.getHeroImage(_currentCity ?? 'Jaipur');
-    
     return Scaffold(
+      backgroundColor: AppColors.bg,
       extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent, // Let background image show through
       body: Stack(
         children: [
-          // ── Dynamic Full-Screen Background ──
-          Positioned.fill(
-            child: Image.network(
-              heroImageUrl,
-              fit: BoxFit.cover,
-            ),
-          ),
-          // ── Atmospheric Overlay ──
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.7),
-                    Colors.white.withOpacity(0.9),
-                  ],
-                  stops: const [0.0, 0.4, 1.0],
-                ),
-              ),
-            ),
-          ),
-
           // ── Scrollable Content ──
           RefreshIndicator(
             onRefresh: _loadWeather,
             color: AppColors.brand,
+            backgroundColor: Colors.white,
             child: CustomScrollView(
               controller: _scrollController,
               slivers: [
-                SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 80)),
-
-                // ── Welcome Text ──
+                // ── True Hero Header ──
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: FadeTransition(
-                      opacity: _animController,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _getGreeting(),
-                            style: TextStyle(
-                              color: AppColors.brandDeep,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2.0,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Where to\nNext?',
-                            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                              color: AppColors.text,
-                              fontSize: 52,
-                              height: 1.1,
-                            ),
-                          ),
-                        ],
+                  child: Stack(
+                    children: [
+                      // Beautiful hero image
+                      const SizedBox(
+                        height: 380,
+                        width: double.infinity,
+                        child: AppImage(
+                          imageUrl: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=2000&auto=format&fit=crop', // India architecture
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
+                      
+                      // Gradient overlay for text readability
+                      Container(
+                        height: 380,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.6),
+                              Colors.black.withOpacity(0.1),
+                              AppColors.bg,
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top + 50,
+                          left: AppTokens.lg,
+                          right: AppTokens.lg,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _getGreeting(),
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Where will\nyou go next?',
+                              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+                            // Search Bar
+                            _buildPremiumSearchBar(context),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
+                
                 const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 
-                // ── Search / Plan Trip Glass Bar ──
+                // ── Distinct Quick Actions ──
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: _buildSearchGlassBar(context),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildQuickAction(context, Icons.auto_awesome, 'AI Trip', AppColors.brand, () => context.push('/plan-trip'), isNew: true),
+                        _buildQuickAction(context, Icons.translate_rounded, 'Translate', AppColors.accentDeep, () => context.push('/translator')),
+                        _buildQuickAction(context, Icons.bookmark_outline_rounded, 'Saved', AppColors.text, () => context.push('/saved-itineraries')),
+                        _buildQuickAction(context, Icons.map_outlined, 'Explore', AppColors.textSoft, () => context.push('/discover')),
+                      ],
+                    ),
                   ),
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
-                // ── Content Below Fold ──
+                // ── Trending Destinations Carousel ──
+                SliverToBoxAdapter(
+                  child: ImageCarousel(
+                    sectionTitle: 'Trending in India',
+                    items: [
+                      CarouselItem(
+                        imageUrl: 'https://images.unsplash.com/photo-1593693397690-362cb9666c6b?q=80&w=2000&auto=format&fit=crop',
+                        title: 'Jaipur',
+                        subtitle: 'The Pink City',
+                        onTap: () {},
+                      ),
+                      CarouselItem(
+                        imageUrl: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=2000&auto=format&fit=crop',
+                        title: 'Goa',
+                        subtitle: 'Beaches & Sunsets',
+                        onTap: () {},
+                      ),
+                      CarouselItem(
+                        imageUrl: 'https://images.unsplash.com/photo-1564507592208-028271380905?q=80&w=2000&auto=format&fit=crop',
+                        title: 'Kerala',
+                        subtitle: "God's Own Country",
+                        onTap: () {},
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+                // ── Highlight Destination Hero ──
+                SliverToBoxAdapter(
+                  child: DestinationHero(
+                    imageUrl: 'https://images.unsplash.com/photo-1621217277884-7a31ff8db452?q=80&w=2000&auto=format&fit=crop', // Taj Mahal
+                    title: 'Agra',
+                    subtitle: 'Symbol of eternal love',
+                    badgeText: 'TOP PICK',
+                    onExploreTap: () {},
+                  ),
+                ),
+                
+                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+                // ── Categories Header ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Experiences',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text('See All', style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600)),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: CategoryGrid(),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
+
+                // ── Weather & Info ──
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
@@ -187,55 +257,12 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // Categories Header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Experiences',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                        Text(
-                          'See All',
-                          style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600, fontSize: 14),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
-                const SliverToBoxAdapter(
-                  child: CategoryGrid(),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // Popular Cities
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: Text(
-                      'Popular Destinations',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
-                const SliverToBoxAdapter(
-                  child: PopularCities(),
-                ),
-
                 const SliverToBoxAdapter(child: SizedBox(height: 120)), // Space for bottom nav
               ],
             ),
           ),
 
-          // ── Sticky Glassmorphism App Bar ──
+          // ── Sticky App Bar (Fades in on scroll) ──
           Positioned(
             top: 0,
             left: 0,
@@ -247,117 +274,175 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildQuickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap, {bool isNew = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    )
+                  ],
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              if (isNew)
+                Positioned(
+                  top: -5,
+                  right: -10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'NEW',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
   Widget _buildStickyAppBar() {
-    // Calculate opacity based on scroll
     final opacity = (_scrollOffset / 150.0).clamp(0.0, 1.0);
     
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: opacity * 15, sigmaY: opacity * 15),
-        child: Container(
-          color: AppColors.bgElevated.withOpacity(opacity * 0.7),
-          padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 10,
-            bottom: 10,
-            left: AppTokens.lg,
-            right: AppTokens.lg,
-          ),
-          child: Row(
-            children: [
-              if (_currentCity != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassWhiteLight,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.borderGlass),
+    return IgnorePointer(
+      ignoring: opacity == 0,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: opacity,
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              color: AppColors.bg.withOpacity(0.9),
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 10,
+                bottom: 15,
+                left: AppTokens.lg,
+                right: AppTokens.lg,
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Ghumify',
+                    style: TextStyle(
+                      color: AppColors.brandDeep,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
                     ),
-                    child: Row(
+                  ),
+                  const Spacer(),
+                  if (_currentCity != null)
+                    Row(
                       children: [
-                        Icon(Icons.location_on, size: 14, color: AppColors.brandDeep),
+                        const Icon(Icons.location_on, size: 16, color: AppColors.textSoft),
                         const SizedBox(width: 4),
                         Text(
-                          _currentCity!.toUpperCase(),
-                          style: TextStyle(
+                          _currentCity!,
+                          style: const TextStyle(
                             color: AppColors.text,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
-                  ),
-              const Spacer(),
-              // Profile or Actions
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.glassWhiteLight,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderGlass),
-                ),
-                child: Icon(Icons.person_outline, size: 20, color: AppColors.text),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSearchGlassBar(BuildContext context) {
+  Widget _buildPremiumSearchBar(BuildContext context) {
     return GestureDetector(
       onTap: () => context.push('/plan-trip'),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: 16),
-            decoration: BoxDecoration(
-              color: AppColors.glassWhite,
-              borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-              border: Border.all(color: AppColors.borderGlass, width: 1.5),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30), // Pill shape for search
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: AppColors.brandDeep, size: 28),
-                const SizedBox(width: AppTokens.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'AI Trip Planner',
-                        style: TextStyle(
-                          color: AppColors.text,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Generate an itinerary in seconds',
-                        style: TextStyle(
-                          color: AppColors.textSoft,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, color: AppColors.brand, size: 24),
+            const SizedBox(width: AppTokens.md),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Search Destinations',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                  SizedBox(height: 2),
+                  Text(
+                    'Cities, hotels, or attractions',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
                   ),
-                  child: const Icon(Icons.arrow_forward_ios, color: AppColors.brand, size: 16),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: AppColors.brand,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.mic, color: Colors.white, size: 20),
+            ),
+          ],
         ),
       ),
     );
@@ -370,4 +455,3 @@ class _HomeScreenState extends State<HomeScreen>
     return 'GOOD EVENING';
   }
 }
-
