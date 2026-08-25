@@ -13,6 +13,7 @@ import '../../../widgets/image_carousel.dart';
 import '../../../widgets/destination_hero.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/category_grid.dart';
+import '../../../core/utils/image_resolver.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -210,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // ── Highlight Destination Hero ──
                 SliverToBoxAdapter(
                   child: DestinationHero(
-                    imageUrl: 'https://images.unsplash.com/photo-1621217277884-7a31ff8db452?q=80&w=2000&auto=format&fit=crop', // Taj Mahal
+                    imageUrl: ImageResolver.getHeroImage('Agra'),
                     title: 'Agra',
                     subtitle: 'Symbol of eternal love',
                     badgeText: 'TOP PICK',
