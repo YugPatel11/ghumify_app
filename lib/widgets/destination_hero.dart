@@ -9,6 +9,7 @@ class DestinationHero extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onExploreTap;
   final String? badgeText;
+  final bool isAsset;
 
   const DestinationHero({
     super.key,
@@ -17,6 +18,7 @@ class DestinationHero extends StatelessWidget {
     required this.subtitle,
     this.onExploreTap,
     this.badgeText,
+    this.isAsset = false,
   });
 
   @override
@@ -35,10 +37,17 @@ class DestinationHero extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                  ),
+                  isAsset
+                      ? Image.asset(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        )
+                      : Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                        ),
                   // Subtle gradient overlay for better text contrast if we had text on top
                   Container(
                     decoration: const BoxDecoration(

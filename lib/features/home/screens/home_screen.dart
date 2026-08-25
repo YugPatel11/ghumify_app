@@ -13,7 +13,7 @@ import '../../../widgets/image_carousel.dart';
 import '../../../widgets/destination_hero.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/category_grid.dart';
-import '../../../core/utils/image_resolver.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -185,21 +185,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     sectionTitle: 'Trending in India',
                     items: [
                       CarouselItem(
-                        imageUrl: 'https://images.unsplash.com/photo-1593693397690-362cb9666c6b?q=80&w=2000&auto=format&fit=crop',
+                        imageUrl: 'assets/images/jaipur.jpeg',
                         title: 'Jaipur',
                         subtitle: 'The Pink City',
+                        isAsset: true,
                         onTap: () {},
                       ),
                       CarouselItem(
-                        imageUrl: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?q=80&w=2000&auto=format&fit=crop',
+                        imageUrl: 'assets/images/goa.jpeg',
                         title: 'Goa',
                         subtitle: 'Beaches & Sunsets',
+                        isAsset: true,
                         onTap: () {},
                       ),
                       CarouselItem(
-                        imageUrl: 'https://images.unsplash.com/photo-1564507592208-028271380905?q=80&w=2000&auto=format&fit=crop',
+                        imageUrl: 'assets/images/kerela.jpeg',
                         title: 'Kerala',
                         subtitle: "God's Own Country",
+                        isAsset: true,
                         onTap: () {},
                       ),
                     ],
@@ -211,10 +214,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 // ── Highlight Destination Hero ──
                 SliverToBoxAdapter(
                   child: DestinationHero(
-                    imageUrl: ImageResolver.getHeroImage('Agra'),
+                    imageUrl: 'assets/images/agra.jpeg',
                     title: 'Agra',
                     subtitle: 'Symbol of eternal love',
                     badgeText: 'TOP PICK',
+                    isAsset: true,
                     onExploreTap: () {},
                   ),
                 ),

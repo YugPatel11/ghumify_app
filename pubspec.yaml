@@ -36,4 +36,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
+    - assets/images/jaipur.jpeg
+    - assets/images/goa.jpeg
+    - assets/images/kerela.jpeg
+    - assets/images/agra.jpeg
     - .env

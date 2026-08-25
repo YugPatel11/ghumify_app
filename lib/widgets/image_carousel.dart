@@ -9,12 +9,14 @@ class CarouselItem {
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
+  final bool isAsset;
 
   CarouselItem({
     required this.imageUrl,
     required this.title,
     this.subtitle,
     this.onTap,
+    this.isAsset = false,
   });
 }
 
@@ -124,10 +126,17 @@ class _ImageCarouselState extends State<ImageCarousel> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              AppImage(
-                imageUrl: item.imageUrl,
-                fit: BoxFit.cover,
-              ),
+              item.isAsset
+                  ? Image.asset(
+                      item.imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    )
+                  : AppImage(
+                      imageUrl: item.imageUrl,
+                      fit: BoxFit.cover,
+                    ),
               Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
