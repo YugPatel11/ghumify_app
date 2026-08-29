@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/user_model.dart';
 import '../constants/app_constants.dart';
 
@@ -9,12 +10,22 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleSignInInitialized = false;
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
 
   /// Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// Initialize Google Sign-In (v7 requires explicit init)
+  Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    await _googleSignIn.initialize(
+      serverClientId: '26333180974-m2egkmgue15gmfiktco6cmd8felj99uh.apps.googleusercontent.com',
+    );
+    _googleSignInInitialized = true;
+  }
 
   /// Sign up with email and password
   Future<UserModel> signUpWithEmail({
@@ -77,12 +88,10 @@ class AuthService {
   /// Sign in with Google
   Future<UserModel> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.authenticate();
-      if (googleUser == null) {
-        throw AuthException('Google sign-in was cancelled');
-      }
+      await _ensureGoogleSignInInitialized();
 
-      // v7: authentication is now synchronous, accessToken removed
+      final googleUser = await _googleSignIn.authenticate();
+
       final googleAuth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
@@ -166,7 +175,9 @@ class AuthService {
 
   /// Sign out
   Future<void> signOut() async {
-    await _googleSignIn.disconnect();
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {}
     await _auth.signOut();
   }
 

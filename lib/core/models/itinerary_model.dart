@@ -135,6 +135,28 @@ class ItineraryModel {
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'userId': userId,
+      'city': city,
+      'date': date,
+      'startTime': startTime,
+      'endTime': endTime,
+      'totalDurationMinutes': totalDurationMinutes,
+      'interests': interests,
+      'travelMode': travelMode,
+      'pace': pace,
+      'stops': stops.map((s) => s.toMap()).toList(),
+      'weatherSummary': weatherSummary,
+      'whatToCarry': whatToCarry,
+      'aiSummary': aiSummary,
+      'isSaved': isSaved,
+      'dayNumber': dayNumber,
+      'createdAt': createdAt.toIso8601String(),
+    };
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'userId': userId,

@@ -145,7 +145,7 @@ class MultiDayItineraryModel {
       'pace': pace,
       'days': days
           .map((d) => {
-                ...d.toFirestore(),
+                ...d.toMap(),
                 'dayNumber': d.dayNumber,
               })
           .toList(),

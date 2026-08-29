@@ -68,6 +68,19 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     }
 
     final data = widget.itineraryData!;
+    
+    // Check if it's already an existing itinerary being opened
+    if (data.containsKey('itinerary') && data['itinerary'] is ItineraryModel) {
+      setState(() {
+        _itinerary = data['itinerary'] as ItineraryModel;
+        _cityName = _itinerary!.city;
+        _heroImage = ImageResolver.getHeroImage(_cityName);
+        _isLoading = false;
+      });
+      _animController.forward();
+      return;
+    }
+
     final city = data['city'] as String;
     final startTime = data['startTime'] as String;
     final endTime = data['endTime'] as String;

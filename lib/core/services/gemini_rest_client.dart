@@ -54,9 +54,7 @@ class GeminiRestClient {
         'gemini-3.7-flash',
         'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
-        'gemini-flash-latest',
-        'gemini-pro-latest',
+        'gemini-3.5-pro',
       ],
       temperature: 0.6,
       maxOutputTokens: 16384,
@@ -66,40 +64,42 @@ class GeminiRestClient {
         'gemini-3.7-flash',
         'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
       ],
       temperature: 0.5,
       maxOutputTokens: 8192,
     ),
     GeminiTaskType.chat: _ModelConfig(
       models: [
+        'gemini-3.7-flash',
         'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
       ],
       temperature: 0.8,
       maxOutputTokens: 4096,
     ),
     GeminiTaskType.generalQuestion: _ModelConfig(
       models: [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
       ],
       temperature: 0.7,
       maxOutputTokens: 2048,
     ),
     GeminiTaskType.placeInfo: _ModelConfig(
       models: [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
       ],
       temperature: 0.8,
       maxOutputTokens: 1024,
     ),
     GeminiTaskType.translation: _ModelConfig(
       models: [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-2.5-flash',
       ],
       temperature: 0.3,
       maxOutputTokens: 2048,
@@ -162,7 +162,7 @@ class GeminiRestClient {
         } on GeminiServerException catch (e) {
           errors.add('[$modelName] 5xx Server error: ${e.message}');
           hasServerError = true;
-          continue; // Server error - try next key
+          break; // Server error (like 503 High Demand) is usually model-wide, skip to next model
         } catch (e) {
           errors.add('[$modelName key#$keyIndex] Error: $e');
           continue;

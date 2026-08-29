@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -70,15 +71,28 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
-  void _navigate() {
+  void _navigate() async {
     if (!mounted) return;
     final authProvider = context.read<AuthProvider>();
     final settingsProvider = context.read<AppSettingsProvider>();
 
     if (settingsProvider.isFirstLaunch) {
       context.go('/onboarding');
-    } else if (authProvider.isLoggedIn) {
-      context.go('/home');
+      return;
+    }
+
+    // Check if Firebase has a logged-in user
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      // Wait briefly for auth provider listener to load user model
+      int attempts = 0;
+      while (authProvider.user == null && attempts < 10) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        attempts++;
+      }
+      if (mounted) {
+        context.go(authProvider.isLoggedIn ? '/home' : '/login');
+      }
     } else {
       context.go('/login');
     }

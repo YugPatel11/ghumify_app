@@ -87,7 +87,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
       return widget.multiDayItinerary!.toMap();
     }
     if (widget.itinerary != null) {
-      return widget.itinerary!.toFirestore();
+      return widget.itinerary!.toMap();
     }
     return {};
   }
@@ -175,7 +175,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
         _messages.add(ChatMessageModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: 'assistant',
-          content: 'Sorry, something went wrong. Please try again.',
+          content: 'Error: ${e.toString()}',
         ));
         _isLoading = false;
       });

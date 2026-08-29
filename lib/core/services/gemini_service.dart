@@ -208,7 +208,7 @@ class GeminiService {
       } else if (e.toString().contains('TimeoutException') || e.toString().contains('SocketException')) {
         errorMessage = 'Could not reach the AI service. Please check your internet connection and try again.';
       } else {
-        errorMessage = 'Sorry, something went wrong. Please try again.';
+        errorMessage = 'Sorry, something went wrong. Please try again. \nDebug: $e';
       }
       return ChatMessageModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),

@@ -71,6 +71,20 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
     }
 
     final data = widget.itineraryData!;
+    
+    // Check if it's already an existing itinerary being opened
+    if (data.containsKey('multiDayItinerary') && data['multiDayItinerary'] is MultiDayItineraryModel) {
+      setState(() {
+        _itinerary = data['multiDayItinerary'] as MultiDayItineraryModel;
+        _cityName = _itinerary!.city;
+        _heroImage = ImageResolver.getHeroImage(_cityName);
+        _isLoading = false;
+      });
+      _tabController = TabController(length: _itinerary!.numberOfDays, vsync: this);
+      _animController.forward();
+      return;
+    }
+
     final city = data['city'] as String;
     final startTime = data['startTime'] as String;
     final endTime = data['endTime'] as String;

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../models/user_model.dart';
+import '../services/auth_service.dart';
 
-/// Auth state provider
+/// Auth state provider — wired to Firebase Auth + Firestore
 class AuthProvider extends ChangeNotifier {
+  final AuthService _authService = AuthService();
 
   UserModel? _user;
   bool _isLoading = false;
@@ -17,10 +20,20 @@ class AuthProvider extends ChangeNotifier {
     _init();
   }
 
+  /// Listen to Firebase auth state and restore session on app start
   void _init() {
-    // Mock user login state (set to true to auto-login, or false to require login click)
-    _user = null;
-    notifyListeners();
+    _authService.authStateChanges.listen((fb_auth.User? firebaseUser) async {
+      if (firebaseUser != null) {
+        try {
+          _user = await _authService.getCurrentUserModel();
+        } catch (_) {
+          _user = null;
+        }
+      } else {
+        _user = null;
+      }
+      notifyListeners();
+    });
   }
 
   /// Sign up with email
@@ -35,17 +48,28 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
-    _user = UserModel(
-      uid: 'mock_uid_123',
-      name: name,
-      email: email,
-      preferredLanguage: preferredLanguage,
-      interests: interests,
-    );
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    try {
+      _user = await _authService.signUpWithEmail(
+        name: name,
+        email: email,
+        password: password,
+        preferredLanguage: preferredLanguage,
+        interests: interests,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Sign up failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Sign in with email
@@ -57,17 +81,25 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
-    _user = UserModel(
-      uid: 'mock_uid_123',
-      name: 'Mock User',
-      email: email,
-      preferredLanguage: 'en',
-      interests: ['Food', 'Culture'],
-    );
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    try {
+      _user = await _authService.signInWithEmail(
+        email: email,
+        password: password,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Sign in failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Sign in with Google
@@ -76,29 +108,43 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1)); // Mock network delay
-    _user = UserModel(
-      uid: 'mock_uid_123',
-      name: 'Google User',
-      email: 'google@example.com',
-      preferredLanguage: 'en',
-      interests: [],
-    );
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    try {
+      _user = await _authService.signInWithGoogle();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Google sign-in failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Update user profile
   Future<void> updateProfile(UserModel updatedUser) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    _user = updatedUser;
-    notifyListeners();
+    try {
+      await _authService.updateUserProfile(updatedUser);
+      _user = updatedUser;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to update profile: $e';
+      notifyListeners();
+    }
   }
 
   /// Sign out
   Future<void> signOut() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      await _authService.signOut();
+    } catch (_) {
+      // Sign out locally even if remote fails
+    }
     _user = null;
     notifyListeners();
   }
@@ -109,10 +155,22 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 1));
-    _isLoading = false;
-    notifyListeners();
-    return true;
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Password reset failed: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Clear error

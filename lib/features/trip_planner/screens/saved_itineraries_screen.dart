@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
@@ -39,9 +40,11 @@ class SavedItinerariesScreen extends StatelessWidget {
         children: [
           // Background Image
           Positioned.fill(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1506461883276-594a12b11dc3?q=80&w=2000&auto=format&fit=crop', // Beautiful landscape
+            child: CachedNetworkImage(
+              imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Taj_Mahal_%28Edited%29.jpeg/1280px-Taj_Mahal_%28Edited%29.jpeg', // Working fallback
               fit: BoxFit.cover,
+              placeholder: (context, url) => Container(color: AppColors.bg),
+              errorWidget: (context, url, error) => Container(color: AppColors.bg),
             ),
           ),
           // Gradient Overlay
