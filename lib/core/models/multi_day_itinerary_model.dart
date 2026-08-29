@@ -21,6 +21,15 @@ class MultiDayItineraryModel {
   final bool isSaved;
   final DateTime createdAt;
 
+  // New Age & Budget fields
+  final int? age;
+  final int? travelers;
+  final int? budget;
+  final String currency;
+  final int? estimatedTotalCost;
+  final int? remainingBudget;
+  final Map<String, dynamic>? overallExpenseSummary;
+
   MultiDayItineraryModel({
     required this.id,
     required this.userId,
@@ -39,6 +48,13 @@ class MultiDayItineraryModel {
     this.whatToCarry = const [],
     this.isSaved = false,
     DateTime? createdAt,
+    this.age,
+    this.travelers,
+    this.budget,
+    this.currency = 'INR',
+    this.estimatedTotalCost,
+    this.remainingBudget,
+    this.overallExpenseSummary,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory MultiDayItineraryModel.fromMap(Map<String, dynamic> data) {
@@ -74,6 +90,13 @@ class MultiDayItineraryModel {
           whatToCarry: List<String>.from(dayData['whatToCarry'] ?? []),
           aiSummary: dayData['aiSummary'],
           dayNumber: dayData['dayNumber'] ?? 1,
+          age: dayData['age'],
+          travelers: dayData['travelers'],
+          budget: dayData['budget'],
+          currency: dayData['currency'] ?? 'INR',
+          estimatedTotalCost: dayData['estimatedTotalCost'],
+          remainingBudget: dayData['remainingBudget'],
+          expenseSummary: dayData['expenseSummary'] as Map<String, dynamic>?,
         );
       }).toList(),
       overallSummary: data['overallSummary'],
@@ -83,6 +106,13 @@ class MultiDayItineraryModel {
       createdAt: data['createdAt'] != null
           ? DateTime.parse(data['createdAt'])
           : DateTime.now(),
+      age: data['age'],
+      travelers: data['travelers'],
+      budget: data['budget'],
+      currency: data['currency'] ?? 'INR',
+      estimatedTotalCost: data['estimatedTotalCost'],
+      remainingBudget: data['remainingBudget'],
+      overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
     );
   }
 
@@ -120,6 +150,13 @@ class MultiDayItineraryModel {
           whatToCarry: List<String>.from(dayData['whatToCarry'] ?? []),
           aiSummary: dayData['aiSummary'],
           dayNumber: dayData['dayNumber'] ?? 1,
+          age: dayData['age'],
+          travelers: dayData['travelers'],
+          budget: dayData['budget'],
+          currency: dayData['currency'] ?? 'INR',
+          estimatedTotalCost: dayData['estimatedTotalCost'],
+          remainingBudget: dayData['remainingBudget'],
+          expenseSummary: dayData['expenseSummary'] as Map<String, dynamic>?,
         );
       }).toList(),
       overallSummary: data['overallSummary'],
@@ -127,6 +164,13 @@ class MultiDayItineraryModel {
       whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
       isSaved: data['isSaved'] ?? false,
       createdAt: (data['createdAt'] as import_firestore.Timestamp?)?.toDate() ?? DateTime.now(),
+      age: data['age'],
+      travelers: data['travelers'],
+      budget: data['budget'],
+      currency: data['currency'] ?? 'INR',
+      estimatedTotalCost: data['estimatedTotalCost'],
+      remainingBudget: data['remainingBudget'],
+      overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
     );
   }
 
@@ -154,6 +198,13 @@ class MultiDayItineraryModel {
       'whatToCarry': whatToCarry,
       'isSaved': isSaved,
       'createdAt': createdAt.toIso8601String(),
+      'age': age,
+      'travelers': travelers,
+      'budget': budget,
+      'currency': currency,
+      'estimatedTotalCost': estimatedTotalCost,
+      'remainingBudget': remainingBudget,
+      'overallExpenseSummary': overallExpenseSummary,
     };
   }
 
@@ -180,6 +231,13 @@ class MultiDayItineraryModel {
       'whatToCarry': whatToCarry,
       'isSaved': isSaved,
       'createdAt': import_firestore.Timestamp.fromDate(createdAt),
+      'age': age,
+      'travelers': travelers,
+      'budget': budget,
+      'currency': currency,
+      'estimatedTotalCost': estimatedTotalCost,
+      'remainingBudget': remainingBudget,
+      'overallExpenseSummary': overallExpenseSummary,
     };
   }
 
@@ -189,6 +247,9 @@ class MultiDayItineraryModel {
     String? weatherSummary,
     List<String>? whatToCarry,
     bool? isSaved,
+    int? estimatedTotalCost,
+    int? remainingBudget,
+    Map<String, dynamic>? overallExpenseSummary,
   }) {
     return MultiDayItineraryModel(
       id: id,
@@ -208,6 +269,13 @@ class MultiDayItineraryModel {
       whatToCarry: whatToCarry ?? this.whatToCarry,
       isSaved: isSaved ?? this.isSaved,
       createdAt: createdAt,
+      age: age,
+      travelers: travelers,
+      budget: budget,
+      currency: currency,
+      estimatedTotalCost: estimatedTotalCost ?? this.estimatedTotalCost,
+      remainingBudget: remainingBudget ?? this.remainingBudget,
+      overallExpenseSummary: overallExpenseSummary ?? this.overallExpenseSummary,
     );
   }
 

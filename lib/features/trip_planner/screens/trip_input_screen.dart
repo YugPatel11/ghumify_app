@@ -23,7 +23,7 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
   final _placesService = PlacesService();
 
   int _currentStep = 0;
-  static const int _totalSteps = 3;
+  static const int _totalSteps = 4;
   late AnimationController _progressController;
 
   TimeOfDay _startTime = const TimeOfDay(hour: 10, minute: 0);
@@ -35,6 +35,11 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
   List<Map<String, String>> _citySuggestions = [];
   bool _showSuggestions = false;
   String _heroImage = ImageResolver.getHeroImage('India');
+
+  // New fields
+  final _ageController = TextEditingController();
+  final _budgetController = TextEditingController();
+  int _travelers = 1;
 
   // Date range for multi-day trips
   DateTime _startDate = DateTime.now();
@@ -67,6 +72,8 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
   @override
   void dispose() {
     _cityController.dispose();
+    _ageController.dispose();
+    _budgetController.dispose();
     _progressController.dispose();
     super.dispose();
   }
@@ -228,6 +235,9 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
           'startDate': _startDate.toString().split(' ').first,
           'endDate': _endDate.toString().split(' ').first,
           'numberOfDays': _numberOfDays,
+          'age': int.tryParse(_ageController.text),
+          'budget': int.tryParse(_budgetController.text),
+          'travelers': _travelers,
         };
         context.pushReplacement('/multi-day-itinerary', extra: data);
       } else {
@@ -239,6 +249,9 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
           'travelMode': _travelMode,
           'pace': _pace,
           'date': _startDate.toString().split(' ').first,
+          'age': int.tryParse(_ageController.text),
+          'budget': int.tryParse(_budgetController.text),
+          'travelers': _travelers,
         };
         context.pushReplacement('/itinerary', extra: data);
       }
@@ -368,6 +381,7 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
       case 0: return _buildStep1Destination(key: key);
       case 1: return _buildStep2Interests(key: key);
       case 2: return _buildStep3Pace(key: key);
+      case 3: return _buildStep4Details(key: key);
       default: return const SizedBox.shrink();
     }
   }
@@ -596,6 +610,125 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStep4Details({required Key key}) {
+    return SingleChildScrollView(
+      key: key,
+      padding: const EdgeInsets.all(AppTokens.lg),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'A few details',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(color: AppColors.text),
+            ),
+            const SizedBox(height: AppTokens.xl),
+            
+            Text('HOW MANY TRAVELERS?', style: _sectionHeaderStyle()),
+            const SizedBox(height: AppTokens.md),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.md, vertical: AppTokens.sm),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Travelers', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.text)),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, color: AppColors.textSoft),
+                        onPressed: () {
+                          if (_travelers > 1) setState(() => _travelers--);
+                        },
+                      ),
+                      Text('$_travelers', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: AppColors.brandDeep),
+                        onPressed: () {
+                          if (_travelers < 20) setState(() => _travelers++);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppTokens.xxl),
+
+            Text('YOUR AGE?', style: _sectionHeaderStyle()),
+            const SizedBox(height: AppTokens.sm),
+            const Text('Helps us recommend age-appropriate activities and experiences.', style: TextStyle(fontSize: 13, color: AppColors.textSoft)),
+            const SizedBox(height: AppTokens.md),
+            TextFormField(
+              controller: _ageController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: 'e.g. 25',
+                prefixIcon: const Icon(Icons.cake, color: AppColors.textSoft),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+              validator: (value) {
+                if (value != null && value.isNotEmpty) {
+                  final age = int.tryParse(value);
+                  if (age == null || age < 1 || age > 120) return 'Invalid age';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppTokens.xxl),
+
+            Text('TOTAL BUDGET? (IN-CITY EXPENSES)', style: _sectionHeaderStyle()),
+            const SizedBox(height: AppTokens.sm),
+            const Text('Enter budget in INR (₹) for hotels, food, and activities. Leave blank if flexible.', style: TextStyle(fontSize: 13, color: AppColors.textSoft)),
+            const SizedBox(height: AppTokens.md),
+            TextFormField(
+              controller: _budgetController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: 'e.g. 10000',
+                prefixText: '₹ ',
+                prefixStyle: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w600),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+              validator: (value) {
+                if (value != null && value.isNotEmpty) {
+                  final budget = int.tryParse(value);
+                  if (budget == null || budget < 0) return 'Invalid budget';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

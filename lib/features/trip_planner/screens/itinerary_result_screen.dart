@@ -359,26 +359,173 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                         ),
                   ),
                   const SizedBox(height: AppTokens.sm),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandDeep,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${itinerary.stops.length} STOPS • CURATED FOR YOU',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 2.0,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandDeep,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${itinerary.stops.length} STOPS',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (itinerary.age != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.brand.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            'AGE: ${itinerary.age}',
+                            style: TextStyle(
+                              color: AppColors.brandDeep,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                        ),
+                      if (itinerary.travelers != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.brand.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            'TRAVELERS: ${itinerary.travelers}',
+                            style: TextStyle(
+                              color: AppColors.brandDeep,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
+
+          // ── Trip Estimate Summary ──
+          if (itinerary.budget != null || itinerary.estimatedTotalCost != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, AppTokens.md),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTokens.lg),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.85),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                        border: Border.all(color: AppColors.borderGlass),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'TRIP ESTIMATE',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: AppColors.textSoft,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              if (itinerary.budget != null && itinerary.estimatedTotalCost != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: itinerary.remainingBudget != null && itinerary.remainingBudget! >= 0
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    itinerary.remainingBudget != null && itinerary.remainingBudget! >= 0
+                                        ? '✓ Within Budget'
+                                        : '⚠ Over Budget',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: itinerary.remainingBudget != null && itinerary.remainingBudget! >= 0
+                                          ? Colors.green[700]
+                                          : Colors.red[700],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppTokens.md),
+                          Row(
+                            children: [
+                              if (itinerary.budget != null) ...[
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Budget', style: TextStyle(fontSize: 12, color: AppColors.textSoft)),
+                                      Text('₹${itinerary.budget}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if (itinerary.estimatedTotalCost != null) ...[
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Est. Cost', style: TextStyle(fontSize: 12, color: AppColors.textSoft)),
+                                      Text('₹${itinerary.estimatedTotalCost}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.brand)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (itinerary.expenseSummary != null) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Divider(),
+                            ),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 4,
+                              children: itinerary.expenseSummary!.entries
+                                  .where((e) => e.key != 'total')
+                                  .map((e) => Text(
+                                        '${e.key.toUpperCase()}: ₹${e.value}',
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textSoft, fontWeight: FontWeight.w600),
+                                      ))
+                                  .toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // ── Summary Box ──
           if (itinerary.aiSummary != null)
@@ -683,33 +830,58 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                         ),
                       ],
 
-                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || stop.tips.isNotEmpty)
+                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0) || stop.tips.isNotEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: AppTokens.md),
                           child: Divider(color: AppColors.borderLight),
                         ),
 
-                      if (stop.travelMinutes != null && stop.travelMinutes! > 0)
+                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0))
                         Padding(
                           padding: const EdgeInsets.only(bottom: AppTokens.sm),
                           child: Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgElevated,
-                                  shape: BoxShape.circle,
+                              if (stop.travelMinutes != null && stop.travelMinutes! > 0) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.bgElevated,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.directions, size: 14, color: AppColors.textSoft),
                                 ),
-                                child: const Icon(Icons.directions, size: 14, color: AppColors.textSoft),
-                              ),
-                              const SizedBox(width: AppTokens.sm),
-                              Text(
-                                '${stop.travelMinutes} min ${stop.travelMode ?? "travel"}',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.textSoft,
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(width: AppTokens.sm),
+                                Text(
+                                  '${stop.travelMinutes} min ${stop.travelMode ?? "travel"}',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.textSoft,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
+                              ],
+                              if (stop.travelMinutes != null && stop.travelMinutes! > 0 && stop.estimatedCost != null && stop.estimatedCost! > 0)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: Text('•', style: TextStyle(color: AppColors.textSoft)),
+                                ),
+                              if (stop.estimatedCost != null && stop.estimatedCost! > 0) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.brandSoft,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.currency_rupee, size: 14, color: AppColors.brand),
+                                ),
+                                const SizedBox(width: AppTokens.sm),
+                                Text(
+                                  'Est. ₹${stop.estimatedCost}',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: AppColors.brand,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

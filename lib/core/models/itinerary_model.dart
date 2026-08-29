@@ -15,6 +15,7 @@ class ItineraryStop {
   final String? travelMode; // from previous stop
   final int? travelMinutes; // from previous stop
   final List<String> tips; // e.g. "Don't miss the Maha Aarti at 7 PM"
+  final int? estimatedCost; // newly added
 
   ItineraryStop({
     required this.name,
@@ -30,6 +31,7 @@ class ItineraryStop {
     this.travelMode,
     this.travelMinutes,
     this.tips = const [],
+    this.estimatedCost,
   });
 
   factory ItineraryStop.fromMap(Map<String, dynamic> data) {
@@ -47,6 +49,7 @@ class ItineraryStop {
       travelMode: data['travelMode'],
       travelMinutes: data['travelMinutes'],
       tips: List<String>.from(data['tips'] ?? []),
+      estimatedCost: data['estimatedCost'],
     );
   }
 
@@ -65,6 +68,7 @@ class ItineraryStop {
       'travelMode': travelMode,
       'travelMinutes': travelMinutes,
       'tips': tips,
+      'estimatedCost': estimatedCost,
     };
   }
 }
@@ -88,6 +92,15 @@ class ItineraryModel {
   final bool isSaved;
   final int dayNumber; // Day number in multi-day trip (1-indexed, defaults to 1)
   final DateTime createdAt;
+  
+  // New Age & Budget fields
+  final int? age;
+  final int? travelers;
+  final int? budget;
+  final String currency;
+  final int? estimatedTotalCost;
+  final int? remainingBudget;
+  final Map<String, dynamic>? expenseSummary;
 
   ItineraryModel({
     required this.id,
@@ -107,6 +120,13 @@ class ItineraryModel {
     this.isSaved = false,
     this.dayNumber = 1,
     DateTime? createdAt,
+    this.age,
+    this.travelers,
+    this.budget,
+    this.currency = 'INR',
+    this.estimatedTotalCost,
+    this.remainingBudget,
+    this.expenseSummary,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory ItineraryModel.fromFirestore(DocumentSnapshot doc) {
@@ -130,8 +150,14 @@ class ItineraryModel {
       aiSummary: data['aiSummary'],
       isSaved: data['isSaved'] ?? false,
       dayNumber: data['dayNumber'] ?? 1,
-      createdAt:
-          (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      age: data['age'],
+      travelers: data['travelers'],
+      budget: data['budget'],
+      currency: data['currency'] ?? 'INR',
+      estimatedTotalCost: data['estimatedTotalCost'],
+      remainingBudget: data['remainingBudget'],
+      expenseSummary: data['expenseSummary'] as Map<String, dynamic>?,
     );
   }
 
@@ -154,6 +180,13 @@ class ItineraryModel {
       'isSaved': isSaved,
       'dayNumber': dayNumber,
       'createdAt': createdAt.toIso8601String(),
+      'age': age,
+      'travelers': travelers,
+      'budget': budget,
+      'currency': currency,
+      'estimatedTotalCost': estimatedTotalCost,
+      'remainingBudget': remainingBudget,
+      'expenseSummary': expenseSummary,
     };
   }
 
@@ -175,6 +208,13 @@ class ItineraryModel {
       'isSaved': isSaved,
       'dayNumber': dayNumber,
       'createdAt': Timestamp.fromDate(createdAt),
+      'age': age,
+      'travelers': travelers,
+      'budget': budget,
+      'currency': currency,
+      'estimatedTotalCost': estimatedTotalCost,
+      'remainingBudget': remainingBudget,
+      'expenseSummary': expenseSummary,
     };
   }
 
@@ -185,6 +225,9 @@ class ItineraryModel {
     String? aiSummary,
     bool? isSaved,
     int? dayNumber,
+    int? estimatedTotalCost,
+    int? remainingBudget,
+    Map<String, dynamic>? expenseSummary,
   }) {
     return ItineraryModel(
       id: id,
@@ -204,6 +247,13 @@ class ItineraryModel {
       isSaved: isSaved ?? this.isSaved,
       dayNumber: dayNumber ?? this.dayNumber,
       createdAt: createdAt,
+      age: age,
+      travelers: travelers,
+      budget: budget,
+      currency: currency,
+      estimatedTotalCost: estimatedTotalCost ?? this.estimatedTotalCost,
+      remainingBudget: remainingBudget ?? this.remainingBudget,
+      expenseSummary: expenseSummary ?? this.expenseSummary,
     );
   }
 }

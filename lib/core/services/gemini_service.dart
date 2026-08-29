@@ -29,6 +29,9 @@ class GeminiService {
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) async {
@@ -40,6 +43,9 @@ class GeminiService {
       interests: interests,
       travelMode: travelMode,
       pace: pace,
+      age: age,
+      travelers: travelers,
+      budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
     );
@@ -59,6 +65,9 @@ class GeminiService {
         interests: interests,
         travelMode: travelMode,
         pace: pace,
+        age: age,
+        travelers: travelers,
+        budget: budget,
         weather: weather,
       );
     } catch (e) {
@@ -83,6 +92,9 @@ class GeminiService {
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) async {
@@ -96,6 +108,9 @@ class GeminiService {
       interests: interests,
       travelMode: travelMode,
       pace: pace,
+      age: age,
+      travelers: travelers,
+      budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
     );
@@ -117,6 +132,9 @@ class GeminiService {
         interests: interests,
         travelMode: travelMode,
         pace: pace,
+        age: age,
+        travelers: travelers,
+        budget: budget,
         weather: weather,
       );
     } catch (e) {
@@ -305,6 +323,9 @@ class GeminiService {
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) {
@@ -314,6 +335,22 @@ class GeminiService {
         : pace == 'fast'
             ? 'fast-paced (maximize places visited)'
             : 'moderate (balanced between exploring and resting)';
+
+    String ageGroupContext = '';
+    if (age != null) {
+      if (age < 26) {
+        ageGroupContext = 'The traveler is $age years old. Prioritize energetic, adventurous, instagrammable spots, local trends, and nightlife if appropriate, but still respect their explicit interests.';
+      } else if (age < 50) {
+        ageGroupContext = 'The traveler is $age years old. Balance adventure with cultural experiences and relaxation based on their interests.';
+      } else {
+        ageGroupContext = 'The traveler is $age years old. Prioritize comfort, scenic beauty, heritage, and easily accessible places, but still respect their explicit interests.';
+      }
+    }
+
+    String budgetContext = '';
+    if (budget != null && budget > 0) {
+      budgetContext = 'BUDGET CONSTRAINT: The user has a total budget of ₹$budget for in-city expenses (food, transport, activities) for ${travelers ?? 1} traveler(s). You MUST estimate costs realistically and ensure the total estimated cost strictly stays within this budget. Recommend free/cheap activities if the budget is low.';
+    }
 
     String weatherContext = '';
     if (weather != null) {
@@ -346,6 +383,10 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
+${travelers != null ? '- Travelers: $travelers' : ''}
+
+$ageGroupContext
+$budgetContext
 
 $weatherContext
 $placesContext
@@ -373,9 +414,17 @@ RULES:
       "description": "What to see/do here",
       "travelMode": "driving",
       "travelMinutes": 15,
+      "estimatedCost": 250,
       "tips": ["Tip 1", "Tip 2"]
     }
   ],
+  "expenseSummary": {
+    "food": 1000,
+    "transport": 500,
+    "activities": 1500,
+    "other": 200,
+    "total": 3200
+  },
   "whatToCarry": ["Item 1", "Item 2", "Item 3"],
   "weatherSummary": "Brief weather note for the day"
 }
@@ -400,6 +449,9 @@ IMPORTANT:
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
   }) {
@@ -409,6 +461,22 @@ IMPORTANT:
         : pace == 'fast'
             ? 'fast-paced (maximize places visited)'
             : 'moderate (balanced between exploring and resting)';
+
+    String ageGroupContext = '';
+    if (age != null) {
+      if (age < 26) {
+        ageGroupContext = 'The traveler is $age years old. Prioritize energetic, adventurous, instagrammable spots, local trends, and nightlife if appropriate, but still respect their explicit interests.';
+      } else if (age < 50) {
+        ageGroupContext = 'The traveler is $age years old. Balance adventure with cultural experiences and relaxation based on their interests.';
+      } else {
+        ageGroupContext = 'The traveler is $age years old. Prioritize comfort, scenic beauty, heritage, and easily accessible places, but still respect their explicit interests.';
+      }
+    }
+
+    String budgetContext = '';
+    if (budget != null && budget > 0) {
+      budgetContext = 'BUDGET CONSTRAINT: The user has a total budget of ₹$budget for in-city expenses (food, transport, activities) for ${travelers ?? 1} traveler(s) for the ENTIRE $numberOfDays-day trip. You MUST estimate costs realistically and ensure the total estimated cost strictly stays within this budget. Distribute the budget wisely across the days. Recommend free/cheap activities if the budget is low.';
+    }
 
     String weatherContext = '';
     if (weather != null) {
@@ -440,6 +508,10 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
+${travelers != null ? '- Travelers: $travelers' : ''}
+
+$ageGroupContext
+$budgetContext
 
 $weatherContext
 $placesContext
@@ -462,11 +534,25 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
   "overallSummary": "2-3 sentence overview of the entire trip",
   "weatherSummary": "Brief weather note",
   "whatToCarry": ["Item 1", "Item 2", "Item 3", "Item 4", "Item 5"],
+  "overallExpenseSummary": {
+    "food": 3000,
+    "transport": 1500,
+    "activities": 2500,
+    "other": 500,
+    "total": 7500
+  },
   "days": [
     {
       "dayNumber": 1,
       "date": "$startDate",
       "aiSummary": "Theme/focus for this day in 1-2 sentences",
+      "expenseSummary": {
+        "food": 1000,
+        "transport": 500,
+        "activities": 1000,
+        "other": 200,
+        "total": 2700
+      },
       "stops": [
         {
           "name": "Place Name",
@@ -479,6 +565,7 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "description": "What to see/do here",
           "travelMode": "$travelMode",
           "travelMinutes": 15,
+          "estimatedCost": 250,
           "tips": ["Tip 1", "Tip 2"]
         }
       ]
@@ -539,6 +626,9 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
   }) {
     try {
@@ -566,6 +656,13 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
         totalMinutes = last.difference(first).inMinutes;
       }
 
+      final expenseSummary = data['expenseSummary'] as Map<String, dynamic>?;
+      final estimatedTotalCost = expenseSummary?['total'] as int?;
+      int? remainingBudget;
+      if (budget != null && budget > 0 && estimatedTotalCost != null) {
+        remainingBudget = budget - estimatedTotalCost;
+      }
+
       return ItineraryModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
@@ -582,6 +679,13 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
             data['weatherSummary'] as String? ?? weather?.conditionDescription,
         whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
         aiSummary: data['aiSummary'] as String?,
+        age: age,
+        travelers: travelers,
+        budget: budget,
+        currency: 'INR',
+        estimatedTotalCost: estimatedTotalCost,
+        remainingBudget: remainingBudget,
+        expenseSummary: expenseSummary,
       );
     } catch (e) {
       throw GeminiRestException(
@@ -602,6 +706,9 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
     required List<String> interests,
     required String travelMode,
     required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
     WeatherModel? weather,
   }) {
     try {
@@ -634,6 +741,9 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
           totalMinutes = last.difference(first).inMinutes;
         }
 
+        final expenseSummary = d['expenseSummary'] as Map<String, dynamic>?;
+        final estimatedTotalCost = expenseSummary?['total'] as int?;
+
         return ItineraryModel(
           id: '${DateTime.now().millisecondsSinceEpoch}_day$dayNumber',
           userId: userId,
@@ -648,8 +758,17 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
           stops: stops,
           aiSummary: d['aiSummary'] as String?,
           dayNumber: dayNumber,
+          expenseSummary: expenseSummary,
+          estimatedTotalCost: estimatedTotalCost,
         );
       }).toList();
+
+      final overallExpenseSummary = data['overallExpenseSummary'] as Map<String, dynamic>?;
+      final estimatedTotalCost = overallExpenseSummary?['total'] as int?;
+      int? remainingBudget;
+      if (budget != null && budget > 0 && estimatedTotalCost != null) {
+        remainingBudget = budget - estimatedTotalCost;
+      }
 
       return MultiDayItineraryModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -668,6 +787,13 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
         weatherSummary:
             data['weatherSummary'] as String? ?? weather?.conditionDescription,
         whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
+        age: age,
+        travelers: travelers,
+        budget: budget,
+        currency: 'INR',
+        estimatedTotalCost: estimatedTotalCost,
+        remainingBudget: remainingBudget,
+        overallExpenseSummary: overallExpenseSummary,
       );
     } catch (e) {
       throw GeminiRestException(
