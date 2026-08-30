@@ -16,7 +16,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 import '../widgets/nearby_services_section.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 class ItineraryResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
 
@@ -148,6 +148,37 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         },
       ),
     );
+  }
+
+  Future<void> _openRouteInGoogleMaps() async {
+    if (_itinerary == null || _itinerary!.stops.isEmpty) return;
+
+    try {
+      final stops = _itinerary!.stops;
+      final origin = stops.first;
+      final destination = stops.last;
+      
+      final waypoints = stops.sublist(1, stops.length - 1).map((s) => '${s.latitude},${s.longitude}').join('|');
+      
+      String urlStr = 'https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}';
+      
+      if (waypoints.isNotEmpty) {
+        urlStr += '&waypoints=$waypoints';
+      }
+      
+      final Uri url = Uri.parse(urlStr);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch Google Maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open route: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -712,6 +743,29 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                   label: const Text('Save Itinerary'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.text, // Charcoal
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
+
+          // ── Open Route in Google Maps Button ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _openRouteInGoogleMaps,
+                  icon: const Icon(Icons.directions_car),
+                  label: const Text('Open Route in Google Maps'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brand,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 24),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTokens.radiusMd)),

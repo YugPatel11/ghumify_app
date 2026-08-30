@@ -6,7 +6,8 @@ import '../../../app/theme/app_tokens.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/services/gemini_service.dart';
 import '../../../core/widgets/premium_card.dart';
-
+import '../../../core/services/location_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 class PlaceDetailScreen extends StatefulWidget {
   final String placeId;
   final Map<String, dynamic>? placeData;
@@ -25,6 +26,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
     with SingleTickerProviderStateMixin {
   final PlacesService _placesService = PlacesService();
   final GeminiService _geminiService = GeminiService();
+  final LocationService _locationService = LocationService();
 
   Map<String, dynamic>? _details;
   String? _history;
@@ -38,6 +40,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   double? get _rating => widget.placeData?['rating']?.toDouble();
   String? get _address => widget.placeData?['address'];
   String? get _googlePlaceId => widget.placeData?['googlePlaceId'];
+  double get _latitude => (widget.placeData?['latitude'] ?? 0).toDouble();
+  double get _longitude => (widget.placeData?['longitude'] ?? 0).toDouble();
 
   @override
   void initState() {
@@ -90,6 +94,39 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
         _history = 'Editorial information is currently unavailable.';
         _isLoadingHistory = false;
       });
+    }
+  }
+
+  Future<void> _openDirections() async {
+    if (_latitude == 0 || _longitude == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location coordinates not available.')),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator in a dialog or just a simple snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Getting current location...'), duration: Duration(seconds: 1)),
+      );
+
+      final currentPos = await _locationService.getCurrentPosition();
+      
+      final String googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&origin=${currentPos.latitude},${currentPos.longitude}&destination=$_latitude,$_longitude&travelmode=driving';
+      
+      final Uri url = Uri.parse(googleMapsUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch Google Maps.';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open directions: $e')),
+        );
+      }
     }
   }
 
@@ -289,20 +326,35 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
                       const SizedBox(height: AppTokens.xl),
                     ],
 
-                    // ── Action Button ──
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          context.push('/plan-trip', extra: {'city': _city});
-                        },
-                        icon: const Icon(Icons.map_outlined),
-                        label: const Text('Add to Itinerary'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brand,
-                          padding: const EdgeInsets.symmetric(vertical: 24),
+                    // ── Action Buttons ──
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              context.push('/plan-trip', extra: {'city': _city});
+                            },
+                            icon: const Icon(Icons.map_outlined),
+                            label: const Text('Add to Itinerary'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brand,
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: AppTokens.md),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _openDirections,
+                            icon: const Icon(Icons.directions, color: AppColors.brandDeep),
+                            label: const Text('Directions', style: TextStyle(color: AppColors.brandDeep, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brandSoft,
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppTokens.xl),
                   ],
