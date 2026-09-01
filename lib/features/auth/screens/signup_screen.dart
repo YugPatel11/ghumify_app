@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -100,15 +100,7 @@ class _SignupScreenState extends State<SignupScreen>
       ),
       body: Stack(
         children: [
-          // Atmospheric image background
-          Positioned.fill(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=1000&auto=format&fit=crop', // Beautiful beach/travel image
-              fit: BoxFit.cover,
-            ),
-          ),
-          
-          // ── Atmospheric Overlay ──
+          // Clean gradient background
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -116,8 +108,8 @@ class _SignupScreenState extends State<SignupScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.7),
+                    AppColors.brandDeep.withOpacity(0.3),
+                    AppColors.brandDeep.withOpacity(0.85),
                   ],
                 ),
               ),
@@ -132,24 +124,19 @@ class _SignupScreenState extends State<SignupScreen>
                   opacity: _fadeAnim,
                   child: SlideTransition(
                     position: _slideAnim,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppTokens.xl),
-                          decoration: BoxDecoration(
-                            color: AppColors.glassWhite, // 80% white
-                            borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-                            border: Border.all(color: Colors.white, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.text.withOpacity(0.05),
-                                blurRadius: 30,
-                                offset: const Offset(0, 10),
-                              )
-                            ],
-                          ),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTokens.xl),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgElevated,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 40,
+                            offset: const Offset(0, 20),
+                          )
+                        ],
+                      ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,8 +290,6 @@ class _SignupScreenState extends State<SignupScreen>
                               const SizedBox(height: AppTokens.xs),
                             ],
                           ),
-                        ),
-                      ),
                     ),
                   ),
                 ),

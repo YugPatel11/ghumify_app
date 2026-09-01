@@ -134,17 +134,10 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.bg,
       body: Stack(
         children: [
-          // ── Dynamic Full-Screen Background ──
-          Positioned.fill(
-            child: Image.network(
-              'https://images.unsplash.com/photo-1582510003544-4d00b7f7415e?q=80&w=2000&auto=format&fit=crop', // Taj Mahal / Heritage fallback
-              fit: BoxFit.cover,
-            ),
-          ),
-          // ── Atmospheric Overlay ──
+          // ── Clean Gradient Background ──
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -152,11 +145,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white.withOpacity(0.4),
-                    Colors.white.withOpacity(0.8),
-                    Colors.white.withOpacity(0.95),
+                    AppColors.brandSoft,
+                    AppColors.bg,
                   ],
-                  stops: const [0.0, 0.4, 1.0],
                 ),
               ),
             ),

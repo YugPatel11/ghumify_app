@@ -16,6 +16,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 import '../widgets/nearby_services_section.dart';
+import '../widgets/place_media_gallery.dart';
 import 'package:url_launcher/url_launcher.dart';
 class ItineraryResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -223,14 +224,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
           : null,
       body: Stack(
         children: [
-          // ── Dynamic Full-Screen Background ──
-          Positioned.fill(
-            child: Image.network(
-              _heroImage,
-              fit: BoxFit.cover,
-            ),
-          ),
-          // ── Atmospheric Overlay ──
+          // ── Clean Gradient Background ──
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -238,11 +232,9 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white.withOpacity(0.4),
-                    Colors.white.withOpacity(0.8),
-                    Colors.white.withOpacity(0.95),
+                    AppColors.brandSoft,
+                    AppColors.bg,
                   ],
-                  stops: const [0.0, 0.4, 1.0],
                 ),
               ),
             ),
@@ -263,50 +255,35 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
 
   Widget _buildLoadingState() {
     return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.all(AppTokens.xxl),
-            decoration: BoxDecoration(
-              color: AppColors.glassWhite,
-              borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-              border: Border.all(color: AppColors.borderGlass),
+      child: Container(
+        padding: const EdgeInsets.all(AppTokens.xxl),
+        margin: const EdgeInsets.all(AppTokens.lg),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 48,
+              height: 48,
+              child: CircularProgressIndicator(
+                color: AppColors.brand,
+                strokeWidth: 3,
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: const Duration(seconds: 2),
-                  builder: (context, value, child) {
-                    return Transform.rotate(
-                      angle: value * 6.28,
-                      child: child,
-                    );
-                  },
-                  onEnd: () {
-                    if (mounted && _isLoading) setState(() {});
-                  },
-                  child: const Icon(
-                    Icons.explore,
-                    size: 48,
-                    color: AppColors.brand,
+            const SizedBox(height: AppTokens.xl),
+            Text(
+              _loadingMessage,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.text,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                const SizedBox(height: AppTokens.xl),
-                Text(
-                  _loadingMessage,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.text,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -314,54 +291,47 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
 
   Widget _buildErrorState() {
     return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            margin: const EdgeInsets.all(AppTokens.lg),
-            padding: const EdgeInsets.all(AppTokens.xl),
-            decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+      child: Container(
+        margin: const EdgeInsets.all(AppTokens.lg),
+        padding: const EdgeInsets.all(AppTokens.xl),
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.white),
+            const SizedBox(height: AppTokens.md),
+            Text(
+              'Failed to Curate Trip',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.white),
-                const SizedBox(height: AppTokens.md),
-                Text(
-                  'Failed to Curate Trip',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
-                ),
-                const SizedBox(height: AppTokens.sm),
-                Text(
-                  _error ?? 'Unknown error',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTokens.xl),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLoading = true;
-                        _error = null;
-                      });
-                      _generateItinerary();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.error,
-                    ),
-                    child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
+            const SizedBox(height: AppTokens.sm),
+            Text(
+              _error ?? 'Unknown error',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+              textAlign: TextAlign.center,
             ),
-          ),
+            const SizedBox(height: AppTokens.xl),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _generateItinerary();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.error,
+                ),
+                child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -883,6 +853,12 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                               ),
                         ),
                       ],
+                      
+                      const SizedBox(height: AppTokens.md),
+                      PlaceMediaGallery(
+                        placeName: stop.name,
+                        cityName: _itinerary?.city,
+                      ),
 
                       if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0) || stop.tips.isNotEmpty)
                         const Padding(

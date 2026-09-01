@@ -94,9 +94,9 @@ class AppRouter {
               ),
             ),
             GoRoute(
-              path: '/translator',
+              path: '/trips',
               pageBuilder: (context, state) => const NoTransitionPage(
-                child: TranslatorScreen(),
+                child: SavedItinerariesScreen(),
               ),
             ),
             GoRoute(
@@ -106,6 +106,12 @@ class AppRouter {
               ),
             ),
           ],
+        ),
+
+        // Translator (standalone route, accessible from home quick actions)
+        GoRoute(
+          path: '/translator',
+          builder: (context, state) => const TranslatorScreen(),
         ),
 
         // Trip planner flow

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
@@ -7,7 +6,6 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/utils/image_resolver.dart';
-import '../../../core/widgets/selectable_chip.dart';
 
 class TripInputScreen extends StatefulWidget {
   const TripInputScreen({super.key});
@@ -549,11 +547,7 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
             runSpacing: 12,
             children: AppConstants.interestTags.map((interest) {
               final isSelected = _selectedInterests.contains(interest);
-              return SelectableChip(
-                label: interest,
-                icon: _getIconForInterest(interest),
-                isSelected: isSelected,
-                activeColor: AppColors.brandDeep,
+              return GestureDetector(
                 onTap: () {
                   setState(() {
                     if (isSelected) {
@@ -563,6 +557,23 @@ class _TripInputScreenState extends State<TripInputScreen> with TickerProviderSt
                     }
                   });
                 },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.brand : AppColors.bgElevated,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                    border: Border.all(color: isSelected ? AppColors.brand : AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_getIconForInterest(interest), size: 16, color: isSelected ? Colors.white : AppColors.textSoft),
+                      const SizedBox(width: 8),
+                      Text(interest, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : AppColors.textSoft)),
+                    ],
+                  ),
+                ),
               );
             }).toList(),
           ),

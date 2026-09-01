@@ -1,95 +1,124 @@
 import 'package:flutter/material.dart';
 
-/// Ghumify Premium Travel UI Palette: "Midnight & Marigold"
-/// Inspired by deep forests, vibrant spices, and modern Indian luxury.
+/// Ghumify Design System — Figma "Tourism App Template" Palette
+/// Navy + Amber, clean modern surfaces
 class AppColors {
   AppColors._();
 
-  // ── Brand Primary: Deep Jade ──
-  static const Color brand = Color(0xFF0F4C3A); // Deep, sophisticated Jade Green
-  static const Color brandDeep = Color(0xFF07261D); // Almost black green
-  static const Color brandLight = Color(0xFF268A6B); 
-  static const Color brandSoft = Color(0xFFE6F3EF); // Extremely light jade background
+  // ── Brand Primary: Navy ──
+  static const Color brand = Color(0xFF1A3685);
+  static const Color brandDeep = Color(0xFF0F2361);
+  static const Color brandLight = Color(0xFF3B5BB5);
+  static const Color brandSoft = Color(0xFFE8EDF7);
 
-  // ── Accent: Marigold / Mango ──
-  static const Color accent = Color(0xFFFF9F1C); // Warm, optimistic orange/gold
-  static const Color accentDeep = Color(0xFFCC7F16);
-  static const Color accentLight = Color(0xFFFFB64D);
-  static const Color accentSoft = Color(0xFFFFF6EB);
+  // ── Accent: Amber / Gold ──
+  static const Color accent = Color(0xFFF59E0B);
+  static const Color accentDeep = Color(0xFFD97706);
+  static const Color accentLight = Color(0xFFFBBF24);
+  static const Color accentSoft = Color(0xFFFFF8E1);
 
-  // ── Surfaces (Clean, bright, high contrast) ──
-  static const Color bg = Color(0xFFFAFAFA); // Alabaster/Off-white for clean backdrop
+  // ── Surfaces ──
+  static const Color bg = Color(0xFFF0F4F9);
   static const Color bgElevated = Color(0xFFFFFFFF);
   static const Color card = Color(0xFFFFFFFF);
-  static const Color cardAlt = Color(0xFFF3F4F6); // Very subtle cool gray
+  static const Color cardAlt = Color(0xFFF5F7FA);
 
-  // ── Glass Surfaces (Used sparingly) ──
-  static const Color glassWhite = Color(0xD9FFFFFF); // 85% White
-  static const Color glassWhiteLight = Color(0x99FFFFFF); // 60% White
-  static const Color glassDark = Color(0x33000000);  // 20% Black
+  // ── Glass / Overlay ──
+  static const Color glassWhite = Color(0xD9FFFFFF);
+  static const Color glassWhiteLight = Color(0x99FFFFFF);
+  static const Color glassDark = Color(0x33000000);
 
   // ── Text ──
-  static const Color text = Color(0xFF111827); // Gray 900 (Near Black)
-  static const Color textSoft = Color(0xFF4B5563); // Gray 600
-  static const Color textMuted = Color(0xFF9CA3AF); // Gray 400
-  static const Color textLight = Color(0xFFFFFFFF); // White for overlays
+  static const Color text = Color(0xFF1A1D26);
+  static const Color textSoft = Color(0xFF5A6175);
+  static const Color textMuted = Color(0xFF9DA3B3);
+  static const Color textLight = Color(0xFFFFFFFF);
 
   // ── Border ──
-  static const Color border = Color(0xFFE5E7EB); // Gray 200
-  static const Color borderLight = Color(0xFFF3F4F6); // Gray 100
-  static const Color borderGlass = Color(0x33FFFFFF); // 20% White border
+  static const Color border = Color(0xFFE2E6EE);
+  static const Color borderLight = Color(0xFFF0F2F7);
+  static const Color borderGlass = Color(0x33FFFFFF);
 
   // ── Status ──
-  static const Color success = Color(0xFF059669);
+  static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
-  static const Color error = Color(0xFFDC2626);
-  static const Color info = Color(0xFF2563EB);
+  static const Color error = Color(0xFFEF4444);
+  static const Color info = Color(0xFF3B82F6);
+
+  // ── Star / Rating ──
+  static const Color star = Color(0xFFF59E0B);
+
+  // ── Badge Colors ──
+  static const Color badgeAdventure = Color(0xFF10B981);
+  static const Color badgeRomantic = Color(0xFFEC4899);
+  static const Color badgeBeach = Color(0xFF06B6D4);
+  static const Color badgeCulture = Color(0xFF8B5CF6);
+  static const Color badgeHeritage = Color(0xFFD97706);
+  static const Color badgeNature = Color(0xFF059669);
 
   // ── Gradients ──
   static const LinearGradient brandGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF0F4C3A), Color(0xFF07261D)],
+    colors: [Color(0xFF1A3685), Color(0xFF0F2361)],
   );
 
-  static const LinearGradient sunsetGradient = LinearGradient(
+  static const LinearGradient accentGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFF9F1C), Color(0xFFFF7A00)],
+    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
   );
 
-  static const LinearGradient tealGradient = LinearGradient(
+  static const LinearGradient navyLightGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF268A6B), Color(0xFF0F4C3A)],
+    colors: [Color(0xFF3B5BB5), Color(0xFF1A3685)],
   );
 
   static const LinearGradient premiumDarkGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF111827), Color(0xFF1F2937)],
+    colors: [Color(0xFF1A1D26), Color(0xFF2D3142)],
+  );
+
+  // Kept for backward compatibility with existing code
+  static const LinearGradient sunsetGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+  );
+
+  static const LinearGradient tealGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF3B5BB5), Color(0xFF1A3685)],
   );
 
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Colors.transparent, Color(0xFFFAFAFA)], // Fades to Alabaster bg
+    colors: [Colors.transparent, Color(0xFFF0F4F9)],
   );
 
   static const LinearGradient imageOverlay = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0x00000000), Color(0xCC000000)], // Transparent to 80% black for crisp text
+    colors: [Color(0x00000000), Color(0xB3000000)],
   );
 
-  // ── Gradient by name (for dynamic usage) ──
+  // ── Gradient by name ──
   static LinearGradient gradientByName(String name) {
     switch (name) {
-      case 'brand': return brandGradient;
-      case 'sunset': return sunsetGradient;
-      case 'teal': return tealGradient;
-      case 'premium': return premiumDarkGradient;
-      default: return brandGradient;
+      case 'brand':
+        return brandGradient;
+      case 'sunset':
+        return sunsetGradient;
+      case 'teal':
+        return tealGradient;
+      case 'premium':
+        return premiumDarkGradient;
+      default:
+        return brandGradient;
     }
   }
 }

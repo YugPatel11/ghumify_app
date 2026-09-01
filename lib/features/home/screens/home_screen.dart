@@ -1,19 +1,17 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/models/weather_model.dart';
-import '../../../core/widgets/app_image.dart';
-import '../../../widgets/image_carousel.dart';
-import '../../../widgets/destination_hero.dart';
+import '../../../core/widgets/destination_card.dart';
+import '../../../core/widgets/section_header.dart';
+import '../../../core/utils/image_resolver.dart';
 import '../widgets/weather_card.dart';
-import '../widgets/category_grid.dart';
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,30 +20,48 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> {
   final WeatherService _weatherService = WeatherService();
   final LocationService _locationService = LocationService();
   WeatherModel? _weather;
   String? _currentCity;
   bool _loadingWeather = true;
-  final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
+  String _selectedCategory = 'all';
+
+  static const List<_CategoryData> _categories = [
+    _CategoryData('all', 'All', Icons.grid_view_rounded),
+    _CategoryData('beach', 'Beach', Icons.beach_access),
+    _CategoryData('mountain', 'Mountain', Icons.landscape),
+    _CategoryData('heritage', 'Heritage', Icons.account_balance),
+    _CategoryData('temples', 'Temples', Icons.temple_hindu),
+    _CategoryData('nature', 'Nature', Icons.park),
+    _CategoryData('food', 'Food', Icons.restaurant),
+  ];
+
+  static const List<_DestinationData> _featured = [
+    _DestinationData(
+      'Udaipur',
+      'Rajasthan, India',
+      'assets/images/jaipur.jpeg',
+      'City of Lakes',
+      4.8,
+      2340,
+      '₹3,500',
+      true,
+    ),
+  ];
+
+  static const List<_DestinationData> _popular = [
+    _DestinationData('Goa', 'India', 'assets/images/goa.jpeg', 'Adventure', 4.7, 5200, '₹4,000', true),
+    _DestinationData('Kerala', 'India', 'assets/images/kerela.jpeg', 'Romantic', 4.9, 3800, '₹5,500', true),
+    _DestinationData('Agra', 'India', 'assets/images/agra.jpeg', 'Heritage', 4.8, 8100, '₹2,500', true),
+    _DestinationData('Jaipur', 'India', 'assets/images/jaipur.jpeg', 'Culture', 4.6, 4500, '₹3,200', true),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
-    });
     _loadWeather();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadWeather() async {
@@ -77,386 +93,431 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      extendBodyBehindAppBar: true,
-      body: Stack(
-        children: [
-          // ── Scrollable Content ──
-          RefreshIndicator(
-            onRefresh: _loadWeather,
-            color: AppColors.brand,
-            backgroundColor: Colors.white,
-            child: CustomScrollView(
-              controller: _scrollController,
-              slivers: [
-                // ── True Hero Header ──
-                SliverToBoxAdapter(
-                  child: Stack(
-                    children: [
-                      // Beautiful hero image
-                      const SizedBox(
-                        height: 380,
-                        width: double.infinity,
-                        child: AppImage(
-                          imageUrl: 'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=2000&auto=format&fit=crop', // India architecture
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      
-                      // Gradient overlay for text readability
-                      Container(
-                        height: 380,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.black.withOpacity(0.1),
-                              AppColors.bg,
-                            ],
-                            stops: const [0.0, 0.5, 1.0],
-                          ),
-                        ),
-                      ),
-                      
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 50,
-                          left: AppTokens.lg,
-                          right: AppTokens.lg,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getGreeting(),
-                              style: const TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 2.0,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Where will\nyou go next?',
-                              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                                color: Colors.white,
-                                height: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            // Search Bar
-                            _buildPremiumSearchBar(context),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
-
-                // ── Distinct Quick Actions ──
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildQuickAction(context, Icons.auto_awesome, 'AI Trip', AppColors.brand, () => context.push('/plan-trip'), isNew: true),
-                        _buildQuickAction(context, Icons.translate_rounded, 'Translate', AppColors.accentDeep, () => context.push('/translator')),
-                        _buildQuickAction(context, Icons.bookmark_outline_rounded, 'Saved', AppColors.text, () => context.push('/saved-itineraries')),
-                        _buildQuickAction(context, Icons.map_outlined, 'Explore', AppColors.textSoft, () => context.push('/discover')),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // ── Trending Destinations Carousel ──
-                SliverToBoxAdapter(
-                  child: ImageCarousel(
-                    sectionTitle: 'Trending in India',
-                    items: [
-                      CarouselItem(
-                        imageUrl: 'assets/images/jaipur.jpeg',
-                        title: 'Jaipur',
-                        subtitle: 'The Pink City',
-                        isAsset: true,
-                        onTap: () {},
-                      ),
-                      CarouselItem(
-                        imageUrl: 'assets/images/goa.jpeg',
-                        title: 'Goa',
-                        subtitle: 'Beaches & Sunsets',
-                        isAsset: true,
-                        onTap: () {},
-                      ),
-                      CarouselItem(
-                        imageUrl: 'assets/images/kerela.jpeg',
-                        title: 'Kerala',
-                        subtitle: "God's Own Country",
-                        isAsset: true,
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // ── Highlight Destination Hero ──
-                SliverToBoxAdapter(
-                  child: DestinationHero(
-                    imageUrl: 'assets/images/agra.jpeg',
-                    title: 'Agra',
-                    subtitle: 'Symbol of eternal love',
-                    badgeText: 'TOP PICK',
-                    isAsset: true,
-                    onExploreTap: () {},
-                  ),
-                ),
-                
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // ── Categories Header ──
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Experiences',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('See All', style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.w600)),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                const SliverToBoxAdapter(
-                  child: CategoryGrid(),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
-
-                // ── Weather & Info ──
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                    child: WeatherCard(
-                      weather: _weather,
-                      isLoading: _loadingWeather,
-                      city: _currentCity,
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 120)), // Space for bottom nav
-              ],
-            ),
-          ),
-
-          // ── Sticky App Bar (Fades in on scroll) ──
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _buildStickyAppBar(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap, {bool isNew = false}) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    )
-                  ],
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              if (isNew)
-                Positioned(
-                  top: -5,
-                  right: -10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'NEW',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStickyAppBar() {
-    final opacity = (_scrollOffset / 150.0).clamp(0.0, 1.0);
-    
-    return IgnorePointer(
-      ignoring: opacity == 0,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: opacity,
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              color: AppColors.bg.withOpacity(0.9),
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 10,
-                bottom: 15,
-                left: AppTokens.lg,
-                right: AppTokens.lg,
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'Ghumify',
-                    style: TextStyle(
-                      color: AppColors.brandDeep,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_currentCity != null)
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, size: 16, color: AppColors.textSoft),
-                        const SizedBox(width: 4),
-                        Text(
-                          _currentCity!,
-                          style: const TextStyle(
-                            color: AppColors.text,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPremiumSearchBar(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/plan-trip'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30), // Pill shape for search
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: AppColors.brand, size: 24),
-            const SizedBox(width: AppTokens.md),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Search Destinations',
-                    style: TextStyle(
-                      color: AppColors.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Cities, hotels, or attractions',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: AppColors.brand,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.mic, color: Colors.white, size: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'GOOD MORNING';
-    if (hour < 17) return 'GOOD AFTERNOON';
-    return 'GOOD EVENING';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final userName = user?.name ?? 'Traveler';
+    final firstName = userName.split(' ').first;
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadWeather,
+          color: AppColors.brand,
+          child: CustomScrollView(
+            slivers: [
+              // ── Top Bar ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.md, AppTokens.lg, 0),
+                  child: Row(
+                    children: [
+                      // Logo
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset('assets/images/logo.png', fit: BoxFit.cover),
+                      ),
+                      const Spacer(),
+                      // Notification
+                      GestureDetector(
+                        onTap: () => context.push('/saved-itineraries'),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgElevated,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Icon(Icons.notifications_outlined, color: AppColors.text, size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // User Avatar
+                      GestureDetector(
+                        onTap: () => context.go('/settings'),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.brand,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              firstName.isNotEmpty ? firstName[0].toUpperCase() : 'T',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Greeting ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.lg, AppTokens.lg, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_getGreeting()}, $firstName',
+                        style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Where's your next adventure?",
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: AppColors.textMuted,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Search Bar ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.lg, AppTokens.lg, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => context.push('/plan-trip'),
+                          child: Container(
+                            height: 50,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgElevated,
+                              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.search, color: AppColors.textMuted, size: 20),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Search destinations...',
+                                  style: TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => context.push('/plan-trip'),
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: AppColors.brand,
+                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                          ),
+                          child: const Icon(Icons.tune, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Category Chips ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppTokens.lg),
+                  child: SizedBox(
+                    height: 40,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final cat = _categories[index];
+                        final isSelected = _selectedCategory == cat.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedCategory = cat.id),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.brand : AppColors.bgElevated,
+                                borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                                border: Border.all(
+                                  color: isSelected ? AppColors.brand : AppColors.border,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    cat.icon,
+                                    size: 16,
+                                    color: isSelected ? Colors.white : AppColors.textSoft,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    cat.label,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : AppColors.textSoft,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
+
+              // ── Quick Actions Row ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: Row(
+                    children: [
+                      _QuickAction(
+                        icon: Icons.auto_awesome,
+                        label: 'AI Trip',
+                        color: AppColors.brand,
+                        onTap: () => context.push('/plan-trip'),
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickAction(
+                        icon: Icons.translate_rounded,
+                        label: 'Translate',
+                        color: AppColors.accentDeep,
+                        onTap: () => context.push('/translator'),
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickAction(
+                        icon: Icons.bookmark_outline_rounded,
+                        label: 'Saved',
+                        color: AppColors.info,
+                        onTap: () => context.push('/saved-itineraries'),
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickAction(
+                        icon: Icons.map_outlined,
+                        label: 'Explore',
+                        color: AppColors.success,
+                        onTap: () => context.go('/discover'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+
+              // ── Featured Section ──
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Featured',
+                  actionText: 'See all',
+                  onActionTap: () => context.go('/discover'),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: DestinationCard(
+                    imageUrl: _featured[0].image,
+                    title: _featured[0].name,
+                    subtitle: _featured[0].subtitle,
+                    badge: _featured[0].badge,
+                    badgeColor: AppColors.badgeBeach,
+                    rating: _featured[0].rating,
+                    reviewCount: _featured[0].reviewCount,
+                    price: _featured[0].price,
+                    isAsset: _featured[0].isAsset,
+                    isFeatured: true,
+                    onTap: () => context.push('/plan-trip', extra: {'city': _featured[0].name}),
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+
+              // ── Popular Section ──
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'Popular',
+                  actionText: 'See all',
+                  onActionTap: () => context.go('/discover'),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.md)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemCount: _popular.length,
+                    itemBuilder: (context, index) {
+                      final dest = _popular[index];
+                      return DestinationCard(
+                        imageUrl: dest.image,
+                        title: dest.name,
+                        subtitle: dest.subtitle,
+                        badge: dest.badge,
+                        badgeColor: _getBadgeColor(dest.badge),
+                        rating: dest.rating,
+                        price: dest.price,
+                        isAsset: dest.isAsset,
+                        onTap: () => context.push('/plan-trip', extra: {'city': dest.name}),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+
+              // ── Weather Card ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
+                  child: WeatherCard(
+                    weather: _weather,
+                    isLoading: _loadingWeather,
+                    city: _currentCity,
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getBadgeColor(String badge) {
+    switch (badge.toLowerCase()) {
+      case 'adventure':
+        return AppColors.badgeAdventure;
+      case 'romantic':
+        return AppColors.badgeRomantic;
+      case 'heritage':
+        return AppColors.badgeHeritage;
+      case 'culture':
+        return AppColors.badgeCulture;
+      case 'beach':
+        return AppColors.badgeBeach;
+      case 'nature':
+        return AppColors.badgeNature;
+      default:
+        return AppColors.brand;
+    }
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.bgElevated,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSoft,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryData {
+  final String id;
+  final String label;
+  final IconData icon;
+  const _CategoryData(this.id, this.label, this.icon);
+}
+
+class _DestinationData {
+  final String name;
+  final String subtitle;
+  final String image;
+  final String badge;
+  final double rating;
+  final int reviewCount;
+  final String price;
+  final bool isAsset;
+  const _DestinationData(this.name, this.subtitle, this.image, this.badge, this.rating, this.reviewCount, this.price, this.isAsset);
 }

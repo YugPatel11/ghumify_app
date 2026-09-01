@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/models/weather_model.dart';
-import '../../../core/services/weather_service.dart';
 
+/// Clean weather card matching the Figma design system
 class WeatherCard extends StatelessWidget {
   final WeatherModel? weather;
   final bool isLoading;
@@ -19,165 +19,133 @@ class WeatherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return _buildShimmer(context);
+      return Container(
+        padding: const EdgeInsets.all(AppTokens.lg),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.brand,
+              ),
+            ),
+            SizedBox(width: AppTokens.md),
+            Text(
+              'Loading weather...',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+          ],
+        ),
+      );
     }
 
-    if (weather == null) {
-      return _buildUnavailable(context);
-    }
-
-    final gradientColors = _getGradientColors(weather!.condition);
+    if (weather == null) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(AppTokens.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: gradientColors,
-        ),
+        gradient: AppColors.brandGradient,
         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        boxShadow: AppTokens.coloredShadow(gradientColors.first, level: 2),
+        boxShadow: AppTokens.coloredShadow(AppColors.brand, level: 1),
       ),
       child: Row(
         children: [
+          // Weather Icon
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            ),
+            child: Center(
+              child: Text(
+                _getWeatherEmoji(weather!.condition),
+                style: const TextStyle(fontSize: 26),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppTokens.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      WeatherService.getWeatherEmoji(weather!.condition),
-                      style: const TextStyle(fontSize: 32),
-                    ),
-                    const SizedBox(width: AppTokens.md),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          weather!.temperatureDisplay,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          weather!.conditionDescription,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                Text(
+                  city ?? 'Current Location',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: AppTokens.md),
-                Row(
-                  children: [
-                    _buildWeatherDetail(
-                      Icons.water_drop_outlined,
-                      '${weather!.humidity}%',
-                    ),
-                    const SizedBox(width: AppTokens.lg),
-                    _buildWeatherDetail(
-                      Icons.air,
-                      '${weather!.windSpeed.toStringAsFixed(1)} m/s',
-                    ),
-                    const SizedBox(width: AppTokens.lg),
-                    _buildWeatherDetail(
-                      Icons.thermostat_outlined,
-                      'Feels ${weather!.feelsLike.round()}°',
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  weather!.conditionDescription,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${weather!.temperature.round()}°C',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(Icons.water_drop, size: 12, color: Colors.white.withOpacity(0.7)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${weather!.humidity}%',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildWeatherDetail(IconData icon, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white.withOpacity(0.8), size: 14),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Color> _getGradientColors(String condition) {
-    switch (condition.toLowerCase()) {
+  String _getWeatherEmoji(String main) {
+    switch (main.toLowerCase()) {
       case 'clear':
-        return AppColors.premiumDarkGradient.colors.take(2).toList();
+        return '☀️';
       case 'clouds':
-        return const [Color(0xFF8CA5B7), Color(0xFF678196)];
+        return '☁️';
       case 'rain':
       case 'drizzle':
-        return const [Color(0xFF5D7BB2), Color(0xFF405D96)];
+        return '🌧️';
       case 'thunderstorm':
-        return const [Color(0xFF4A4E69), Color(0xFF22223B)];
+        return '⛈️';
+      case 'snow':
+        return '❄️';
+      case 'mist':
+      case 'haze':
+      case 'fog':
+        return '🌫️';
       default:
-        return AppColors.tealGradient.colors.take(2).toList();
+        return '🌤️';
     }
-  }
-
-  Widget _buildShimmer(BuildContext context) {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: AppColors.cardAlt,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: AppColors.brand,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUnavailable(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppTokens.lg),
-      decoration: BoxDecoration(
-        color: AppColors.cardAlt,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off, color: AppColors.textMuted),
-          const SizedBox(width: AppTokens.md),
-          const Text(
-            'Weather data unavailable',
-            style: TextStyle(
-              color: AppColors.textSoft,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
