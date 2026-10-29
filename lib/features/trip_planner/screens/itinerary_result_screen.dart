@@ -151,26 +151,56 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     );
   }
 
+  String _formatMapStop(ItineraryStop stop) {
+    if (stop.latitude != null && stop.longitude != null) {
+      return '${stop.latitude},${stop.longitude}';
+    }
+    return Uri.encodeComponent(stop.name.trim());
+  }
+
   Future<void> _openRouteInGoogleMaps() async {
-    if (_itinerary == null || _itinerary!.stops.isEmpty) return;
+    final stops = _itinerary?.stops;
+    if (stops == null || stops.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No stops available in this itinerary.')),
+        );
+      }
+      return;
+    }
 
     try {
-      final stops = _itinerary!.stops;
-      final origin = stops.first;
-      final destination = stops.last;
-      
-      final waypoints = stops.sublist(1, stops.length - 1).map((s) => '${s.latitude},${s.longitude}').join('|');
-      
-      String urlStr = 'https://www.google.com/maps/dir/?api=1&origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}';
-      
-      if (waypoints.isNotEmpty) {
-        urlStr += '&waypoints=$waypoints';
-      }
-      
-      final Uri url = Uri.parse(urlStr);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+      String urlStr;
+      if (stops.length == 1) {
+        final destination = _formatMapStop(stops.first);
+        urlStr = 'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving';
       } else {
+        final origin = _formatMapStop(stops.first);
+        final destination = _formatMapStop(stops.last);
+        var waypointsList = stops.sublist(1, stops.length - 1);
+        if (waypointsList.length > 9) {
+          waypointsList = waypointsList.sublist(0, 9);
+        }
+
+        urlStr = 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$destination';
+        if (waypointsList.isNotEmpty) {
+          final waypoints = waypointsList.map(_formatMapStop).join('%7C');
+          urlStr += '&waypoints=$waypoints';
+        }
+        urlStr += '&travelmode=driving';
+      }
+
+      final Uri url = Uri.parse(urlStr);
+      bool launched = false;
+      try {
+        launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+      if (!launched) {
+        try {
+          launched = await launchUrl(url, mode: LaunchMode.platformDefault);
+        } catch (_) {}
+      }
+      if (!launched) {
         throw 'Could not launch Google Maps';
       }
     } catch (e) {

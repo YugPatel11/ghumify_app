@@ -109,13 +109,44 @@ class _PlaceMediaGalleryState extends State<PlaceMediaGallery> {
                     onPageChanged: (index) => setState(() => _currentPage = index),
                     itemCount: _mediaModel!.images.length,
                     itemBuilder: (context, index) {
-                      return CachedNetworkImage(
-                        imageUrl: _mediaModel!.images[index],
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => _buildShimmer(height: double.infinity),
-                        errorWidget: (context, url, error) => Container(
-                          color: AppColors.bgElevated,
-                          child: const Icon(Icons.broken_image, color: AppColors.textSoft),
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Scaffold(
+                                backgroundColor: Colors.black,
+                                appBar: AppBar(
+                                  backgroundColor: Colors.black,
+                                  iconTheme: const IconThemeData(color: Colors.white),
+                                ),
+                                body: Center(
+                                  child: InteractiveViewer(
+                                    child: CachedNetworkImage(
+                                      imageUrl: _mediaModel!.images[index],
+                                      httpHeaders: const {'User-Agent': 'GhumifyApp/1.0 (contact@ghumify.com)'},
+                                      fit: BoxFit.contain,
+                                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                      errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        child: CachedNetworkImage(
+                          imageUrl: _mediaModel!.images[index],
+                          httpHeaders: const {'User-Agent': 'GhumifyApp/1.0 (contact@ghumify.com)'},
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => _buildShimmer(height: double.infinity),
+                          errorWidget: (context, url, error) {
+                            print('IMAGE LOAD ERROR for $url:\n$error');
+                            return Container(
+                              color: AppColors.bgElevated,
+                              child: const Icon(Icons.broken_image, color: AppColors.textSoft),
+                            );
+                          },
                         ),
                       );
                     },

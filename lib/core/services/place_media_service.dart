@@ -30,7 +30,16 @@ class PlaceMediaService {
         'format': 'json',
       });
 
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      print('==================================================');
+      print('PLACE NAME:\n$placeName');
+      print('MEDIA REQUEST:\n$url');
+
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'GhumifyApp/1.0 (contact@ghumify.com)'},
+      ).timeout(const Duration(seconds: 10));
+      
+      print('MEDIA API STATUS:\n${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -42,21 +51,29 @@ class PlaceMediaService {
           pages.forEach((key, value) {
             final imageInfo = value['imageinfo'] as List<dynamic>?;
             if (imageInfo != null && imageInfo.isNotEmpty) {
-              final url = imageInfo[0]['url'] as String?;
-              // Filter out icons, logos, and tiny images by checking extensions
-              if (url != null &&
-                  (url.toLowerCase().endsWith('.jpg') || 
-                   url.toLowerCase().endsWith('.jpeg') || 
-                   url.toLowerCase().endsWith('.png'))) {
-                images.add(url);
+              final urlStr = imageInfo[0]['url'] as String?;
+              if (urlStr != null) {
+                final path = Uri.parse(urlStr).path.toLowerCase();
+                if (path.endsWith('.jpg') || 
+                    path.endsWith('.jpeg') || 
+                    path.endsWith('.png')) {
+                  images.add(urlStr);
+                }
               }
             }
           });
         }
+        
+        print('IMAGES FOUND:\n${images.length}');
+        print('IMAGE URLS/REFERENCES:\n${images.join('\n')}');
 
         // We use an intent URL for videos as they are robust and high quality
         // without requiring an embedded player or API key for YouTube Data API.
         final videoUrl = 'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$query tour')}';
+
+        print('VIDEO FOUND:\n${images.isNotEmpty ? 'Yes' : 'No'}');
+        print('VIDEO URL:\n$videoUrl');
+        print('==================================================');
 
         return PlaceMediaModel(
           placeName: placeName,
@@ -64,10 +81,13 @@ class PlaceMediaService {
           videoUrl: images.isNotEmpty ? videoUrl : null, // Only show video if it's a valid place with images
           source: 'wikimedia',
         );
+      } else {
+        print('MEDIA API ERROR:\n${response.body}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Return empty gracefully on network or parsing error
       print('Error fetching media for $placeName: $e');
+      print('Stacktrace: $stackTrace');
     }
 
     return PlaceMediaModel.empty(placeName);
