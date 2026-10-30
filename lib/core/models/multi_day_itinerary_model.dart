@@ -39,6 +39,8 @@ class MultiDayItineraryModel {
   final int minorsCount;
   final List<String> minorAgeBands;
   final String? travelersSummary;
+  final bool? avoidCrowds;
+  final String? crowdModelVersion;
 
   MultiDayItineraryModel({
     required this.id,
@@ -71,6 +73,8 @@ class MultiDayItineraryModel {
     this.minorsCount = 0,
     this.minorAgeBands = const [],
     this.travelersSummary,
+    this.avoidCrowds,
+    this.crowdModelVersion,
   }) : createdAt = createdAt ?? DateTime.now();
 
   TravelersModel get travelersModel => TravelersModel(
@@ -133,6 +137,8 @@ class MultiDayItineraryModel {
       minorsCount: parsedMinors,
       minorAgeBands: parsedBands,
       travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
+      avoidCrowds: data['avoidCrowds'] as bool?,
+      crowdModelVersion: data['crowdModelVersion'] as String?,
     );
   }
 
@@ -184,6 +190,8 @@ class MultiDayItineraryModel {
       minorsCount: parsedMinors,
       minorAgeBands: parsedBands,
       travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
+      avoidCrowds: data['avoidCrowds'] as bool?,
+      crowdModelVersion: data['crowdModelVersion'] as String?,
     );
   }
 
@@ -225,6 +233,8 @@ class MultiDayItineraryModel {
       'minorAgeBands': minorAgeBands,
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -265,6 +275,8 @@ class MultiDayItineraryModel {
       'minorAgeBands': minorAgeBands,
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -283,6 +295,8 @@ class MultiDayItineraryModel {
     int? minorsCount,
     List<String>? minorAgeBands,
     String? travelersSummary,
+    bool? avoidCrowds,
+    String? crowdModelVersion,
   }) {
     return MultiDayItineraryModel(
       id: id,
@@ -315,6 +329,8 @@ class MultiDayItineraryModel {
       minorsCount: minorsCount ?? this.minorsCount,
       minorAgeBands: minorAgeBands ?? this.minorAgeBands,
       travelersSummary: travelersSummary ?? this.travelersSummary,
+      avoidCrowds: avoidCrowds ?? this.avoidCrowds,
+      crowdModelVersion: crowdModelVersion ?? this.crowdModelVersion,
     );
   }
 

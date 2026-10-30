@@ -1397,6 +1397,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                           ),
                         ],
                       ),
+                      _buildCrowdBadge(stop),
                       const SizedBox(height: AppTokens.sm),
                       Text(
                         stop.name,
@@ -1574,6 +1575,103 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
               color: AppColors.textSoft,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCrowdBadge(ItineraryStop stop) {
+    if (stop.estimatedCrowdLevel == null) {
+      return const SizedBox.shrink();
+    }
+
+    final level = stop.estimatedCrowdLevel!.toLowerCase();
+    String badgeText;
+    Color badgeColor;
+    Color badgeBg;
+    IconData icon;
+
+    if (level == 'low') {
+      badgeText = 'Usually quieter';
+      badgeColor = const Color(0xFF0F766E);
+      badgeBg = const Color(0xFFCCFBF1);
+      icon = Icons.spa_outlined;
+    } else if (level == 'busy' || level == 'very_busy') {
+      badgeText = 'Likely busy';
+      badgeColor = const Color(0xFFC2410C);
+      badgeBg = const Color(0xFFFFEDD5);
+      icon = Icons.people_outline_rounded;
+    } else {
+      badgeText = 'Moderate crowd';
+      badgeColor = const Color(0xFF1E293B);
+      badgeBg = const Color(0xFFF1F5F9);
+      icon = Icons.people_outline_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6.0, bottom: 2.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 12, color: badgeColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.glassWhiteLight,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: AppColors.borderLight),
+                ),
+                child: const Text(
+                  'Estimated',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSoft,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (stop.crowdReason != null && stop.crowdReason!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              stop.crowdReason!,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSoft,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     );

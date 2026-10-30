@@ -24,6 +24,11 @@ class ItineraryStop {
   final String? ageRangeRecommendation; // e.g. "All ages", "Ages 3+", "Toddlers"
   final String? strollerAccess; // "yes", "no", "partial"
   final String? childTicketInfo; // e.g. "Free under 5", "Please check on arrival"
+  final String? estimatedCrowdLevel;
+  final String? crowdConfidence;
+  final String? crowdReason;
+  final String? bestTimeNote;
+  final List<Map<String, dynamic>>? alternatives;
 
   ItineraryStop({
     required this.name,
@@ -45,6 +50,11 @@ class ItineraryStop {
     this.ageRangeRecommendation,
     this.strollerAccess,
     this.childTicketInfo,
+    this.estimatedCrowdLevel,
+    this.crowdConfidence,
+    this.crowdReason,
+    this.bestTimeNote,
+    this.alternatives,
   });
 
   factory ItineraryStop.fromMap(Map<String, dynamic> data) {
@@ -68,6 +78,15 @@ class ItineraryStop {
       ageRangeRecommendation: data['ageRangeRecommendation'],
       strollerAccess: data['strollerAccess'],
       childTicketInfo: data['childTicketInfo'],
+      estimatedCrowdLevel: data['estimatedCrowdLevel'],
+      crowdConfidence: data['crowdConfidence'],
+      crowdReason: data['crowdReason'],
+      bestTimeNote: data['bestTimeNote'],
+      alternatives: data['alternatives'] != null
+          ? List<Map<String, dynamic>>.from(
+              (data['alternatives'] as List)
+                  .map((e) => Map<String, dynamic>.from(e as Map)))
+          : null,
     );
   }
 
@@ -92,6 +111,11 @@ class ItineraryStop {
       'ageRangeRecommendation': ageRangeRecommendation,
       'strollerAccess': strollerAccess,
       'childTicketInfo': childTicketInfo,
+      if (estimatedCrowdLevel != null) 'estimatedCrowdLevel': estimatedCrowdLevel,
+      if (crowdConfidence != null) 'crowdConfidence': crowdConfidence,
+      if (crowdReason != null) 'crowdReason': crowdReason,
+      if (bestTimeNote != null) 'bestTimeNote': bestTimeNote,
+      if (alternatives != null) 'alternatives': alternatives,
     };
   }
 
@@ -115,6 +139,11 @@ class ItineraryStop {
     String? ageRangeRecommendation,
     String? strollerAccess,
     String? childTicketInfo,
+    String? estimatedCrowdLevel,
+    String? crowdConfidence,
+    String? crowdReason,
+    String? bestTimeNote,
+    List<Map<String, dynamic>>? alternatives,
   }) {
     return ItineraryStop(
       name: name ?? this.name,
@@ -136,6 +165,11 @@ class ItineraryStop {
       ageRangeRecommendation: ageRangeRecommendation ?? this.ageRangeRecommendation,
       strollerAccess: strollerAccess ?? this.strollerAccess,
       childTicketInfo: childTicketInfo ?? this.childTicketInfo,
+      estimatedCrowdLevel: estimatedCrowdLevel ?? this.estimatedCrowdLevel,
+      crowdConfidence: crowdConfidence ?? this.crowdConfidence,
+      crowdReason: crowdReason ?? this.crowdReason,
+      bestTimeNote: bestTimeNote ?? this.bestTimeNote,
+      alternatives: alternatives ?? this.alternatives,
     );
   }
 }
@@ -178,6 +212,8 @@ class ItineraryModel {
   final String? travelersSummary;
   // Meal Suggestions field
   final DayMealSuggestions? mealSuggestions;
+  final bool? avoidCrowds;
+  final String? crowdModelVersion;
 
   ItineraryModel({
     required this.id,
@@ -211,6 +247,8 @@ class ItineraryModel {
     this.minorsCount = 0,
     this.minorAgeBands = const [],
     this.travelersSummary,
+    this.avoidCrowds,
+    this.crowdModelVersion,
   }) : createdAt = createdAt ?? DateTime.now();
 
   TravelersModel get travelersModel => TravelersModel(
@@ -284,6 +322,8 @@ class ItineraryModel {
       minorsCount: parsedMinors,
       minorAgeBands: parsedBands,
       travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
+      avoidCrowds: data['avoidCrowds'] as bool?,
+      crowdModelVersion: data['crowdModelVersion'] as String?,
       mealSuggestions: data['mealSuggestions'] != null
           ? DayMealSuggestions.fromMap(Map<String, dynamic>.from(data['mealSuggestions'] as Map))
           : null,
@@ -324,6 +364,8 @@ class ItineraryModel {
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -360,6 +402,8 @@ class ItineraryModel {
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -383,6 +427,8 @@ class ItineraryModel {
     List<String>? minorAgeBands,
     String? travelersSummary,
     DayMealSuggestions? mealSuggestions,
+    bool? avoidCrowds,
+    String? crowdModelVersion,
   }) {
     return ItineraryModel(
       id: id ?? this.id,
@@ -416,6 +462,8 @@ class ItineraryModel {
       minorAgeBands: minorAgeBands ?? this.minorAgeBands,
       travelersSummary: travelersSummary ?? this.travelersSummary,
       mealSuggestions: mealSuggestions ?? this.mealSuggestions,
+      avoidCrowds: avoidCrowds ?? this.avoidCrowds,
+      crowdModelVersion: crowdModelVersion ?? this.crowdModelVersion,
     );
   }
 }

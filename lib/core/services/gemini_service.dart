@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'gemini_rest_client.dart';
 import '../models/itinerary_model.dart';
 import '../models/multi_day_itinerary_model.dart';
@@ -378,6 +380,18 @@ class GeminiService {
         currentItinerary: currentItinerary,
         isMultiDay: isMultiDay,
       );
+    }
+
+    // Crowd-Aware Engine Modification Routing (Step 7)
+    if (ApiKeys.crowdAwareEnabled && _isModificationRequest(userMessage)) {
+      final modResponse = await _routeToModifyEndpoint(
+        userMessage: userMessage,
+        currentItinerary: currentItinerary,
+        foodPreference: foodPreference,
+      );
+      if (modResponse != null) {
+        return modResponse;
+      }
     }
 
     final prompt = _buildChatPrompt(
@@ -1321,5 +1335,43 @@ CRITICAL INSTRUCTIONS:
       int.parse(parts[0]),
       int.parse(parts[1]),
     );
+  }
+  Future<ChatMessageModel?> _routeToModifyEndpoint({
+    required String userMessage,
+    required Map<String, dynamic> currentItinerary,
+    required String foodPreference,
+  }) async {
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final uri = Uri.parse('${ApiKeys.backendBaseUrl}/api/itinerary/modify');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: json.encode({
+          'userMessage': userMessage,
+          'currentItinerary': currentItinerary,
+          'foodPreference': foodPreference,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final chatMessage = data['chatMessage'] as String? ?? "I've updated your itinerary.";
+        final updatedItinerary = data['updatedItinerary'] as Map<String, dynamic>?;
+
+        return ChatMessageModel(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          role: 'assistant',
+          content: ChatMessageModel.sanitizeContent(chatMessage),
+          updatedItinerary: updatedItinerary,
+        );
+      }
+    } catch (_) {
+      // Fallback to standard AI path
+    }
+    return null;
   }
 }
