@@ -116,12 +116,16 @@ class _MarkPaidDialogState extends State<MarkPaidDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            'Record Payment',
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-              color: AppColors.text,
+          Expanded(
+            child: Text(
+              'Record Payment',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: AppColors.text,
+              ),
             ),
           ),
         ],

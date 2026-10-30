@@ -483,16 +483,21 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      Expanded(
+                        child: Text(
                         'Split between (${_selectedSplitMemberIds.length}/${widget.members.length})',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: AppTokens.xs),
                       TextButton(
                         onPressed: () {
                           setState(() {

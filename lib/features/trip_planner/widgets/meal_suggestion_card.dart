@@ -466,8 +466,10 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
 
           // Row 5: Action buttons
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               // Google Maps button
               _buildSmallActionButton(
@@ -476,7 +478,6 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                 onTap: () => _launchExternalUrl(item.googleMapsUrl),
                 tooltip: 'Open in Google Maps',
               ),
-              const SizedBox(width: 6),
 
               // Directions button
               _buildSmallActionButton(
@@ -485,18 +486,15 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                 onTap: () => _launchExternalUrl(item.directionsUrl),
                 tooltip: 'Get directions in Google Maps',
               ),
-              const SizedBox(width: 6),
 
               // Call button (if phone exists)
-              if (item.phone != null && item.phone!.isNotEmpty) ...[
+              if (item.phone != null && item.phone!.isNotEmpty)
                 _buildSmallActionButton(
                   label: 'Call',
                   icon: Icons.call_outlined,
                   onTap: () => _callPhone(item.phone!),
                   tooltip: 'Call restaurant',
                 ),
-                const SizedBox(width: 6),
-              ],
 
               // Add / Added Button
               if (widget.onAddToItinerary != null)

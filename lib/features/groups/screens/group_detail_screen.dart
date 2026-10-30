@@ -68,6 +68,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     children: [
                       Text(
                         group.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,

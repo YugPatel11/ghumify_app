@@ -47,6 +47,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
   final GeminiService _geminiService = GeminiService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  ScrollController? _activeSheetScrollController;
   final FocusNode _focusNode = FocusNode();
 
   List<ChatMessageModel> _messages = [];
@@ -135,9 +136,10 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+      final controller = _activeSheetScrollController ?? _scrollController;
+      if (controller.hasClients) {
+        controller.animateTo(
+          controller.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -251,6 +253,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
       maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
+        _activeSheetScrollController = scrollController;
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(
             top: Radius.circular(AppTokens.radiusXl),
@@ -339,14 +342,18 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
               children: [
                 Row(
                   children: [
-                    const Text(
-                      'Trip Assistant',
+                    const Flexible(
+                      child: Text(
+                        'Trip Assistant',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
                         color: AppColors.text,
                         letterSpacing: 0.5,
                       ),
+                    ),
                     ),
                     const SizedBox(width: 8),
                     Container(

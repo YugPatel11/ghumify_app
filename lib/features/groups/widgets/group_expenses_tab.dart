@@ -277,18 +277,22 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
         children: [
           // Header row with Balance Status Badge
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'YOUR EXPENSE BALANCE',
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMuted,
-                  letterSpacing: 1.0,
+              Expanded(
+                child: Text(
+                  'YOUR EXPENSE BALANCE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted,
+                    letterSpacing: 1.0,
+                  ),
                 ),
               ),
-              const Spacer(),
-              Container(
+              const SizedBox(width: AppTokens.xs),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: badgeBg,
@@ -778,14 +782,17 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
                   Row(
                     children: [
                       Text(
-                        isPayer ? 'You paid' : 'Paid by ${expense.paidByName}',
+                      Flexible(
+                        child: Text(
                         style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
                         '· ${_formatShortDate(expense.date)}',
                         style: GoogleFonts.outfit(
                           fontSize: 11,

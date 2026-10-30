@@ -158,16 +158,21 @@ class ExpenseDetailSheet extends StatelessWidget {
 
             // Split Breakdown Header
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Expanded(
+                  child: Text(
                   'Split between $splitCount people',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: AppTokens.xs),
                 Text(
                   '₹${shareRupees.toStringAsFixed(2)} each',
                   style: GoogleFonts.outfit(

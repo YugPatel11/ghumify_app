@@ -134,6 +134,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   return Chip(
                     label: Text(
                       email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: AppColors.brand,

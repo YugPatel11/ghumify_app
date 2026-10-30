@@ -40,7 +40,8 @@ class _TransportOptionsSheetState extends State<TransportOptionsSheet> {
     final newPrice = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Edit Cost for ${option.modeName}'),
+        scrollable: true,
+        title: Text('Edit Cost for ', maxLines: 2, overflow: TextOverflow.ellipsis),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,

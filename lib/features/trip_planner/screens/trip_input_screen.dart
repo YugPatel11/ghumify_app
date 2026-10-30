@@ -1388,12 +1388,16 @@ class _TripInputScreenState extends State<TripInputScreen>
               color: isSelected ? AppColors.brandDeep : AppColors.border,
             ),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isSelected ? Colors.white : AppColors.textSoft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : AppColors.textSoft,
+              ),
             ),
           ),
         ),
@@ -1427,23 +1431,32 @@ class _TripInputScreenState extends State<TripInputScreen>
               children: [
                 Icon(icon, size: 14, color: AppColors.textSoft),
                 const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSoft,
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSoft,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              time.format(context),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.text,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                time.format(context),
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
             ),
           ],

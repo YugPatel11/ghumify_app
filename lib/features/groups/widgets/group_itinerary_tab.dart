@@ -465,7 +465,9 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                 },
               ),
               const SizedBox(height: AppTokens.md),
-              Row(
+              Wrap(
+                spacing: AppTokens.sm,
+                runSpacing: AppTokens.sm,
                 children: [
                   OutlinedButton.icon(
                     icon: const Icon(Icons.history_rounded, size: 16),
@@ -483,7 +485,6 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                     ),
                     onPressed: () => _showActivityLogs(context, groupProvider.activityLogs),
                   ),
-                  const SizedBox(width: AppTokens.sm),
                   if (isAdmin)
                     OutlinedButton.icon(
                       icon: const Icon(Icons.delete_outline_rounded, size: 16, color: AppColors.error),
@@ -1164,7 +1165,14 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
             children: [
               const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
               const SizedBox(width: 8),
-              Text('Meeting Point Required', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+              Expanded(
+                child: Text(
+                  'Meeting Point Required',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
           content: Text(

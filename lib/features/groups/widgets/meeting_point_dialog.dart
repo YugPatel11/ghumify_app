@@ -246,7 +246,7 @@ class _MeetingPointDialogState extends State<MeetingPointDialog> {
         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 680),
+        constraints: BoxConstraints(maxWidth: 500, maxHeight: MediaQuery.of(context).size.height * 0.85),
         padding: const EdgeInsets.all(AppTokens.lg),
         child: Form(
           key: _formKey,

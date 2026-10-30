@@ -127,12 +127,16 @@ class TravelLegCard extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                opt.modeName,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
+                              Flexible(
+                                child: Text(
+                                  opt.modeName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.text,
+                                  ),
                                 ),
                               ),
                               if (opt.isRecommended) ...[

@@ -98,12 +98,18 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
             ),
           ),
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.xl),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppTokens.xl),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Spacer(),
 
                   // Cosmic Orbit Ring & Compass Center
                   SizedBox(
@@ -257,7 +263,7 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
 
                   // Bottom Travel Tip Card
                   Container(
-                    margin: const EdgeInsets.only(bottom: AppTokens.lg),
+                    margin: const EdgeInsets.only(top: AppTokens.md, bottom: AppTokens.lg),
                     padding: const EdgeInsets.all(AppTokens.md),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.08),
@@ -291,6 +297,9 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
               ),
             ),
           ),
+        ),
+      ),
+    ),
         ),
       ),
     );
