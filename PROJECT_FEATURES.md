@@ -672,3 +672,46 @@ The application requires the following environment variables (defined in `.env` 
    - Integrate Firebase Cloud Messaging (FCM) to deliver timely reminders (e.g. "Time to head to your next stop at Rajwada Palace", "Rain expected in 1 hour").
 6. **Itinerary Export & Sharing:**
    - Add PDF export and WhatsApp trip sharing so traveling companions can review the day's itinerary.
+
+---
+
+## 14. NEAREST-FIRST PROXIMITY ORDERING & ACCORDION STOP CARD REDESIGN
+
+### 14.1 Architecture & Core Principles
+- **Pure Code Deterministic Ordering:** The ordering is executed purely in Dart code (`RouteProximityOptimizer.optimizeStopsProximity`), never trusted to the generative AI. Ties are broken deterministically by alphabetical place name.
+- **Distance Measure:** Straight-line spherical Haversine formula with a 1.25 urban road-winding multiplier for realistic street distances. Realized in batch with zero network latency and cached within the itinerary model.
+- **Start Point Fallback Cascade (`LocationService.resolveStartPoint`):**
+  1. User's live GPS location (requires runtime permission, explains purpose). Coordinates rounded to 4 decimals (~11m) for privacy; never persisted or shared.
+  2. User-picked starting point if specified.
+  3. Hotel or stay accommodation if present in trip metadata.
+  4. Known city center coordinates with India geographical fallback.
+  - A friendly start banner displays the exact starting point used (e.g., "Route starts from your current location").
+- **Anchored Items & Segments Protection:**
+  - Meal stops (lunch 12:00–14:30, dinner 19:00–21:30), inter-city travel legs, group meeting points, and hand-pinned stops are strictly anchored and never moved.
+  - Nearest-first optimization runs on unanchored stops between anchors, with each segment starting from the previous anchor's location.
+- **Opening Hours & Time Slot Recalculation:**
+  - Stops with documented opening hours are validated against arrival times. If closed, the next open stop is advanced and the closed stop shifted to an open window.
+  - Time slots, durations, and travel minutes are sequentially recalculated with pace adjustments (relaxed: 15 min buffer, fast: 5 min, family/minors: +10 min rest). Overflow stops beyond 21:00 are shifted.
+- **Multi-City & Groups Isolation:**
+  - Multi-city routes order each city separately starting from that city's arrival terminal or hotel.
+  - Group plans order from the group stay or meeting point; re-ordering requires group editor permissions and supports manual drag & drop preservation with "Re-order by nearest" button and preview/undo.
+
+### 14.2 Stop Card Redesign (Reference Inspiration: media_1793371671885)
+- **Collapsed Default State:**
+  - Clean horizontal card with left timeline node icon matching category.
+  - Thumbnail (48x48) with category-colored icon placeholder fallback for places without photos.
+  - Title (max 2 lines), one-line metadata subline (category, time, duration, distance from previous stop).
+  - Category pill badge (Food in green, Sightseeing in blue, Historical Site in purple, Scenic Spot in orange).
+  - Small chevron expand indicator.
+- **Expanded Accordion State:**
+  - Accordion interaction: tapping expands smoothly, closing any other open card to maintain scannability.
+  - Brief 2–3 sentence description (clamped to 300 chars at word boundaries).
+  - Swipeable Wikimedia Commons image gallery with license and attribution line; zoomable on tap.
+  - Practical details when verified (Opening hours, Ticket price, Best time to visit).
+  - Up to 2 concise tips (<100 characters each).
+  - Action buttons: Official keyless Google Maps search (`https://www.google.com/maps/search/?api=1&query=LAT,LNG`) and directions (`https://www.google.com/maps/dir/?api=1&destination=LAT,LNG`), plus pin and delete.
+
+### 14.3 AI Integration & Backward Compatibility
+- Gemini prompts now request structured `shortLabel`, `briefDescription`, `openingHours`, `ticketPrice`, and `bestTimeToVisit`.
+- Validation pipeline aggressively clamps text length at word boundaries: `shortLabel` <= 80 chars, `briefDescription` <= 300 chars, `tips` <= 2 items each <= 100 chars.
+- Legacy saved itineraries retain their existing saved order automatically without reordering, falling back smoothly to trimmed legacy description in collapsed mode.

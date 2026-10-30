@@ -727,7 +727,8 @@ RULES:
 6. Suggest what to carry based on weather and place types.
 7. For any food stop or meal break, strictly adhere to the Food Preference ($foodPreference). Set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
 8. For family trips (with children/minors), ensure "isKidFriendly" is accurately indicated (true/false), and provide "ageRangeRecommendation" ("All ages", "Ages 3-5", etc.), "strollerAccess" ("yes", "no", "partial"), and "childTicketInfo" ("Free under 5", "Please check on arrival", etc.). Never invent ticket prices or rules.
-9. Give the full itinerary as JSON in this EXACT format:
+9. For each stop, provide a "shortLabel" (60 to 80 chars for scannable collapsed view) and a "briefDescription" (200 to 300 chars for expanded view). Keep tips to maximum 2 tips, each under 100 characters.
+10. Give the full itinerary as JSON in this EXACT format:
 
 {
   "aiSummary": "Brief overview of the day plan in 2-3 sentences",
@@ -740,7 +741,12 @@ RULES:
       "durationMinutes": 90,
       "latitude": 22.7196,
       "longitude": 75.8577,
+      "shortLabel": "Crisp 60-80 char highlight for quick scanning",
+      "briefDescription": "Engaging 2-3 sentence description (200-300 characters) highlighting key attractions.",
       "description": "What to see/do here",
+      "openingHours": "09:00 - 18:00",
+      "ticketPrice": "₹50 per person",
+      "bestTimeToVisit": "Morning or Sunset",
       "dietaryType": "veg",
       "isKidFriendly": true,
       "ageRangeRecommendation": "All ages",
@@ -749,7 +755,7 @@ RULES:
       "travelMode": "driving",
       "travelMinutes": 15,
       "estimatedCost": 250,
-      "tips": ["Tip 1", "Tip 2"]
+      "tips": ["Tip 1 (under 100 chars)", "Tip 2 (under 100 chars)"]
     }
   ],
   "expenseSummary": {
@@ -874,6 +880,7 @@ MULTI-DAY PLANNING RULES:
 10. Save the best sunset/evening activity for the end of each day.
 11. For any food stop or meal break, set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
 12. For family trips (with children/minors), ensure "isKidFriendly" is accurately set, and provide "ageRangeRecommendation", "strollerAccess", and "childTicketInfo". Never invent ticket prices or rules.
+13. For each stop, provide a "shortLabel" (60 to 80 chars for scannable collapsed view) and a "briefDescription" (200 to 300 chars for expanded view). Keep tips to maximum 2 tips, each under 100 characters.
 
 OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
 
@@ -909,7 +916,12 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "durationMinutes": 90,
           "latitude": 22.7196,
           "longitude": 75.8577,
+          "shortLabel": "Crisp 60-80 char highlight for quick scanning",
+          "briefDescription": "Engaging 2-3 sentence description (200-300 characters) highlighting key attractions.",
           "description": "What to see/do here",
+          "openingHours": "09:00 - 18:00",
+          "ticketPrice": "₹50 per person",
+          "bestTimeToVisit": "Morning or Sunset",
           "dietaryType": "veg",
           "isKidFriendly": true,
           "ageRangeRecommendation": "All ages",
@@ -918,7 +930,7 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "travelMode": "$travelMode",
           "travelMinutes": 15,
           "estimatedCost": 250,
-          "tips": ["Tip 1", "Tip 2"]
+          "tips": ["Tip 1 (under 100 chars)", "Tip 2 (under 100 chars)"]
         }
       ]
     }
@@ -1255,8 +1267,37 @@ CRITICAL INSTRUCTIONS:
     }
   }
 
-  /// Post-response validation and enrichment for food stops
-  ItineraryStop _validateAndEnrichStop(ItineraryStop stop, String foodPreference) {
+  /// Post-response validation, text clamping, and enrichment
+  ItineraryStop _validateAndEnrichStop(ItineraryStop rawStop, String foodPreference) {
+    // 1. Enforce text length limits on shortLabel and briefDescription
+    String? shortLabel = rawStop.shortLabel;
+    if (shortLabel != null && shortLabel.trim().isNotEmpty) {
+      shortLabel = clampTextAtWordBoundary(shortLabel, 80);
+    } else if (rawStop.description.isNotEmpty) {
+      shortLabel = clampTextAtWordBoundary(rawStop.description, 80);
+    } else {
+      shortLabel = clampTextAtWordBoundary(rawStop.name, 80);
+    }
+
+    String? briefDesc = rawStop.briefDescription;
+    if (briefDesc != null && briefDesc.trim().isNotEmpty) {
+      briefDesc = clampTextAtWordBoundary(briefDesc, 300);
+    } else if (rawStop.description.isNotEmpty) {
+      briefDesc = clampTextAtWordBoundary(rawStop.description, 300);
+    }
+
+    // Max 2 tips, each clamped to under 100 chars at word boundary
+    List<String> clampedTips = rawStop.tips
+        .take(2)
+        .map((t) => clampTextAtWordBoundary(t, 100))
+        .toList();
+
+    var stop = rawStop.copyWith(
+      shortLabel: shortLabel,
+      briefDescription: briefDesc,
+      tips: clampedTips,
+    );
+
     final nameLower = stop.name.toLowerCase();
     final isFood = stop.type == 'food' ||
         nameLower.contains('restaurant') ||
@@ -1309,6 +1350,18 @@ CRITICAL INSTRUCTIONS:
       tips: updatedTips,
       dietaryType: dietaryType,
     );
+  }
+
+  /// Clamps text at a word boundary to prevent awkward mid-word breaks
+  static String clampTextAtWordBoundary(String text, int maxChars) {
+    final trimmed = text.trim();
+    if (trimmed.length <= maxChars) return trimmed;
+    final cutoff = maxChars - 3;
+    final lastSpace = trimmed.lastIndexOf(' ', cutoff);
+    if (lastSpace > cutoff ~/ 2) {
+      return '${trimmed.substring(0, lastSpace)}...';
+    }
+    return '${trimmed.substring(0, cutoff)}...';
   }
 
   DateTime _parseTime(String time) {

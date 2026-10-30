@@ -19,11 +19,14 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 import '../widgets/nearby_services_section.dart';
-import '../widgets/place_media_gallery.dart';
 import '../widgets/meal_suggestion_card.dart';
+import '../widgets/itinerary_stop_card.dart';
 import '../../../core/constants/meal_config.dart';
 import '../../../core/models/meal_suggestion_model.dart';
 import '../../../core/services/restaurant_service.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/utils/route_proximity_optimizer.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class MultiDayResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -40,6 +43,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
   final WeatherService _weatherService = WeatherService();
   final PlacesService _placesService = PlacesService();
   final RestaurantService _restaurantService = RestaurantService();
+  final LocationService _locationService = LocationService();
 
   MultiDayItineraryModel? _itinerary;
   bool _isLoading = true;
@@ -49,6 +53,8 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
   TabController? _tabController;
   late String _heroImage;
   late String _cityName;
+  int? _expandedStopIndex;
+  final Map<int, List<ItineraryStop>> _previousDayStopsBeforeReorder = {};
 
   // Lazy Day Meal Suggestions state (keyed by dayNumber)
   final Map<int, List<MealSuggestionModel>> _dayLunchSuggestions = {};
@@ -168,16 +174,48 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
         travelersData: travelersData,
       );
 
+      setState(() => _loadingMessage = 'Optimizing routes by proximity...');
+      final startPoint = await _locationService.resolveStartPoint(
+        city: city,
+        userPickedLat: data['startLatitude'] as double?,
+        userPickedLng: data['startLongitude'] as double?,
+        userPickedLabel: data['startPointLabel'] as String?,
+        hotelLat: data['hotelLatitude'] as double?,
+        hotelLng: data['hotelLongitude'] as double?,
+        hotelLabel: data['hotelName'] as String?,
+      );
+
+      final optimizedDays = <ItineraryModel>[];
+      for (final day in itinerary.days) {
+        final optResult = RouteProximityOptimizer.optimizeStopsProximity(
+          stops: day.stops,
+          startLat: startPoint.latitude,
+          startLng: startPoint.longitude,
+          startPointLabel: startPoint.label,
+          travelMode: travelMode,
+          pace: pace,
+          travelers: travelersData,
+          dayStartTime: startTime,
+          dayEndTime: endTime,
+        );
+        optimizedDays.add(day.copyWith(
+          stops: optResult.orderedStops,
+          routeStartPointInfo: optResult.startPointMessage,
+        ));
+      }
+
+      final optimizedItinerary = itinerary.copyWith(days: optimizedDays);
+
       setState(() => _loadingMessage = 'Finalizing details...');
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 300));
 
       _tabController = TabController(
-        length: itinerary.days.length,
+        length: optimizedItinerary.days.length,
         vsync: this,
       );
 
       setState(() {
-        _itinerary = itinerary;
+        _itinerary = optimizedItinerary;
         _isLoading = false;
       });
       _animController.forward();
@@ -551,6 +589,10 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
 
   List<Widget> _buildDayTimelineWidgets(ItineraryModel day, MultiDayItineraryModel overall) {
     final widgets = <Widget>[];
+
+    // Add route starting point info and reorder button at top
+    widgets.add(_buildDayRouteStartBanner(day));
+
     final stops = day.stops;
 
     int lunchInsertIndex = -1;
@@ -591,7 +633,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
       }
 
       final isLast = (i == stops.length - 1) && lunchInserted && dinnerInserted;
-      widgets.add(_buildStopCard(stops[i], isLast, i));
+      widgets.add(_buildStopCard(stops[i], isLast, i, day));
     }
 
     if (!lunchInserted) {
@@ -1281,272 +1323,79 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
     );
   }
 
-  Widget _buildStopCard(ItineraryStop stop, bool isLast, int index) {
+  Widget _buildStopCard(ItineraryStop stop, bool isLast, int index, [ItineraryModel? day]) {
+    return ItineraryStopCard(
+      index: index,
+      stop: stop,
+      isLast: isLast,
+      isExpanded: _expandedStopIndex == index,
+      cityName: day?.city ?? _itinerary?.city,
+      onToggleExpand: () {
+        setState(() {
+          _expandedStopIndex = (_expandedStopIndex == index) ? null : index;
+        });
+      },
+      onPinToggle: day != null ? () => _togglePinStop(day, index) : null,
+    );
+  }
+
+  /// Day route starting point banner with "Re-order by nearest" button
+  Widget _buildDayRouteStartBanner(ItineraryModel day) {
+    final startMsg = day.routeStartPointInfo ?? 'Route starts from ${day.city} center';
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-      child: IntrinsicHeight(
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // ── Timeline Column ──
-            SizedBox(
-              width: 32,
-              child: Column(
+            Expanded(
+              child: Row(
                 children: [
                   Container(
-                    width: 16,
-                    height: 16,
-                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.brand,
+                      color: AppColors.brand.withOpacity(0.1),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.bg, width: 3),
-                      boxShadow: [
-                        BoxShadow(color: AppColors.brand.withOpacity(0.4), blurRadius: 4, offset: const Offset(0, 2))
-                      ],
                     ),
+                    child: const Icon(Icons.navigation_rounded, size: 14, color: AppColors.brand),
                   ),
-                  if (!isLast)
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(1),
-                        ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      startMsg,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF334155),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: AppTokens.sm),
-
-            // ── Content ──
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: AppTokens.xl),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTokens.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.glassWhite,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                        border: Border.all(color: AppColors.borderGlass),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.brandSoft,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${stop.startTime} — ${stop.endTime}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.brand,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (stop.isKidFriendly) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                  margin: const EdgeInsets.only(right: 6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.brand.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.child_care_rounded, size: 12, color: AppColors.brand),
-                                      SizedBox(width: 3),
-                                      Text(
-                                        'Kid-Friendly',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.brandDeep,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              _buildDietaryBadge(stop),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppTokens.sm),
-                      Text(
-                        stop.name,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 22,
-                              color: AppColors.text,
-                            ),
-                      ),
-                      if (stop.description.isNotEmpty) ...[
-                        const SizedBox(height: AppTokens.xs),
-                        Text(
-                          stop.description,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSoft,
-                                height: 1.5,
-                              ),
-                        ),
-                      ],
-                      
-                      const SizedBox(height: AppTokens.md),
-                      PlaceMediaGallery(
-                        placeName: stop.name,
-                      ),
-                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0) || stop.tips.isNotEmpty || stop.isKidFriendly || stop.childTicketInfo != null)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppTokens.md),
-                          child: Divider(color: AppColors.borderLight),
-                        ),
-
-                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppTokens.sm),
-                          child: Row(
-                            children: [
-                              if (stop.travelMinutes != null && stop.travelMinutes! > 0) ...[
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.bgElevated,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.directions, size: 14, color: AppColors.textSoft),
-                                ),
-                                const SizedBox(width: AppTokens.sm),
-                                Text(
-                                  '${stop.travelMinutes} min ${stop.travelMode ?? "travel"}',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.textSoft,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                              if (stop.travelMinutes != null && stop.travelMinutes! > 0 && stop.estimatedCost != null && stop.estimatedCost! > 0)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                  child: Text('•', style: TextStyle(color: AppColors.textSoft)),
-                                ),
-                              if (stop.estimatedCost != null && stop.estimatedCost! > 0) ...[
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.brandSoft,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.currency_rupee, size: 14, color: AppColors.brand),
-                                ),
-                                const SizedBox(width: AppTokens.sm),
-                                Text(
-                                  'Est. ₹${stop.estimatedCost}',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.brand,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                      if (stop.ageRangeRecommendation != null || stop.strollerAccess != null || stop.childTicketInfo != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppTokens.sm),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              if (stop.ageRangeRecommendation != null && stop.ageRangeRecommendation!.isNotEmpty)
-                                _buildFamilyInfoChip(
-                                  icon: Icons.cake_outlined,
-                                  label: 'Age: ${stop.ageRangeRecommendation}',
-                                ),
-                              if (stop.strollerAccess != null && stop.strollerAccess!.isNotEmpty)
-                                _buildFamilyInfoChip(
-                                  icon: Icons.stroller_outlined,
-                                  label: stop.strollerAccess == 'yes'
-                                      ? 'Stroller Friendly'
-                                      : stop.strollerAccess == 'partial'
-                                          ? 'Partial Stroller Access'
-                                          : 'No Stroller Access',
-                                ),
-                              if (stop.childTicketInfo != null && stop.childTicketInfo!.isNotEmpty)
-                                _buildFamilyInfoChip(
-                                  icon: Icons.confirmation_number_outlined,
-                                  label: stop.childTicketInfo!,
-                                ),
-                            ],
-                          ),
-                        ),
-
-                      if (stop.tips.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(AppTokens.md),
-                          decoration: BoxDecoration(
-                            color: AppColors.glassWhiteLight,
-                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                            border: Border.all(color: AppColors.borderGlass),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: stop.tips.map((tip) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.lightbulb_outline, size: 14, color: AppColors.accent),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      tip,
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSoft,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )).toList(),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+            const SizedBox(width: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.alt_route_rounded, size: 14),
+              label: Text(
+                'Re-order',
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600),
               ),
-            ),
-            ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppColors.brand,
+              ),
+              onPressed: () => _reorderByNearest(day),
             ),
           ],
         ),
@@ -1554,76 +1403,119 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
     );
   }
 
-  Widget _buildFamilyInfoChip({required IconData icon, required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppColors.textSoft),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSoft,
-            ),
-          ),
-        ],
-      ),
+  /// Reorder day stops by nearest
+  Future<void> _reorderByNearest(ItineraryModel day) async {
+    if (_itinerary == null || day.stops.isEmpty) return;
+
+    final startPoint = await _locationService.resolveStartPoint(
+      city: day.city,
     );
+
+    final optResult = RouteProximityOptimizer.optimizeStopsProximity(
+      stops: day.stops,
+      startLat: startPoint.latitude,
+      startLng: startPoint.longitude,
+      startPointLabel: startPoint.label,
+      travelMode: day.travelMode,
+      pace: day.pace,
+      travelers: day.travelersModel,
+      dayStartTime: day.startTime,
+      dayEndTime: day.endTime,
+    );
+
+    final dayIdx = _itinerary!.days.indexWhere((d) => d.dayNumber == day.dayNumber);
+    if (dayIdx == -1) return;
+
+    _previousDayStopsBeforeReorder[day.dayNumber] = List<ItineraryStop>.from(day.stops);
+
+    final updatedDays = List<ItineraryModel>.from(_itinerary!.days);
+    updatedDays[dayIdx] = day.copyWith(
+      stops: optResult.orderedStops,
+      routeStartPointInfo: optResult.startPointMessage,
+      isManuallyOrdered: false,
+    );
+
+    setState(() {
+      _itinerary = _itinerary!.copyWith(days: updatedDays);
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Day ${day.dayNumber}: Re-ordered by nearest (${optResult.startPointMessage})',
+            style: GoogleFonts.outfit(),
+          ),
+          action: SnackBarAction(
+            label: 'UNDO',
+            textColor: Colors.amber,
+            onPressed: () => _undoReorder(day.dayNumber),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
-  Widget _buildDietaryBadge(ItineraryStop stop) {
-    final type = stop.dietaryType;
-    final nameLower = stop.name.toLowerCase();
-    final isFood = stop.type == 'food' ||
-        nameLower.contains('restaurant') ||
-        nameLower.contains('cafe') ||
-        nameLower.contains('dhaba') ||
-        nameLower.contains('bhojanalaya') ||
-        nameLower.contains('sweets');
+  /// Restore previous stop order for a day
+  void _undoReorder(int dayNumber) {
+    final previous = _previousDayStopsBeforeReorder[dayNumber];
+    if (previous == null || _itinerary == null) return;
 
-    if (type == null && !isFood) return const SizedBox.shrink();
+    final dayIdx = _itinerary!.days.indexWhere((d) => d.dayNumber == dayNumber);
+    if (dayIdx == -1) return;
 
-    final effectiveType = type ?? DietaryFilterService.inferDietaryType('${stop.name} ${stop.description}');
-    final label = FoodPreference.getLabel(effectiveType);
-    final color = FoodPreference.getIndicatorColor(effectiveType);
+    final updatedDays = List<ItineraryModel>.from(_itinerary!.days);
+    final target = updatedDays[dayIdx];
+    updatedDays[dayIdx] = target.copyWith(
+      stops: previous,
+      isManuallyOrdered: true,
+    );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ],
+    setState(() {
+      _itinerary = _itinerary!.copyWith(days: updatedDays);
+      _previousDayStopsBeforeReorder.remove(dayNumber);
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Day $dayNumber: Restored previous stop order', style: GoogleFonts.outfit()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Toggle pin for an individual day stop
+  void _togglePinStop(ItineraryModel day, int index) {
+    if (_itinerary == null || index < 0 || index >= day.stops.length) return;
+    final dayIdx = _itinerary!.days.indexWhere((d) => d.dayNumber == day.dayNumber);
+    if (dayIdx == -1) return;
+
+    final currentStops = List<ItineraryStop>.from(day.stops);
+    final target = currentStops[index];
+    final updatedPin = !target.isPinned;
+    currentStops[index] = target.copyWith(
+      isPinned: updatedPin,
+      isAnchored: updatedPin,
+    );
+
+    final updatedDays = List<ItineraryModel>.from(_itinerary!.days);
+    updatedDays[dayIdx] = day.copyWith(stops: currentStops);
+
+    setState(() {
+      _itinerary = _itinerary!.copyWith(days: updatedDays);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          updatedPin ? 'Pinned "${target.name}" to fixed position' : 'Unpinned "${target.name}"',
+          style: GoogleFonts.outfit(),
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       ),
     );
   }

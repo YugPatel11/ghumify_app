@@ -301,4 +301,37 @@
   * 17 unit and regression tests passing in `test/split_expenses_test.dart` covering equal splits, leftover paise, worked examples, edge cases, partial settlements, removed members, late joiners, stress test (100 expenses), and serialization.
   * All 90 unit and regression tests passing across the app suite.
 
+### TASK-013: Nearest-First Proximity Ordering & Accordion Stop Card Redesign
+* **Status:** Completed
+* **Branch:** `main`
+* **Description:**
+  Engineered and shipped nearest-first proximity ordering and the stop card redesign inspired by the reference design (`media_1793371671885`). The app now orders unvisited stops by geographic proximity starting from the user's location (or fallback cascade) using a deterministic pure code function. Stops are presented as compact, scannable cards by default showing essential metadata, expanding on tap into an accordion view with Wikimedia image gallery, practical details, brief description, and keyless Google Maps actions.
+* **Key Improvements:**
+  1. **Pure Ordering Engine (`RouteProximityOptimizer`):**
+     * Pure, deterministic nearest-neighbor algorithm in Dart code (never trusted to AI).
+     * Haversine spherical distance calculation with 1.25 urban road-winding multiplier.
+     * Ties broken deterministically by place name alphabetically.
+     * Strict anchored item protection (meals, transit legs, meeting points, hand-pinned stops stay fixed).
+     * Opening hours constraint: closed stops shifted after open ones without guessing.
+     * Sequential time recalculation with pace buffers and family/minor rest additions.
+  2. **Location Fallback & Privacy (`LocationService.resolveStartPoint`):**
+     * Cascade: User GPS -> User-picked -> Hotel stay -> City center.
+     * Coordinates rounded to 4 decimals (~11m) for privacy; never persisted or sent to external trackers.
+     * Start point banner informs user of origin (e.g. "Route starts from your current location").
+     * "Re-order by nearest" button with preview and undo; manual reorders strictly preserved.
+  3. **Stop Card Redesign (`ItineraryStopCard`):**
+     * Pixel-perfect reference match with left category circular node and horizontal card layout.
+     * Compact default view with title, single-line info (category, time, duration, distance), thumbnail, category pill, and chevron.
+     * Category placeholder icon fallback for stops without photos (no broken image icons).
+     * Accordion expansion (single card open at a time for scannability).
+     * Swipeable Wikimedia Commons gallery with license attribution and zoom dialog.
+     * Verified practical details (hours, entry fee, best time), max 2 short tips (<100 chars), and official keyless Google Maps search & directions links.
+  4. **AI Prompt & Response Validation (`GeminiService`):**
+     * Prompt enriches `shortLabel`, `briefDescription`, `openingHours`, `ticketPrice`, `bestTimeToVisit`.
+     * Word-boundary length clamping: `shortLabel` <= 80 chars, `briefDescription` <= 300 chars, `tips` <= 2 x 100 chars.
+     * Full backward compatibility with legacy saved itineraries.
+* **Verification:**
+  * 12 comprehensive unit and integration tests passing in `test/nearest_first_ordering_test.dart`.
+  * Regression test suites passing across all itinerary screens and group tabs.
+
 

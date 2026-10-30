@@ -25,6 +25,17 @@ class ItineraryStop {
   final String? strollerAccess; // "yes", "no", "partial"
   final String? childTicketInfo; // e.g. "Free under 5", "Please check on arrival"
 
+  final String? shortLabel; // 60-80 chars for collapsed view
+  final String? briefDescription; // 200-300 chars for expanded view
+  final String? openingHours; // e.g. "09:00 - 18:00"
+  final String? ticketPrice; // e.g. "₹50 per person" or "Free entry"
+  final String? bestTimeToVisit; // e.g. "Morning or Sunset"
+  final bool isAnchored; // meal stops, legs, meeting points, pinned
+  final bool isPinned; // explicitly pinned by user
+  final List<String> galleryPhotos; // additional photos for expanded gallery
+  final double? distanceFromPrevKm; // straight-line / route distance from prev stop
+  final String? travelTimeFromPrev; // e.g. "6 min drive"
+
   ItineraryStop({
     required this.name,
     required this.type,
@@ -45,7 +56,45 @@ class ItineraryStop {
     this.ageRangeRecommendation,
     this.strollerAccess,
     this.childTicketInfo,
+    this.shortLabel,
+    this.briefDescription,
+    this.openingHours,
+    this.ticketPrice,
+    this.bestTimeToVisit,
+    this.isAnchored = false,
+    this.isPinned = false,
+    this.galleryPhotos = const [],
+    this.distanceFromPrevKm,
+    this.travelTimeFromPrev,
   });
+
+  /// Short label (60-80 chars) for collapsed view with graceful fallback
+  String get displayShortLabel {
+    if (shortLabel != null && shortLabel!.trim().isNotEmpty) {
+      return shortLabel!.trim();
+    }
+    if (description.isNotEmpty) {
+      final trimmed = description.trim();
+      if (trimmed.length <= 80) return trimmed;
+      final spaceIdx = trimmed.lastIndexOf(' ', 77);
+      return spaceIdx > 20 ? '${trimmed.substring(0, spaceIdx)}...' : '${trimmed.substring(0, 77)}...';
+    }
+    return name;
+  }
+
+  /// Brief description (200-300 chars) for expanded view with graceful fallback
+  String get displayBriefDescription {
+    if (briefDescription != null && briefDescription!.trim().isNotEmpty) {
+      return briefDescription!.trim();
+    }
+    if (description.isNotEmpty) {
+      final trimmed = description.trim();
+      if (trimmed.length <= 300) return trimmed;
+      final spaceIdx = trimmed.lastIndexOf(' ', 297);
+      return spaceIdx > 100 ? '${trimmed.substring(0, spaceIdx)}...' : '${trimmed.substring(0, 297)}...';
+    }
+    return '';
+  }
 
   factory ItineraryStop.fromMap(Map<String, dynamic> data) {
     return ItineraryStop(
@@ -68,6 +117,16 @@ class ItineraryStop {
       ageRangeRecommendation: data['ageRangeRecommendation'],
       strollerAccess: data['strollerAccess'],
       childTicketInfo: data['childTicketInfo'],
+      shortLabel: data['shortLabel'] ?? data['short'],
+      briefDescription: data['briefDescription'] ?? data['brief'],
+      openingHours: data['openingHours'],
+      ticketPrice: data['ticketPrice'],
+      bestTimeToVisit: data['bestTimeToVisit'],
+      isAnchored: data['isAnchored'] == true,
+      isPinned: data['isPinned'] == true,
+      galleryPhotos: List<String>.from(data['galleryPhotos'] ?? []),
+      distanceFromPrevKm: (data['distanceFromPrevKm'] as num?)?.toDouble(),
+      travelTimeFromPrev: data['travelTimeFromPrev'],
     );
   }
 
@@ -92,6 +151,16 @@ class ItineraryStop {
       'ageRangeRecommendation': ageRangeRecommendation,
       'strollerAccess': strollerAccess,
       'childTicketInfo': childTicketInfo,
+      'shortLabel': shortLabel,
+      'briefDescription': briefDescription,
+      'openingHours': openingHours,
+      'ticketPrice': ticketPrice,
+      'bestTimeToVisit': bestTimeToVisit,
+      'isAnchored': isAnchored,
+      'isPinned': isPinned,
+      'galleryPhotos': galleryPhotos,
+      'distanceFromPrevKm': distanceFromPrevKm,
+      'travelTimeFromPrev': travelTimeFromPrev,
     };
   }
 
@@ -115,6 +184,16 @@ class ItineraryStop {
     String? ageRangeRecommendation,
     String? strollerAccess,
     String? childTicketInfo,
+    String? shortLabel,
+    String? briefDescription,
+    String? openingHours,
+    String? ticketPrice,
+    String? bestTimeToVisit,
+    bool? isAnchored,
+    bool? isPinned,
+    List<String>? galleryPhotos,
+    double? distanceFromPrevKm,
+    String? travelTimeFromPrev,
   }) {
     return ItineraryStop(
       name: name ?? this.name,
@@ -136,6 +215,16 @@ class ItineraryStop {
       ageRangeRecommendation: ageRangeRecommendation ?? this.ageRangeRecommendation,
       strollerAccess: strollerAccess ?? this.strollerAccess,
       childTicketInfo: childTicketInfo ?? this.childTicketInfo,
+      shortLabel: shortLabel ?? this.shortLabel,
+      briefDescription: briefDescription ?? this.briefDescription,
+      openingHours: openingHours ?? this.openingHours,
+      ticketPrice: ticketPrice ?? this.ticketPrice,
+      bestTimeToVisit: bestTimeToVisit ?? this.bestTimeToVisit,
+      isAnchored: isAnchored ?? this.isAnchored,
+      isPinned: isPinned ?? this.isPinned,
+      galleryPhotos: galleryPhotos ?? this.galleryPhotos,
+      distanceFromPrevKm: distanceFromPrevKm ?? this.distanceFromPrevKm,
+      travelTimeFromPrev: travelTimeFromPrev ?? this.travelTimeFromPrev,
     );
   }
 }
@@ -178,6 +267,9 @@ class ItineraryModel {
   final String? travelersSummary;
   // Meal Suggestions field
   final DayMealSuggestions? mealSuggestions;
+  // Nearest-First route info
+  final String? routeStartPointInfo; // e.g. "Route starts from your current location"
+  final bool isManuallyOrdered;
 
   ItineraryModel({
     required this.id,
@@ -211,6 +303,8 @@ class ItineraryModel {
     this.minorsCount = 0,
     this.minorAgeBands = const [],
     this.travelersSummary,
+    this.routeStartPointInfo,
+    this.isManuallyOrdered = false,
   }) : createdAt = createdAt ?? DateTime.now();
 
   TravelersModel get travelersModel => TravelersModel(
@@ -287,6 +381,8 @@ class ItineraryModel {
       mealSuggestions: data['mealSuggestions'] != null
           ? DayMealSuggestions.fromMap(Map<String, dynamic>.from(data['mealSuggestions'] as Map))
           : null,
+      routeStartPointInfo: data['routeStartPointInfo'],
+      isManuallyOrdered: data['isManuallyOrdered'] == true,
     );
   }
 
@@ -324,6 +420,8 @@ class ItineraryModel {
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
+      if (routeStartPointInfo != null) 'routeStartPointInfo': routeStartPointInfo,
+      'isManuallyOrdered': isManuallyOrdered,
     };
   }
 
@@ -360,6 +458,8 @@ class ItineraryModel {
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
+      if (routeStartPointInfo != null) 'routeStartPointInfo': routeStartPointInfo,
+      'isManuallyOrdered': isManuallyOrdered,
     };
   }
 
@@ -383,6 +483,8 @@ class ItineraryModel {
     List<String>? minorAgeBands,
     String? travelersSummary,
     DayMealSuggestions? mealSuggestions,
+    String? routeStartPointInfo,
+    bool? isManuallyOrdered,
   }) {
     return ItineraryModel(
       id: id ?? this.id,
@@ -416,6 +518,8 @@ class ItineraryModel {
       minorAgeBands: minorAgeBands ?? this.minorAgeBands,
       travelersSummary: travelersSummary ?? this.travelersSummary,
       mealSuggestions: mealSuggestions ?? this.mealSuggestions,
+      routeStartPointInfo: routeStartPointInfo ?? this.routeStartPointInfo,
+      isManuallyOrdered: isManuallyOrdered ?? this.isManuallyOrdered,
     );
   }
 }

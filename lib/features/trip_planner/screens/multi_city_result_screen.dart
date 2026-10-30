@@ -27,6 +27,9 @@ import '../../../core/constants/meal_config.dart';
 import '../../../core/constants/food_preferences.dart';
 import '../../../core/models/meal_suggestion_model.dart';
 import '../../../core/services/restaurant_service.dart';
+import '../widgets/itinerary_stop_card.dart';
+import '../../../core/utils/route_proximity_optimizer.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Screen displaying the complete, connected multi-city journey
 class MultiCityResultScreen extends StatefulWidget {
@@ -51,6 +54,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
   double _loadingProgress = 0.0;
   bool _isSaved = false;
   bool _isSaving = false;
+  int? _expandedStopIndex;
 
   // Active City view index (-1 means "Entire Route")
   int _selectedCityTab = -1;
@@ -180,9 +184,34 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
         },
       );
 
+      // Optimize stops within each city starting from that city's arrival point
+      final optimizedDays = <ItineraryModel>[];
+      for (final day in generatedTrip.days) {
+        final matchingCity = rawCities.firstWhere(
+          (c) => c.name.toLowerCase() == day.city.toLowerCase(),
+          orElse: () => rawCities.first,
+        );
+        final optResult = RouteProximityOptimizer.optimizeStopsProximity(
+          stops: day.stops,
+          startLat: matchingCity.latitude,
+          startLng: matchingCity.longitude,
+          startPointLabel: '${matchingCity.name} arrival point',
+          travelMode: travelMode,
+          pace: pace,
+          travelers: travelersData,
+          dayStartTime: day.startTime.isNotEmpty ? day.startTime : '09:00',
+          dayEndTime: day.endTime.isNotEmpty ? day.endTime : '21:00',
+        );
+        optimizedDays.add(day.copyWith(
+          stops: optResult.orderedStops,
+          routeStartPointInfo: optResult.startPointMessage,
+        ));
+      }
+      final optimizedTrip = generatedTrip.copyWith(days: optimizedDays);
+
       if (mounted) {
         setState(() {
-          _trip = generatedTrip;
+          _trip = optimizedTrip;
           _isLoading = false;
         });
         _animController.forward();
@@ -693,6 +722,10 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
 
   List<Widget> _buildCityDayTimelineWidgets(String dayKey, ItineraryModel day, CityStayModel city) {
     final widgets = <Widget>[];
+
+    // Add city route starting point banner
+    widgets.add(_buildCityRouteStartBanner(city, day));
+
     final stops = day.stops;
 
     int lunchInsertIndex = -1;
@@ -733,7 +766,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
       }
 
       final isLast = (i == stops.length - 1) && lunchInserted && dinnerInserted;
-      widgets.add(_buildStopItem(stops[i], isLast));
+      widgets.add(_buildStopItem(stops[i], isLast, i, city.name));
     }
 
     if (!lunchInserted) {
@@ -1510,132 +1543,53 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
     );
   }
 
-  Widget _buildStopItem(ItineraryStop stop, bool isLast) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Timeline line
-            SizedBox(
-              width: 24,
-              child: Column(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    margin: const EdgeInsets.only(top: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.brand,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                  if (!isLast)
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        color: AppColors.border,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppTokens.sm),
+  Widget _buildStopItem(ItineraryStop stop, bool isLast, [int index = 0, String? cityName]) {
+    return ItineraryStopCard(
+      index: index,
+      stop: stop,
+      isLast: isLast,
+      isExpanded: _expandedStopIndex == index,
+      cityName: cityName,
+      onToggleExpand: () {
+        setState(() {
+          _expandedStopIndex = (_expandedStopIndex == index) ? null : index;
+        });
+      },
+    );
+  }
 
-            // Stop content card
+  /// City route starting point banner
+  Widget _buildCityRouteStartBanner(CityStayModel city, ItineraryModel day) {
+    final startMsg = day.routeStartPointInfo ?? 'Route starts from ${city.name} arrival point';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.brand.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.navigation_rounded, size: 14, color: AppColors.brand),
+            ),
+            const SizedBox(width: 8),
             Expanded(
-              child: Container(
-                margin: const EdgeInsets.only(bottom: AppTokens.md),
-                padding: const EdgeInsets.all(AppTokens.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: AppTokens.shadow(level: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.brandSoft,
-                            borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                          ),
-                          child: Text(
-                            '${stop.startTime} - ${stop.endTime}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.brandDeep,
-                            ),
-                          ),
-                        ),
-                        if (stop.isKidFriendly == true)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                            ),
-                            child: const Text(
-                              'Child-Friendly',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF047857),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      stop.name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      stop.description,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSoft,
-                        height: 1.4,
-                      ),
-                    ),
-                    if (stop.tips.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: stop.tips.map((tip) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.bg,
-                              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                            ),
-                            child: Text(
-                              '💡 $tip',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: AppColors.textSoft,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
+              child: Text(
+                startMsg,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
                 ),
               ),
             ),

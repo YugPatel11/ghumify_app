@@ -15,6 +15,10 @@ import '../../../core/constants/food_preferences.dart';
 import '../../trip_planner/widgets/nearby_services_section.dart';
 import 'meeting_point_dialog.dart';
 import 'personal_plan_summary_card.dart';
+import '../../../core/utils/route_proximity_optimizer.dart';
+import '../../../core/models/itinerary_model.dart';
+import '../../../core/services/location_service.dart';
+
 
 /// Group itinerary tab supporting two distinct editing modes:
 /// 1. "Whole Group": edits the shared group itinerary followed by everyone
@@ -522,17 +526,35 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
               ),
             ),
             if (canEditGroup)
-              TextButton.icon(
-                icon: const Icon(Icons.add_rounded, size: 18, color: AppColors.brand),
-                label: Text(
-                  'Add Stop',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.brand,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (stops.length > 1)
+                    TextButton.icon(
+                      icon: const Icon(Icons.near_me_outlined, size: 16, color: AppColors.brand),
+                      label: Text(
+                        'Re-order',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                      onPressed: () => _reorderByNearestGroupStops(groupProvider, itinerary, stops),
+                    ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.add_rounded, size: 18, color: AppColors.brand),
+                    label: Text(
+                      'Add Stop',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                    onPressed: () => _showAddGroupStopDialog(context, groupProvider, itinerary, stops),
                   ),
-                ),
-                onPressed: () => _showAddGroupStopDialog(context, groupProvider, itinerary, stops),
+                ],
               ),
           ],
         ),
@@ -1600,6 +1622,97 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
         );
       },
     );
+  }
+
+  Future<void> _reorderByNearestGroupStops(
+    GroupProvider groupProvider,
+    Map<String, dynamic> itinerary,
+    List<Map<String, dynamic>> stops,
+  ) async {
+    if (stops.length < 2) return;
+
+    // Start point: group meeting point, hotel stay, or first stop
+    double? startLat;
+    double? startLng;
+    String startLabel = 'Group start point';
+
+    for (final s in stops) {
+      if (s['type'] == 'meeting_point' || s['type'] == 'hotel' || s['isAnchored'] == true) {
+        final lat = (s['latitude'] as num?)?.toDouble();
+        final lng = (s['longitude'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          startLat = lat;
+          startLng = lng;
+          startLabel = 'Group stay/meeting point: ${s['name']}';
+          break;
+        }
+      }
+    }
+
+    if (startLat == null || startLng == null) {
+      final city = itinerary['city'] ?? 'Trip';
+      final resolved = await LocationService().resolveStartPoint(city: city);
+      startLat = resolved.latitude;
+      startLng = resolved.longitude;
+      startLabel = 'City center ($city)';
+    }
+
+    final parsedStops = stops.map((s) {
+      final isFood = s['type'] == 'food' || s['type'] == 'meal' || s['type'] == 'restaurant';
+      final isMeeting = s['type'] == 'meeting_point';
+      return ItineraryStop.fromMap({
+        ...s,
+        'isAnchored': s['isAnchored'] == true || isFood || isMeeting,
+      });
+    }).toList();
+
+    final prevStops = List<Map<String, dynamic>>.from(stops);
+
+    final optResult = RouteProximityOptimizer.optimizeStopsProximity(
+      stops: parsedStops,
+      startLat: startLat,
+      startLng: startLng,
+      startPointLabel: startLabel,
+      pace: itinerary['pace'] ?? 'moderate',
+    );
+
+    final reorderedMaps = optResult.orderedStops.map((s) => s.toMap()).toList();
+    final updatedItinerary = Map<String, dynamic>.from(itinerary);
+    updatedItinerary['stops'] = reorderedMaps;
+    updatedItinerary['isManuallyOrdered'] = false;
+    updatedItinerary['routeStartPointInfo'] = startLabel;
+
+    await groupProvider.updateItinerary(
+      groupId: widget.groupId,
+      itineraryData: updatedItinerary,
+      actionDescription: 're-ordered stops nearest-first from $startLabel',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Re-ordered by proximity starting from $startLabel',
+            style: GoogleFonts.outfit(),
+          ),
+          backgroundColor: AppColors.brand,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: Colors.white,
+            onPressed: () {
+              final restoredItinerary = Map<String, dynamic>.from(itinerary);
+              restoredItinerary['stops'] = prevStops;
+              groupProvider.updateItinerary(
+                groupId: widget.groupId,
+                itineraryData: restoredItinerary,
+                actionDescription: 'restored previous stop order',
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
   void _reorderGroupStop(
