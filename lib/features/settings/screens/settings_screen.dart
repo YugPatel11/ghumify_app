@@ -70,6 +70,8 @@ class SettingsScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
@@ -78,6 +80,8 @@ class SettingsScreen extends StatelessWidget {
                                 fontSize: 13,
                                 color: Colors.white.withOpacity(0.8),
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -350,3 +354,4 @@ class _SettingsTile extends StatelessWidget {
     );
   }
 }
+

@@ -326,15 +326,20 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Expanded(
+                  child: Text(
                   '${AppConstants.supportedLanguages[entry.from]} → ${AppConstants.supportedLanguages[entry.to]}'.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textMuted,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
+                const SizedBox(width: AppTokens.xs),
                 GestureDetector(
                   onTap: () => _copyToClipboard(entry.translated),
                   child: const Icon(Icons.copy, size: 14, color: AppColors.textMuted),
@@ -373,3 +378,5 @@ class _TranslationEntry {
     required this.to,
   });
 }
+
+

@@ -258,7 +258,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
@@ -283,13 +285,16 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ],
         ],
+        ),
       ),
     );
   }
 
   Widget _buildError() {
     return Center(
-      child: Column(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.error_outline, size: 48, color: AppColors.error),
@@ -301,6 +306,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             child: const Text('Retry'),
           ),
         ],
+        ),
       ),
     );
   }
@@ -466,3 +472,4 @@ class _CatItem {
   final IconData icon;
   const _CatItem(this.id, this.label, this.icon);
 }
+

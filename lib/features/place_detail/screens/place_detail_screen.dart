@@ -326,7 +326,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
                               context.push('/plan-trip', extra: {'city': _city});
                             },
                             icon: const Icon(Icons.map_outlined),
-                            label: const Text('Add to Itinerary'),
+                            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Add to Itinerary', maxLines: 1)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brand,
                               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -338,7 +338,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
                           child: ElevatedButton.icon(
                             onPressed: _openDirections,
                             icon: const Icon(Icons.directions, color: AppColors.brandDeep),
-                            label: const Text('Directions', style: TextStyle(color: AppColors.brandDeep, fontWeight: FontWeight.bold)),
+                            label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Directions', style: TextStyle(color: AppColors.brandDeep, fontWeight: FontWeight.bold), maxLines: 1)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brandSoft,
                               padding: const EdgeInsets.symmetric(vertical: 24),
@@ -453,3 +453,4 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen>
     }).toList();
   }
 }
+

@@ -114,7 +114,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   final page = _pages[index];
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Column(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // Icon with gradient background
@@ -156,6 +159,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           textAlign: TextAlign.center,
                         ),
                       ],
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -250,3 +255,4 @@ class _OnboardingPage {
     required this.softColor,
   });
 }
+

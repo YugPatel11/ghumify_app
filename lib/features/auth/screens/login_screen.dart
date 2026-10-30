@@ -394,17 +394,18 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         backgroundColor: Colors.white,
         title: Text('Reset Password', style: Theme.of(context).textTheme.headlineSmall),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               'Enter your email to receive a password reset link.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: AppTokens.md),
             TextField(
-              controller: resetEmailController,
+                controller: resetEmailController,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 hintText: 'Email address',
@@ -417,6 +418,7 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -449,3 +451,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 }
+
