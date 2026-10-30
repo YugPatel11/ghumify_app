@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
+import '../../../core/models/place_suggestion_model.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/utils/image_resolver.dart';
@@ -26,6 +28,7 @@ class _TripInputScreenState extends State<TripInputScreen>
   final _cityController = TextEditingController();
   final _ageController = TextEditingController();
   final _budgetController = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   final _locationService = LocationService();
   final _placesService = PlacesService();
@@ -73,15 +76,31 @@ class _TripInputScreenState extends State<TripInputScreen>
   int get _numberOfDays => _endDate.difference(_startDate).inDays + 1;
   bool get _isMultiDay => _numberOfDays > 1;
 
-  // Autocomplete & Hero State
+  // Autocomplete, Debounce & Hero State
   bool _isDetectingLocation = false;
-  List<Map<String, String>> _citySuggestions = [];
+  bool _isSearchingPlaces = false;
+  List<PlaceSuggestion> _placeSuggestions = [];
   bool _showSuggestions = false;
   String _heroImage = ImageResolver.getHeroImage('Jaipur');
+  Timer? _searchDebounceTimer;
+  int _searchGenerationToken = 0;
+  final List<String> _recentSearches = [];
+  double? _selectedLatitude;
+  double? _selectedLongitude;
 
   @override
   void initState() {
     super.initState();
+
+    _searchFocusNode.addListener(() {
+      if (_searchFocusNode.hasFocus) {
+        if (_cityController.text.trim().isEmpty) {
+          _showRecentAndPopular();
+        } else if (_placeSuggestions.isNotEmpty) {
+          setState(() => _showSuggestions = true);
+        }
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
@@ -95,6 +114,8 @@ class _TripInputScreenState extends State<TripInputScreen>
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
+    _searchFocusNode.dispose();
     _cityController.dispose();
     _ageController.dispose();
     _budgetController.dispose();
@@ -117,6 +138,7 @@ class _TripInputScreenState extends State<TripInputScreen>
       if (city.isNotEmpty) {
         _cityController.text = city;
         _updateHeroImage(city);
+        _addRecentSearch(city);
         setState(() => _showSuggestions = false);
       }
     } catch (e) {
@@ -135,26 +157,89 @@ class _TripInputScreenState extends State<TripInputScreen>
     }
   }
 
-  Future<void> _searchCity(String query) async {
-    if (query.trim().length < 2) {
-      setState(() {
-        _citySuggestions = [];
-        _showSuggestions = false;
-      });
+  void _onSearchQueryChanged(String query) {
+    _updateHeroImage(query);
+
+    _searchDebounceTimer?.cancel();
+    final clean = query.trim();
+
+    if (clean.length < 2) {
+      if (clean.isEmpty && _searchFocusNode.hasFocus) {
+        _showRecentAndPopular();
+      } else {
+        setState(() {
+          _placeSuggestions = [];
+          _showSuggestions = false;
+          _isSearchingPlaces = false;
+        });
+      }
       return;
     }
 
-    try {
-      final suggestions = await _placesService.autocomplete(query.trim());
-      if (mounted) {
+    setState(() {
+      _isSearchingPlaces = true;
+      _showSuggestions = true;
+    });
+
+    final currentToken = ++_searchGenerationToken;
+
+    // Debounce by 300 ms to avoid spamming endpoints
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final results = await _placesService.searchPlaceSuggestions(clean);
+        if (!mounted || currentToken != _searchGenerationToken) return;
+
         setState(() {
-          _citySuggestions = suggestions;
-          _showSuggestions = suggestions.isNotEmpty;
+          _placeSuggestions = results;
+          _isSearchingPlaces = false;
+          _showSuggestions = true;
+        });
+      } catch (_) {
+        if (!mounted || currentToken != _searchGenerationToken) return;
+        setState(() {
+          _isSearchingPlaces = false;
         });
       }
-    } catch (_) {
-      // Fallback silently if autocomplete service is throttled
+    });
+  }
+
+  void _showRecentAndPopular() {
+    setState(() {
+      _showSuggestions = true;
+      _isSearchingPlaces = false;
+      _placeSuggestions = _popularCities.map((c) => PlaceSuggestion(
+        name: c,
+        secondaryText: 'Popular destination in India',
+        fullDescription: '$c, India',
+        placeId: 'popular_${c.toLowerCase()}',
+        type: 'city',
+      )).toList();
+    });
+  }
+
+  void _addRecentSearch(String place) {
+    final trimmed = place.trim();
+    if (trimmed.isEmpty) return;
+    _recentSearches.remove(trimmed);
+    _recentSearches.insert(0, trimmed);
+    if (_recentSearches.length > 5) {
+      _recentSearches.removeLast();
     }
+  }
+
+  void _selectSuggestion(PlaceSuggestion suggestion) {
+    HapticFeedback.selectionClick();
+    _cityController.text = suggestion.name;
+    _updateHeroImage(suggestion.name);
+    _addRecentSearch(suggestion.name);
+
+    setState(() {
+      _selectedLatitude = suggestion.latitude;
+      _selectedLongitude = suggestion.longitude;
+      _showSuggestions = false;
+    });
+
+    _searchFocusNode.unfocus();
   }
 
   Future<void> _pickTime(bool isStart) async {
@@ -238,6 +323,7 @@ class _TripInputScreenState extends State<TripInputScreen>
     if (_currentStep == 0) {
       if (!_formKeyStep1.currentState!.validate()) return;
       setState(() => _showSuggestions = false);
+      _searchFocusNode.unfocus();
     }
 
     // Validate Step 2 (Group & Budget)
@@ -266,7 +352,7 @@ class _TripInputScreenState extends State<TripInputScreen>
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one passion or interest'),
+          content: Text('Please select at least one interest before proceeding.'),
           backgroundColor: AppColors.brandDeep,
         ),
       );
@@ -309,6 +395,8 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          if (_selectedLatitude != null) 'latitude': _selectedLatitude,
+          if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
         context.pushReplacement('/multi-day-itinerary', extra: data);
       } else {
@@ -323,6 +411,8 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          if (_selectedLatitude != null) 'latitude': _selectedLatitude,
+          if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
         context.pushReplacement('/itinerary', extra: data);
       }
@@ -331,51 +421,59 @@ class _TripInputScreenState extends State<TripInputScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: Column(
-        children: [
-          // Dynamic Parallax Header with Glass Controls
-          CraftHeader(
-            heroImageUrl: _heroImage,
-            destinationName: _cityController.text.trim(),
-            onBack: _prevStep,
-          ),
-
-          // Stepper Indicator
-          CraftStepIndicator(
-            currentStep: _currentStep,
-            totalSteps: _totalSteps,
-            stepLabels: _stepLabels,
-            onStepTapped: (index) {
-              setState(() => _currentStep = index);
-            },
-          ),
-
-          // Scrollable Step Content
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0.04, 0.0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: _buildStepView(key: ValueKey<int>(_currentStep)),
+    return GestureDetector(
+      onTap: () {
+        if (_showSuggestions) {
+          setState(() => _showSuggestions = false);
+        }
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Column(
+          children: [
+            // Dynamic Parallax Header with Glass Controls
+            CraftHeader(
+              heroImageUrl: _heroImage,
+              destinationName: _cityController.text.trim(),
+              onBack: _prevStep,
             ),
-          ),
-        ],
-      ),
 
-      // Floating Bottom Action Bar
-      bottomNavigationBar: _buildBottomBar(),
+            // Stepper Indicator
+            CraftStepIndicator(
+              currentStep: _currentStep,
+              totalSteps: _totalSteps,
+              stepLabels: _stepLabels,
+              onStepTapped: (index) {
+                setState(() => _currentStep = index);
+              },
+            ),
+
+            // Scrollable Step Content
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.04, 0.0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _buildStepView(key: ValueKey<int>(_currentStep)),
+              ),
+            ),
+          ],
+        ),
+
+        // Floating Bottom Action Bar
+        bottomNavigationBar: _buildBottomBar(),
+      ),
     );
   }
 
@@ -533,6 +631,7 @@ class _TripInputScreenState extends State<TripInputScreen>
               children: [
                 TextFormField(
                   controller: _cityController,
+                  focusNode: _searchFocusNode,
                   style: const TextStyle(
                     color: AppColors.text,
                     fontSize: 16,
@@ -558,7 +657,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                             ),
                             onPressed: () {
                               _cityController.clear();
-                              setState(() => _showSuggestions = false);
+                              _onSearchQueryChanged('');
                             },
                           )
                         : null,
@@ -584,65 +683,18 @@ class _TripInputScreenState extends State<TripInputScreen>
                       ),
                     ),
                   ),
-                  onChanged: (val) {
-                    _searchCity(val);
-                    _updateHeroImage(val);
-                  },
+                  onChanged: _onSearchQueryChanged,
                   validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Destination city is required'
+                      ? 'Destination is required'
                       : null,
                 ),
               ],
             ),
 
-            // Autocomplete Suggestions Overlay List
-            if (_showSuggestions && _citySuggestions.isNotEmpty) ...[
+            // Smart Autocomplete Suggestions Dropdown
+            if (_showSuggestions) ...[
               const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: AppTokens.shadow(level: 2),
-                ),
-                child: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _citySuggestions.length.clamp(0, 4),
-                  separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: AppColors.borderLight),
-                  itemBuilder: (context, index) {
-                    final suggestion = _citySuggestions[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 2,
-                      ),
-                      leading: const Icon(
-                        Icons.location_on_outlined,
-                        size: 20,
-                        color: AppColors.brand,
-                      ),
-                      title: Text(
-                        suggestion['description'] ?? '',
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      onTap: () {
-                        final desc = suggestion['description'] ?? '';
-                        final cityName = desc.split(',').first.trim();
-                        _cityController.text = cityName;
-                        _updateHeroImage(cityName);
-                        setState(() => _showSuggestions = false);
-                      },
-                    );
-                  },
-                ),
-              ),
+              _buildSuggestionsDropdown(),
             ],
 
             const SizedBox(height: AppTokens.sm),
@@ -689,9 +741,9 @@ class _TripInputScreenState extends State<TripInputScreen>
 
             const SizedBox(height: AppTokens.md),
 
-            // Quick City Presets
+            // Popular Destinations Chips
             const Text(
-              'POPULAR INSPIRATIONS',
+              'POPULAR DESTINATIONS',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -712,7 +764,9 @@ class _TripInputScreenState extends State<TripInputScreen>
                     HapticFeedback.selectionClick();
                     _cityController.text = city;
                     _updateHeroImage(city);
+                    _addRecentSearch(city);
                     setState(() => _showSuggestions = false);
+                    _searchFocusNode.unfocus();
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -847,7 +901,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                           Text(
                             _isMultiDay
                                 ? 'Multi-day itinerary spanning $_numberOfDays days'
-                                : 'Single-day whirlwind exploration',
+                                : 'Single-day city exploration',
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSoft,
@@ -916,6 +970,176 @@ class _TripInputScreenState extends State<TripInputScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsDropdown() {
+    final query = _cityController.text.trim();
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 280),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppTokens.shadow(level: 2),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isSearchingPlaces)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: AppColors.borderLight,
+                valueColor: AlwaysStoppedAnimation(AppColors.brand),
+              ),
+
+            if (_placeSuggestions.isEmpty && !_isSearchingPlaces && query.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search_off_rounded, color: AppColors.textMuted, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No destinations found matching "$query".\nTry another spelling or pick a popular city.',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSoft, height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: _placeSuggestions.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: AppColors.borderLight),
+                  itemBuilder: (context, index) {
+                    final suggestion = _placeSuggestions[index];
+                    return InkWell(
+                      onTap: () => _selectSuggestion(suggestion),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.brandSoft,
+                                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                              ),
+                              child: Icon(
+                                suggestion.iconData,
+                                size: 18,
+                                color: AppColors.brandDeep,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildHighlightedText(suggestion.name, query),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    suggestion.secondaryText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.textSoft,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.bg,
+                                borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                              ),
+                              child: Text(
+                                suggestion.typeLabel,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSoft,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHighlightedText(String text, String query) {
+    if (query.isEmpty) {
+      return Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.text,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final matchIndex = lowerText.indexOf(lowerQuery);
+
+    if (matchIndex < 0) {
+      return Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.text,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(color: AppColors.text, fontSize: 14),
+        children: [
+          if (matchIndex > 0)
+            TextSpan(
+              text: text.substring(0, matchIndex),
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          TextSpan(
+            text: text.substring(matchIndex, matchIndex + query.length),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: AppColors.brand,
+            ),
+          ),
+          if (matchIndex + query.length < text.length)
+            TextSpan(
+              text: text.substring(matchIndex + query.length),
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+        ],
       ),
     );
   }
@@ -1025,7 +1249,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'We tune transit times and spot densities to your rhythm.',
+            'We tune transit times and sightseeing density to your pace.',
             style: TextStyle(
               fontSize: 13,
               color: AppColors.textSoft,
@@ -1046,7 +1270,7 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           CraftSelectorCard(
             title: 'Driving / Cab',
-            subtitle: 'Best for seamless city hopping, AC comfort & distance.',
+            subtitle: 'Best for seamless city travel, AC comfort, and longer distances.',
             icon: Icons.directions_car_rounded,
             badge: 'Most Popular',
             isSelected: _travelMode == 'driving',
@@ -1060,7 +1284,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           CraftSelectorCard(
             title: 'Walking & Strolling',
             subtitle:
-                'Immersive old-town alleys, heritage lanes & street bazaars.',
+                'Ideal for historic old-town lanes, heritage walks, and vibrant bazaars.',
             icon: Icons.directions_walk_rounded,
             badge: 'Scenic',
             isSelected: _travelMode == 'walking',
@@ -1074,7 +1298,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           CraftSelectorCard(
             title: 'Public Transit & Metro',
             subtitle:
-                'Fast metro lines, local buses & eco-friendly city travel.',
+                'Fast metro lines, local buses, and budget-friendly city travel.',
             icon: Icons.directions_transit_rounded,
             badge: 'Budget',
             isSelected: _travelMode == 'transit',
@@ -1099,7 +1323,7 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           CraftSelectorCard(
             title: 'Relaxed & Unrushed',
-            subtitle: '2–3 spots a day. Plenty of cafe time, rest & soaking in.',
+            subtitle: '2–3 spots per day with ample leisure, cafe visits, and rest.',
             icon: Icons.spa_rounded,
             badge: 'Leisurely',
             isSelected: _pace == 'relaxed',
@@ -1112,7 +1336,7 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           CraftSelectorCard(
             title: 'Moderate & Balanced',
-            subtitle: '4–5 key attractions. Ideal mix of culture, food & photo ops.',
+            subtitle: '4–5 key attractions with a balanced mix of culture, food, and sightseeing.',
             icon: Icons.hiking_rounded,
             badge: 'Recommended',
             isSelected: _pace == 'moderate',
@@ -1125,7 +1349,7 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           CraftSelectorCard(
             title: 'Fast & Action-Packed',
-            subtitle: '6+ attractions. Maximum coverage for energetic travelers.',
+            subtitle: '6+ attractions per day for maximum coverage and energetic sightseeing.',
             icon: Icons.flash_on_rounded,
             badge: 'High Energy',
             isSelected: _pace == 'fast',
@@ -1165,7 +1389,7 @@ class _TripInputScreenState extends State<TripInputScreen>
             ),
             const SizedBox(height: 4),
             const Text(
-              'We tailor tickets, seating and recommendations to group scale.',
+              'We tailor recommendations, tickets, and group logistics accordingly.',
               style: TextStyle(
                 fontSize: 13,
                 color: AppColors.textSoft,
@@ -1289,7 +1513,7 @@ class _TripInputScreenState extends State<TripInputScreen>
             ),
             const SizedBox(height: 4),
             const Text(
-              'Helps adjust steep climbs, stairs, and night activity suitability.',
+              'Helps us recommend age-appropriate activities, walks, and venues.',
               style: TextStyle(fontSize: 12, color: AppColors.textSoft),
             ),
             const SizedBox(height: AppTokens.sm),
@@ -1355,7 +1579,7 @@ class _TripInputScreenState extends State<TripInputScreen>
             ),
             const SizedBox(height: 4),
             const Text(
-              'Approx. spend for food, entry tickets & activities (exclude hotels).',
+              'Estimated spend for food, entry tickets, and activities (excluding hotels).',
               style: TextStyle(fontSize: 12, color: AppColors.textSoft),
             ),
             const SizedBox(height: AppTokens.sm),
@@ -1490,7 +1714,7 @@ class _TripInputScreenState extends State<TripInputScreen>
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // STEP 4: PASSIONS & LAUNCH ("What You Love & Dossier")
+  // STEP 4: PASSIONS & LAUNCH ("What You Love & Review")
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildStep4InterestsAndLaunch({required Key key}) {
     final cityName = _cityController.text.trim().isNotEmpty
@@ -1544,7 +1768,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           ),
           const SizedBox(height: 4),
           const Text(
-            'Tap all that match your travel style. At least 1 is required.',
+            'Select your travel interests. Please choose at least one.',
             style: TextStyle(fontSize: 13, color: AppColors.textSoft),
           ),
           const SizedBox(height: AppTokens.lg),
@@ -1584,9 +1808,9 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           const SizedBox(height: AppTokens.xl),
 
-          // Trip Dossier Summary Card (Live Review)
+          // Itinerary Summary Preview Card (Live Review)
           const Text(
-            'TRIP DOSSIER PREVIEW',
+            'ITINERARY SUMMARY PREVIEW',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -1675,7 +1899,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                     _buildDossierItem(
                       icon: Icons.person_outline,
                       label: 'Travelers',
-                      value: '$_travelers People',
+                      value: '$_travelers ${_travelers == 1 ? "Person" : "People"}',
                     ),
                   ],
                 ),

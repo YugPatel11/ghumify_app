@@ -33,10 +33,10 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
   ];
 
   static const List<String> _travelTips = [
-    'Tip: Mornings are best for quiet temple visits and monuments.',
+    'Tip: Mornings are best for visiting quiet temples and monuments.',
     'Tip: Local street food tours are recommended before 8 PM.',
     'Tip: Keep a buffer of 15 minutes between sights for unexpected discoveries.',
-    'Tip: Stay hydrated and carry cash for heritage site entry counters.',
+    'Tip: Stay hydrated and carry cash for heritage site ticket counters.',
   ];
 
   @override
@@ -192,7 +192,7 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
 
                   // Headline
                   Text(
-                    'Crafting $cityName Journey',
+                    'Crafting Your $cityName Journey',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,

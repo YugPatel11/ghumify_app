@@ -10,6 +10,8 @@ class AppConstants {
 
   // Asset Paths
   static const String logoPath = 'assets/images/logo.png';
+  static const String splashPagePath = 'assets/images/splash_page.png';
+  static const String splashPageOriginalPath = 'assets/images/splash page.png';
 
   // Supported Languages
   static const Map<String, String> supportedLanguages = {

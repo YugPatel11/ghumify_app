@@ -106,6 +106,8 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
           _messages = session.messages;
         });
         _scrollToBottom();
+        // Heal stored messages if any contained old raw JSON
+        _saveChatHistory();
       }
     } catch (_) {
       // First time — no history
@@ -141,12 +143,13 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
   }
 
   Future<void> _sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+    final cleanInput = text.trim();
+    if (cleanInput.isEmpty) return;
 
     final userMessage = ChatMessageModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       role: 'user',
-      content: text.trim(),
+      content: cleanInput,
     );
 
     setState(() {
@@ -158,7 +161,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
 
     try {
       final response = await _geminiService.chatAboutItinerary(
-        userMessage: text.trim(),
+        userMessage: cleanInput,
         currentItinerary: _currentItineraryMap,
         chatHistory: _messages,
         isMultiDay: _isMultiDay,
@@ -175,7 +178,7 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
         _messages.add(ChatMessageModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: 'assistant',
-          content: 'Error: ${e.toString()}',
+          content: 'Sorry, I encountered an issue: ${e.toString()}',
         ));
         _isLoading = false;
       });
@@ -187,12 +190,15 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
     if (message.updatedItinerary == null) return;
 
     try {
+      final rawData = message.updatedItinerary!;
+      final data = (rawData['updatedItinerary'] is Map)
+          ? Map<String, dynamic>.from(rawData['updatedItinerary'] as Map)
+          : rawData;
+
       if (_isMultiDay && widget.onMultiDayItineraryUpdated != null) {
-        final updated =
-            MultiDayItineraryModel.fromMap(message.updatedItinerary!);
+        final updated = MultiDayItineraryModel.fromMap(data);
         widget.onMultiDayItineraryUpdated!(updated);
       } else if (widget.onItineraryUpdated != null) {
-        final data = message.updatedItinerary!;
         final stops = (data['stops'] as List? ?? [])
             .map((s) => ItineraryStop.fromMap(s as Map<String, dynamic>))
             .toList();

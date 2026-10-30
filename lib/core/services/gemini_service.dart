@@ -154,6 +154,13 @@ class GeminiService {
   /// [userMessage] is the new message from the user.
   ///
   /// Returns a [ChatMessageModel] with either text content or an updated itinerary.
+  /// Chat about an itinerary — can return text or a modified itinerary.
+  ///
+  /// [currentItinerary] is the JSON representation of the current itinerary.
+  /// [chatHistory] is the list of previous messages in the conversation.
+  /// [userMessage] is the new message from the user.
+  ///
+  /// Returns a [ChatMessageModel] with human-readable text content and an optional updated itinerary.
   Future<ChatMessageModel> chatAboutItinerary({
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
@@ -166,11 +173,20 @@ class GeminiService {
       isMultiDay: isMultiDay,
     );
 
-    // Build conversation history for context
-    final conversationHistory = chatHistory
+    // Build conversation history for context — omit current message if already in history,
+    // and sanitize any prior raw JSON dumps
+    final previousMessages = chatHistory.isNotEmpty &&
+            chatHistory.last.isUser &&
+            chatHistory.last.content == userMessage
+        ? chatHistory.sublist(0, chatHistory.length - 1)
+        : chatHistory;
+
+    final conversationHistory = previousMessages
         .map((m) => {
               'role': m.isUser ? 'user' : 'model',
-              'content': m.content,
+              'content': m.content.length > 300 && m.content.startsWith('{')
+                  ? "I've updated your itinerary."
+                  : m.content,
             })
         .toList();
 
@@ -186,32 +202,53 @@ class GeminiService {
 
       // Try to parse as JSON (modified itinerary)
       Map<String, dynamic>? updatedItinerary;
-      String textContent = responseText;
+      String textContent = '';
 
-      try {
-        String cleanJson = responseText.trim();
-        if (cleanJson.startsWith('```json')) {
-          cleanJson = cleanJson.substring(7);
-        } else if (cleanJson.startsWith('```')) {
-          cleanJson = cleanJson.substring(3);
-        }
-        if (cleanJson.endsWith('```')) {
-          cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-        }
-        cleanJson = cleanJson.trim();
-
-        // Check if response contains JSON itinerary data
-        if (cleanJson.startsWith('{') &&
-            (cleanJson.contains('"stops"') || cleanJson.contains('"days"'))) {
+      final cleanJson = _extractJson(responseText);
+      if (cleanJson != null) {
+        try {
           final parsed = json.decode(cleanJson) as Map<String, dynamic>;
-          updatedItinerary = parsed;
-          textContent = parsed['chatMessage'] as String? ??
-              parsed['aiSummary'] as String? ??
-              'I\'ve updated your itinerary based on your request.';
+
+          if (parsed.containsKey('updatedItinerary') &&
+              parsed['updatedItinerary'] is Map<String, dynamic>) {
+            updatedItinerary =
+                parsed['updatedItinerary'] as Map<String, dynamic>;
+            textContent = parsed['chatMessage'] as String? ?? '';
+          } else if (parsed.containsKey('stops') || parsed.containsKey('days')) {
+            updatedItinerary = parsed;
+            textContent = parsed['chatMessage'] as String? ??
+                parsed['aiSummary'] as String? ??
+                parsed['overallSummary'] as String? ??
+                '';
+          } else if (parsed.containsKey('chatMessage')) {
+            textContent = parsed['chatMessage'] as String? ?? '';
+            if (parsed.containsKey('itinerary') &&
+                parsed['itinerary'] is Map<String, dynamic>) {
+              updatedItinerary =
+                  parsed['itinerary'] as Map<String, dynamic>;
+            }
+          }
+        } catch (_) {
+          // JSON parsing failed or output was truncated
         }
-      } catch (_) {
-        // Not JSON — treat as plain text response
       }
+
+      // If textContent is still empty
+      if (textContent.trim().isEmpty) {
+        if (cleanJson == null) {
+          // Normal plain text response from Gemini
+          textContent = responseText.trim();
+        } else if (updatedItinerary != null) {
+          // Generate a friendly bulleted summary from the updated stops
+          textContent = _generateItinerarySummaryText(updatedItinerary);
+        } else {
+          // Model outputted partial or raw JSON without chatMessage
+          textContent = ChatMessageModel.sanitizeContent(responseText);
+        }
+      }
+
+      // Final safety net: ensure textContent never contains raw JSON
+      textContent = ChatMessageModel.sanitizeContent(textContent);
 
       return ChatMessageModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -234,6 +271,58 @@ class GeminiService {
         content: errorMessage,
       );
     }
+  }
+
+  /// Extracts a JSON block from model response text
+  String? _extractJson(String text) {
+    String trimmed = text.trim();
+    if (trimmed.startsWith('```json')) {
+      trimmed = trimmed.substring(7);
+    } else if (trimmed.startsWith('```')) {
+      trimmed = trimmed.substring(3);
+    }
+    if (trimmed.endsWith('```')) {
+      trimmed = trimmed.substring(0, trimmed.length - 3);
+    }
+    trimmed = trimmed.trim();
+
+    final firstBrace = trimmed.indexOf('{');
+    final lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+      return trimmed.substring(firstBrace, lastBrace + 1);
+    }
+    if (trimmed.startsWith('{')) {
+      return trimmed;
+    }
+    return null;
+  }
+
+  /// Generate a friendly natural-language summary from an itinerary map
+  String _generateItinerarySummaryText(Map<String, dynamic> data) {
+    final buffer = StringBuffer();
+    final city = data['city'] as String?;
+    if (city != null && city.isNotEmpty) {
+      buffer.writeln("I've updated your schedule for $city:\n");
+    } else {
+      buffer.writeln("I've updated your itinerary based on your request:\n");
+    }
+
+    final stops = data['stops'] as List?;
+    if (stops != null && stops.isNotEmpty) {
+      for (final s in stops) {
+        if (s is Map) {
+          final name = s['name'] ?? 'Stop';
+          final start = s['startTime'] ?? '';
+          final end = s['endTime'] ?? '';
+          final timeStr = (start.isNotEmpty && end.isNotEmpty) ? ' ($start - $end)' : '';
+          buffer.writeln('• $name$timeStr');
+        }
+      }
+      buffer.writeln("\nTap 'Apply Changes to Itinerary' below to save this to your trip!");
+    } else {
+      buffer.writeln("Your updated itinerary is ready. Tap 'Apply Changes to Itinerary' below to apply it.");
+    }
+    return buffer.toString().trim();
   }
 
   // ═══════════════════════════════════════════════════════
@@ -582,32 +671,82 @@ IMPORTANT:
 ''';
   }
 
-  /// Build chat prompt with itinerary context
+  /// Sanitizes an itinerary map to protect user privacy and internal database IDs
+  Map<String, dynamic> _sanitizeItineraryForPrompt(Map<String, dynamic> raw) {
+    final sanitized = Map<String, dynamic>.from(raw);
+    sanitized.remove('userId');
+    sanitized.remove('id');
+    sanitized.remove('createdAt');
+    sanitized.remove('isSaved');
+
+    // Clean single-day stops if present
+    if (sanitized['stops'] is List) {
+      sanitized['stops'] = (sanitized['stops'] as List).map((s) {
+        if (s is Map) {
+          final cleanStop = Map<String, dynamic>.from(s);
+          cleanStop.remove('placeId');
+          return cleanStop;
+        }
+        return s;
+      }).toList();
+    }
+
+    // Clean multi-day days if present
+    if (sanitized['days'] is List) {
+      sanitized['days'] = (sanitized['days'] as List).map((d) {
+        if (d is Map) {
+          final cleanDay = Map<String, dynamic>.from(d);
+          if (cleanDay['stops'] is List) {
+            cleanDay['stops'] = (cleanDay['stops'] as List).map((s) {
+              if (s is Map) {
+                final cleanStop = Map<String, dynamic>.from(s);
+                cleanStop.remove('placeId');
+                return cleanStop;
+              }
+              return s;
+            }).toList();
+          }
+          return cleanDay;
+        }
+        return d;
+      }).toList();
+    }
+
+    return sanitized;
+  }
+
+  /// Build chat prompt with sanitized itinerary context
   String _buildChatPrompt({
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
     required bool isMultiDay,
   }) {
-    final itineraryJson = json.encode(currentItinerary);
+    final sanitizedItinerary = _sanitizeItineraryForPrompt(currentItinerary);
+    final itineraryJson = json.encode(sanitizedItinerary);
 
     return '''
-You are a smart travel assistant for the Ghumify app. The user is viewing their ${isMultiDay ? 'multi-day' : 'single-day'} itinerary and has a question or request.
+You are a warm, knowledgeable local travel companion for the Ghumify app. The user is currently viewing their ${isMultiDay ? 'multi-day' : 'single-day'} itinerary.
 
-CURRENT ITINERARY:
+CURRENT ITINERARY CONTEXT:
 $itineraryJson
 
 USER MESSAGE: "$userMessage"
 
-INSTRUCTIONS:
-1. If the user is asking a QUESTION (e.g., "Is this too packed?", "What should I eat?"), respond with helpful text.
-2. If the user is requesting a CHANGE (e.g., "Replace this place", "Remove activity X", "Add a food stop", "Make Day 2 more relaxed"), respond with the FULL MODIFIED ITINERARY as JSON in the exact same format as above, with an added "chatMessage" field explaining what you changed.
-3. When modifying, keep all unchanged stops as-is. Only modify what the user asked for.
-4. Recalculate times if you add/remove/reorder stops.
-5. Use REAL places with REAL coordinates — never invent fictional places.
-6. Be conversational and helpful in your text responses.
-
-If responding with text only, just write your response as plain text.
-If responding with a modified itinerary, output ONLY valid JSON (no markdown, no code blocks).
+CRITICAL INSTRUCTIONS:
+1. Always communicate with the traveler in natural, human-friendly conversational language.
+2. If the user asks a QUESTION (e.g., questions about food, timings, weather, history, greetings, or advice):
+   - Reply directly with helpful, warm, conversational text (use bullet points or line breaks for readability).
+   - Do NOT output raw JSON or code structures.
+3. If the user requests a CHANGE or MODIFICATION (e.g., "Replace a place", "Remove activity X", "Add a food stop", "Make Day 2 more relaxed", "I have less time"):
+   - Return a JSON object with EXACTLY two fields:
+     {
+       "chatMessage": "A warm, natural-language explanation of what you changed (with a clear, readable bullet-point summary of the updated stops and times). Never leave this empty or output raw JSON here.",
+       "updatedItinerary": { ...the complete updated itinerary object matching the schema of CURRENT ITINERARY... }
+     }
+   - The "chatMessage" MUST be written in friendly natural language. NEVER put raw JSON inside "chatMessage".
+   - Keep unchanged stops as-is. Recalculate times realistically.
+   - Use REAL places, famous spots, and real coordinates.
+4. Output valid JSON only when returning a modified itinerary.
 ''';
   }
 
