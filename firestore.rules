@@ -126,5 +126,18 @@ service cloud.firestore {
     match /itineraries/{itineraryId} {
       allow read, write: if isSignedIn();
     }
+
+    // ── Crowd Profiles & Holidays (Read-only for clients) ──
+    match /crowdProfiles/{profileId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+      allow read, write: if isSignedIn();
+    }
   }
 }

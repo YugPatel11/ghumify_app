@@ -24,6 +24,11 @@ class ItineraryStop {
   final String? ageRangeRecommendation; // e.g. "All ages", "Ages 3+", "Toddlers"
   final String? strollerAccess; // "yes", "no", "partial"
   final String? childTicketInfo; // e.g. "Free under 5", "Please check on arrival"
+  final String? estimatedCrowdLevel;
+  final String? crowdConfidence;
+  final String? crowdReason;
+  final String? bestTimeNote;
+  final List<Map<String, dynamic>>? alternatives;
 
   final String? shortLabel; // 60-80 chars for collapsed view
   final String? briefDescription; // 200-300 chars for expanded view
@@ -66,6 +71,11 @@ class ItineraryStop {
     this.galleryPhotos = const [],
     this.distanceFromPrevKm,
     this.travelTimeFromPrev,
+    this.estimatedCrowdLevel,
+    this.crowdConfidence,
+    this.crowdReason,
+    this.bestTimeNote,
+    this.alternatives,
   });
 
   /// Short label (60-80 chars) for collapsed view with graceful fallback
@@ -127,6 +137,15 @@ class ItineraryStop {
       galleryPhotos: List<String>.from(data['galleryPhotos'] ?? []),
       distanceFromPrevKm: (data['distanceFromPrevKm'] as num?)?.toDouble(),
       travelTimeFromPrev: data['travelTimeFromPrev'],
+      estimatedCrowdLevel: data['estimatedCrowdLevel'],
+      crowdConfidence: data['crowdConfidence'],
+      crowdReason: data['crowdReason'],
+      bestTimeNote: data['bestTimeNote'],
+      alternatives: data['alternatives'] != null
+          ? List<Map<String, dynamic>>.from(
+              (data['alternatives'] as List)
+                  .map((e) => Map<String, dynamic>.from(e as Map)))
+          : null,
     );
   }
 
@@ -161,6 +180,11 @@ class ItineraryStop {
       'galleryPhotos': galleryPhotos,
       'distanceFromPrevKm': distanceFromPrevKm,
       'travelTimeFromPrev': travelTimeFromPrev,
+      if (estimatedCrowdLevel != null) 'estimatedCrowdLevel': estimatedCrowdLevel,
+      if (crowdConfidence != null) 'crowdConfidence': crowdConfidence,
+      if (crowdReason != null) 'crowdReason': crowdReason,
+      if (bestTimeNote != null) 'bestTimeNote': bestTimeNote,
+      if (alternatives != null) 'alternatives': alternatives,
     };
   }
 
@@ -194,6 +218,11 @@ class ItineraryStop {
     List<String>? galleryPhotos,
     double? distanceFromPrevKm,
     String? travelTimeFromPrev,
+    String? estimatedCrowdLevel,
+    String? crowdConfidence,
+    String? crowdReason,
+    String? bestTimeNote,
+    List<Map<String, dynamic>>? alternatives,
   }) {
     return ItineraryStop(
       name: name ?? this.name,
@@ -225,6 +254,11 @@ class ItineraryStop {
       galleryPhotos: galleryPhotos ?? this.galleryPhotos,
       distanceFromPrevKm: distanceFromPrevKm ?? this.distanceFromPrevKm,
       travelTimeFromPrev: travelTimeFromPrev ?? this.travelTimeFromPrev,
+      estimatedCrowdLevel: estimatedCrowdLevel ?? this.estimatedCrowdLevel,
+      crowdConfidence: crowdConfidence ?? this.crowdConfidence,
+      crowdReason: crowdReason ?? this.crowdReason,
+      bestTimeNote: bestTimeNote ?? this.bestTimeNote,
+      alternatives: alternatives ?? this.alternatives,
     );
   }
 }
@@ -270,6 +304,8 @@ class ItineraryModel {
   // Nearest-First route info
   final String? routeStartPointInfo; // e.g. "Route starts from your current location"
   final bool isManuallyOrdered;
+  final bool? avoidCrowds;
+  final String? crowdModelVersion;
 
   ItineraryModel({
     required this.id,
@@ -305,6 +341,8 @@ class ItineraryModel {
     this.travelersSummary,
     this.routeStartPointInfo,
     this.isManuallyOrdered = false,
+    this.avoidCrowds,
+    this.crowdModelVersion,
   }) : createdAt = createdAt ?? DateTime.now();
 
   TravelersModel get travelersModel => TravelersModel(
@@ -378,6 +416,8 @@ class ItineraryModel {
       minorsCount: parsedMinors,
       minorAgeBands: parsedBands,
       travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
+      avoidCrowds: data['avoidCrowds'] as bool?,
+      crowdModelVersion: data['crowdModelVersion'] as String?,
       mealSuggestions: data['mealSuggestions'] != null
           ? DayMealSuggestions.fromMap(Map<String, dynamic>.from(data['mealSuggestions'] as Map))
           : null,
@@ -422,6 +462,8 @@ class ItineraryModel {
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
       if (routeStartPointInfo != null) 'routeStartPointInfo': routeStartPointInfo,
       'isManuallyOrdered': isManuallyOrdered,
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -460,6 +502,8 @@ class ItineraryModel {
       if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
       if (routeStartPointInfo != null) 'routeStartPointInfo': routeStartPointInfo,
       'isManuallyOrdered': isManuallyOrdered,
+      if (avoidCrowds != null) 'avoidCrowds': avoidCrowds,
+      if (crowdModelVersion != null) 'crowdModelVersion': crowdModelVersion,
     };
   }
 
@@ -485,6 +529,8 @@ class ItineraryModel {
     DayMealSuggestions? mealSuggestions,
     String? routeStartPointInfo,
     bool? isManuallyOrdered,
+    bool? avoidCrowds,
+    String? crowdModelVersion,
   }) {
     return ItineraryModel(
       id: id ?? this.id,
@@ -520,6 +566,8 @@ class ItineraryModel {
       mealSuggestions: mealSuggestions ?? this.mealSuggestions,
       routeStartPointInfo: routeStartPointInfo ?? this.routeStartPointInfo,
       isManuallyOrdered: isManuallyOrdered ?? this.isManuallyOrdered,
+      avoidCrowds: avoidCrowds ?? this.avoidCrowds,
+      crowdModelVersion: crowdModelVersion ?? this.crowdModelVersion,
     );
   }
 }

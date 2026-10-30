@@ -22,6 +22,10 @@ class ApiKeys {
       localChatFallbackEnabled &&
       (dotenv.env['FORCE_LOCAL_CHAT'] ?? 'false').toLowerCase() == 'true';
 
+  /// Feature flag for crowd-aware recommendation engine (default: false)
+  static bool get crowdAwareEnabled =>
+      (dotenv.env['CROWD_AWARE_ENABLED'] ?? 'false').toLowerCase() == 'true';
+
   /// Google Maps & Places API Key
   static String get googleMapsApiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'YOUR_GOOGLE_MAPS_API_KEY';
 
