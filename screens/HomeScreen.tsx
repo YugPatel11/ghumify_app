@@ -54,6 +54,21 @@ export default function HomeScreen({ navigation }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [loadMsgIndex, setLoadMsgIndex] = useState(0);
 
+  // Speech-to-Text hook for destination search input
+  const locationSpeech = useSpeechToText({
+    language: lang,
+    onFinalResult: (speechText) => {
+      if (speechText.trim()) {
+        setLocation(speechText.trim());
+        setShowSuggestions(true);
+        setErrorMsg('');
+      }
+    },
+    onError: (err) => {
+      setErrorMsg(err);
+    },
+  });
+
   const suggestions = CITIES.filter((c) => {
     if (!location.trim()) return false;
     return c.name.toLowerCase().includes(location.toLowerCase().trim());
@@ -265,20 +280,34 @@ export default function HomeScreen({ navigation }: Props) {
               <View style={[styles.inputWrap, { backgroundColor: theme.card, borderColor: showSuggestions ? theme.accent : theme.border }]}>
                 <Ionicons name="navigate-outline" size={18} color={theme.textMuted} style={{ marginHorizontal: 2 }} />
                 <TextInput
-                  value={location}
+                  value={locationSpeech.isListening && locationSpeech.interimText ? locationSpeech.interimText : location}
                   onChangeText={(t) => { setLocation(t); setShowSuggestions(true); setErrorMsg(''); }}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  placeholder={tr('home.locationPlaceholder') || 'e.g. Indore, Paris, Tokyo...'}
-                  placeholderTextColor={theme.textMuted}
+                  placeholder={
+                    locationSpeech.isListening
+                      ? (tr('speech.listening') || 'Listening for destination...')
+                      : (tr('home.locationPlaceholder') || 'e.g. Indore, Paris, Tokyo...')
+                  }
+                  placeholderTextColor={locationSpeech.isListening ? theme.accent : theme.textMuted}
                   style={[styles.input, { color: theme.text }]}
                   returnKeyType="next"
                 />
                 {location ? (
-                  <Pressable onPress={() => { setLocation(''); setShowSuggestions(false); }}>
+                  <Pressable onPress={() => { setLocation(''); setShowSuggestions(false); }} style={{ padding: 4 }}>
                     <Ionicons name="close-circle" size={18} color={theme.textMuted} />
                   </Pressable>
                 ) : null}
+                <MicButton
+                  state={locationSpeech.state}
+                  onPress={() => {
+                    if (locationSpeech.isListening) locationSpeech.stopListening();
+                    else locationSpeech.startListening();
+                  }}
+                  onCancel={locationSpeech.cancelListening}
+                  size={34}
+                  accessibilityLabel="Speak destination"
+                />
               </View>
 
               {/* Autocomplete suggestions */}
