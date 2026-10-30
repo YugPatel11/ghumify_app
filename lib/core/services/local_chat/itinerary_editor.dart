@@ -96,7 +96,7 @@ class ItineraryEditor {
 
       currentMins += travelMins;
       final stopStart = currentMins;
-      final stopEnd = stopStart + math.max(15, stop.durationMinutes);
+      final int stopEnd = stopStart + (math.max(15, stop.durationMinutes) as num).toInt();
 
       resequenced.add(ItineraryStop(
         name: stop.name,
@@ -158,7 +158,7 @@ class ItineraryEditor {
   // 1. ADD FOOD STOP
   static ItineraryEditResult addFoodStop({
     required Map<String, dynamic> currentItineraryMap,
-    required Place foodCandidate,
+    required PlaceModel foodCandidate,
     bool isMultiDay = false,
     int? targetDayNumber,
   }) {
@@ -175,7 +175,7 @@ class ItineraryEditor {
 
   static ItineraryEditResult _addFoodStopToDay(
     Map<String, dynamic> dayMap,
-    Place foodCandidate,
+    PlaceModel foodCandidate,
   ) {
     final rawStops = (dayMap['stops'] as List? ?? []);
     final stops = rawStops.map((s) => ItineraryStop.fromMap(s as Map<String, dynamic>)).toList();
@@ -312,7 +312,7 @@ class ItineraryEditor {
   static ItineraryEditResult replaceStop({
     required Map<String, dynamic> currentItineraryMap,
     required int stopIndex,
-    required Place replacementCandidate,
+    required PlaceModel replacementCandidate,
     bool isMultiDay = false,
     int? targetDayNumber,
   }) {
@@ -330,7 +330,7 @@ class ItineraryEditor {
   static ItineraryEditResult _replaceStopInDay(
     Map<String, dynamic> dayMap,
     int stopIndex,
-    Place replacementCandidate,
+    PlaceModel replacementCandidate,
   ) {
     final rawStops = (dayMap['stops'] as List? ?? []);
     final stops = rawStops.map((s) => ItineraryStop.fromMap(s as Map<String, dynamic>)).toList();

@@ -268,6 +268,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> acceptInvitation(String invitationId) async {
     try {
       await _groupService.acceptInvitation(invitationId);
+      init();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -277,6 +278,7 @@ class GroupProvider extends ChangeNotifier {
   Future<void> declineInvitation(String invitationId) async {
     try {
       await _groupService.declineInvitation(invitationId);
+      init();
     } catch (e) {
       _error = e.toString();
       notifyListeners();

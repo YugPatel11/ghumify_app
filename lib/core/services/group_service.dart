@@ -93,10 +93,14 @@ class GroupService {
 
     return _groupsRef
         .where('memberIds', arrayContains: uid)
-        .orderBy('updatedAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => GroupModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+      final groups = snapshot.docs
+          .map((doc) => GroupModel.fromFirestore(doc))
+          .toList();
+      groups.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return groups;
+    });
   }
 
   /// Get a single group by ID
@@ -351,12 +355,15 @@ class GroupService {
     return _invitationsRef
         .where('inviteeEmail', isEqualTo: email)
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => GroupInvitationModel.fromFirestore(doc))
-            .where((inv) => !inv.isExpired)
-            .toList());
+        .map((snapshot) {
+      final invitations = snapshot.docs
+          .map((doc) => GroupInvitationModel.fromFirestore(doc))
+          .where((inv) => !inv.isExpired)
+          .toList();
+      invitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return invitations;
+    });
   }
 
   /// Resolve pending invitations on login/signup for the current user's email

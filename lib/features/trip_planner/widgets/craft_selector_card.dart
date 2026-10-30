@@ -80,13 +80,17 @@ class CraftSelectorCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight:
-                              isSelected ? FontWeight.w800 : FontWeight.w700,
-                          color: AppColors.text,
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight:
+                                isSelected ? FontWeight.w800 : FontWeight.w700,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
                       if (badge != null) ...[

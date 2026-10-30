@@ -300,8 +300,9 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
         ),
       ),
     ),
-        ),
-      ),
-    );
+  ),
+),
+),
+);
   }
 }

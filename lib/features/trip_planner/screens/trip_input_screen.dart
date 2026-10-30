@@ -707,25 +707,28 @@ class _TripInputScreenState extends State<TripInputScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Multi-City Route',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
-                        letterSpacing: -0.4,
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Multi-City Route',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                          letterSpacing: -0.4,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Build your route and configure city stays.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSoft),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        'Build your route and configure city stays.',
+                        style: TextStyle(fontSize: 13, color: AppColors.textSoft),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: () {
                     HapticFeedback.lightImpact();
@@ -1036,15 +1039,20 @@ class _TripInputScreenState extends State<TripInputScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'TRIP DATES & DURATION',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                    color: AppColors.textSoft,
+                const Expanded(
+                  child: Text(
+                    'TRIP DATES & DURATION',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      color: AppColors.textSoft,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -1153,15 +1161,20 @@ class _TripInputScreenState extends State<TripInputScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'DAILY ACTIVE HOURS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                    color: AppColors.textSoft,
+                const Expanded(
+                  child: Text(
+                    'DAILY ACTIVE HOURS',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      color: AppColors.textSoft,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '$_durationHours hours / day',
                   style: const TextStyle(
@@ -1946,15 +1959,18 @@ class _TripInputScreenState extends State<TripInputScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'What excites you most?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.text,
-                  letterSpacing: -0.4,
+              const Expanded(
+                child: Text(
+                  'What excites you most?',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                    letterSpacing: -0.4,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -2113,29 +2129,36 @@ class _TripInputScreenState extends State<TripInputScreen>
                 const Divider(height: 1, color: AppColors.borderLight),
                 const SizedBox(height: 12),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildDossierItem(
-                      icon: Icons.timer_outlined,
-                      label: 'Active Hours',
-                      value: '${_startTime.format(context)} - ${_endTime.format(context)}',
+                    Expanded(
+                      child: _buildDossierItem(
+                        icon: Icons.timer_outlined,
+                        label: 'Active Hours',
+                        value: '${_startTime.format(context)} - ${_endTime.format(context)}',
+                      ),
                     ),
-                    _buildDossierItem(
-                      icon: _travelMode == 'driving'
-                          ? Icons.directions_car_outlined
-                          : _travelMode == 'walking'
-                              ? Icons.directions_walk_outlined
-                              : Icons.directions_transit_outlined,
-                      label: 'Mode & Pace',
-                      value:
-                          '${_travelMode.toUpperCase()} • ${_pace.toUpperCase()}',
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDossierItem(
+                        icon: _travelMode == 'driving'
+                            ? Icons.directions_car_outlined
+                            : _travelMode == 'walking'
+                                ? Icons.directions_walk_outlined
+                                : Icons.directions_transit_outlined,
+                        label: 'Mode & Pace',
+                        value:
+                            '${_travelMode.toUpperCase()} • ${_pace.toUpperCase()}',
+                      ),
                     ),
-                    _buildDossierItem(
-                      icon: _travelersModel.hasMinors
-                          ? Icons.family_restroom_outlined
-                          : Icons.person_outline,
-                      label: 'Travelers',
-                      value: _travelersModel.compactBadge,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDossierItem(
+                        icon: _travelersModel.hasMinors
+                            ? Icons.family_restroom_outlined
+                            : Icons.person_outline,
+                        label: 'Travelers',
+                        value: _travelersModel.compactBadge,
+                      ),
                     ),
                   ],
                 ),
@@ -2291,23 +2314,32 @@ class _TripInputScreenState extends State<TripInputScreen>
           children: [
             Icon(icon, size: 12, color: AppColors.textMuted),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: AppColors.textMuted,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
           ),
         ),
       ],

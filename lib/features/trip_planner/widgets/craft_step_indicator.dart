@@ -32,38 +32,45 @@ class CraftStepIndicator extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandSoft,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                    ),
-                    child: Text(
-                      'STEP ${currentStep + 1} OF $totalSteps',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: AppColors.brandDeep,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoft,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      ),
+                      child: Text(
+                        'STEP ${currentStep + 1} OF $totalSteps',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: AppColors.brandDeep,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppTokens.sm),
-                  Text(
-                    stepLabels[currentStep],
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
+                    const SizedBox(width: AppTokens.sm),
+                    Expanded(
+                      child: Text(
+                        stepLabels[currentStep],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '${((currentStep + 1) / totalSteps * 100).round()}%',
                 style: const TextStyle(

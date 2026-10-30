@@ -5,12 +5,146 @@ import 'package:ghumify_app/core/models/meal_suggestion_model.dart';
 import 'package:ghumify_app/core/models/weather_model.dart';
 import 'package:ghumify_app/core/widgets/destination_card.dart';
 import 'package:ghumify_app/features/home/widgets/weather_card.dart';
+import 'package:ghumify_app/core/models/itinerary_model.dart';
+import 'package:ghumify_app/features/trip_planner/widgets/craft_selector_card.dart';
+import 'package:ghumify_app/features/trip_planner/widgets/craft_step_indicator.dart';
+import 'package:ghumify_app/features/trip_planner/widgets/itinerary_stop_card.dart';
 import 'package:ghumify_app/features/trip_planner/widgets/meal_suggestion_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Responsive UI Layout Tests (320px viewport)', () {
+    testWidgets('CraftSelectorCard renders with long title & badge without overflow on 320px screen',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: CraftSelectorCard(
+                  title: 'Public Transit & Metro Rail Network',
+                  subtitle: 'Fastest eco-friendly way to navigate heritage stops.',
+                  icon: Icons.directions_transit_rounded,
+                  isSelected: true,
+                  badge: 'Most Popular',
+                  onTap: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      expect(find.byType(CraftSelectorCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CraftStepIndicator renders on 320px screen without overflow',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: CraftStepIndicator(
+                  currentStep: 3,
+                  totalSteps: 4,
+                  stepLabels: [
+                    'Destinations',
+                    'Rhythm & Mode',
+                    'Interests & Mood',
+                    'Passions & Review',
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      expect(find.byType(CraftStepIndicator), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+    testWidgets('ItineraryStopCard renders collapsed and expanded on 320px screen without overflow',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final mockStop = ItineraryStop(
+        name: 'Very Long Historical Monument and Palace Complex',
+        type: 'place',
+        startTime: '10:00 AM',
+        endTime: '12:30 PM',
+        durationMinutes: 150,
+        shortLabel: 'Historic Palace Complex in North Sector',
+        briefDescription: 'A magnificent heritage fortress showcasing royal architecture.',
+        distanceFromPrevKm: 14.8392,
+        openingHours: '09:00 - 18:00',
+        ticketPrice: '₹50 per person',
+        tips: ['Visit early to avoid long queues at ticket counter.'],
+        isKidFriendly: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: ItineraryStopCard(
+                  index: 0,
+                  stop: mockStop,
+                  isLast: false,
+                  isExpanded: false,
+                  onToggleExpand: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      expect(find.byType(ItineraryStopCard), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      // Also test expanded
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: ItineraryStopCard(
+                  index: 0,
+                  stop: mockStop,
+                  isLast: false,
+                  isExpanded: true,
+                  onToggleExpand: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('DestinationCard renders on 320px screen without overflow',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(320, 600);

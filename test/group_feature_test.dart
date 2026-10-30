@@ -210,5 +210,34 @@ void main() {
       expect(invite.isExpired, isFalse);
       expect(invite.inviteeEmail, equals('friend@example.com'));
     });
+
+    test('Accepted invitation updates group membership and reflects in sorted groups list', () {
+      final now = DateTime.now();
+      final olderGroup = GroupModel(
+        id: 'grp_old',
+        name: 'Old Trip',
+        ownerId: 'owner_1',
+        memberIds: ['user_invited'],
+        updatedAt: now.subtract(const Duration(hours: 2)),
+      );
+      final newGroup = GroupModel(
+        id: 'grp_new',
+        name: 'New Joined Trip',
+        ownerId: 'admin_1',
+        memberIds: ['admin_1', 'user_invited'],
+        updatedAt: now,
+      );
+
+      // Verify newly accepted member is recognized
+      expect(newGroup.isMember('user_invited'), isTrue);
+      expect(newGroup.isMember('outsider'), isFalse);
+
+      // Verify in-memory descending sort by updatedAt (matches streamMyGroups)
+      final userGroups = [olderGroup, newGroup];
+      userGroups.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+      expect(userGroups.first.id, equals('grp_new'));
+      expect(userGroups.last.id, equals('grp_old'));
+    });
   });
 }

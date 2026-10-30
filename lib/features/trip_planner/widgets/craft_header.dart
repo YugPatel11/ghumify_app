@@ -136,13 +136,18 @@ class CraftHeader extends StatelessWidget {
                                   color: AppColors.accent,
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
-                                  destinationName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.3,
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 160),
+                                  child: Text(
+                                    destinationName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                    ),
                                   ),
                                 ),
                               ],

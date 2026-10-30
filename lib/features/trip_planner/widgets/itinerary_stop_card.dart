@@ -302,26 +302,37 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    stop.startTime.isNotEmpty ? stop.startTime : 'Planned',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E293B),
+                  Flexible(
+                    flex: 2,
+                    child: Text(
+                      stop.startTime.isNotEmpty ? stop.startTime : 'Planned',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E293B),
+                      ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: categoryStyle.backgroundColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      categoryLabel,
-                      style: GoogleFonts.outfit(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: categoryStyle.textColor,
+                  const SizedBox(width: 4),
+                  Flexible(
+                    flex: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: categoryStyle.backgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        categoryLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: categoryStyle.textColor,
+                        ),
                       ),
                     ),
                   ),
@@ -345,47 +356,54 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
               const SizedBox(height: 3),
 
               // Bottom sub-info line: location / duration / distance
-              Row(
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 3,
                 children: [
-                  const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFF64748B)),
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: Text(
-                      stop.displayShortLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        color: const Color(0xFF64748B),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on_rounded, size: 12, color: Color(0xFF64748B)),
+                      const SizedBox(width: 3),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 85),
+                        child: Text(
+                          stop.displayShortLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  const Text('·', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF64748B)),
-                  const SizedBox(width: 3),
-                  Text(
-                    _formatDuration(stop.durationMinutes),
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF64748B),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF64748B)),
+                      const SizedBox(width: 3),
+                      Text(
+                        _formatDuration(stop.durationMinutes),
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
-                  if (stop.distanceFromPrevKm != null && stop.distanceFromPrevKm! > 0) ...[
-                    const SizedBox(width: 6),
-                    const Text('·', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 6),
+                  if (stop.distanceFromPrevKm != null && stop.distanceFromPrevKm! > 0)
                     Text(
-                      '${stop.distanceFromPrevKm} km',
+                      '${stop.distanceFromPrevKm!.toStringAsFixed(1)} km',
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.brand,
                       ),
                     ),
-                  ],
                 ],
               ),
             ],
@@ -588,7 +606,10 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.map_rounded, size: 14),
-                  label: Text('Open Maps', style: GoogleFonts.outfit(fontSize: 12)),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Open Maps', style: GoogleFonts.outfit(fontSize: 12)),
+                  ),
                   onPressed: _openGoogleMapsSearch,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF334155),
@@ -602,7 +623,10 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
               Expanded(
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.directions_rounded, size: 14),
-                  label: Text('Directions', style: GoogleFonts.outfit(fontSize: 12, color: Colors.white)),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Directions', style: GoogleFonts.outfit(fontSize: 12, color: Colors.white)),
+                  ),
                   onPressed: _openGoogleMapsDirections,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brand,
