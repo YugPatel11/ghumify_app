@@ -80,6 +80,33 @@ service cloud.firestore {
         allow read: if isGroupMember(groupId);
         allow write: if isGroupMember(groupId) && request.auth.uid == userId;
       }
+
+      // ── Expenses Subcollection ──
+      match /expenses/{expenseId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId);
+        allow update: if isGroupMember(groupId) && (
+          resource.data.createdBy == request.auth.uid || isGroupAdmin(groupId)
+        );
+        allow delete: if isGroupAdmin(groupId);
+      }
+
+      // ── Settlements Subcollection ──
+      match /settlements/{settlementId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId) && (
+          request.resource.data.fromUserId == request.auth.uid || isGroupAdmin(groupId)
+        );
+        allow update: if isGroupMember(groupId) && (
+          // Payer can cancel pending
+          (resource.data.fromUserId == request.auth.uid && request.resource.data.status == 'cancelled') ||
+          // Receiver can confirm or reject
+          (resource.data.toUserId == request.auth.uid && (request.resource.data.status in ['confirmed', 'rejected'])) ||
+          // Admin can resolve
+          isGroupAdmin(groupId)
+        );
+        allow delete: if isGroupAdmin(groupId);
+      }
     }
 
     // ── Group Invitations Collection ──

@@ -181,6 +181,12 @@ Beyond planning, Ghumify acts as an all-in-one travel companion providing:
 | **Theme Mode Selector** | Toggle between Light Mode and Dark Mode. | Completed | `lib/features/settings/screens/settings_screen.dart`, `lib/core/providers/app_settings_provider.dart` |
 | **App Version & Legal Links** | App version display (`1.0.0`), Privacy Policy, Terms of Service placeholders. | Completed | `lib/features/settings/screens/settings_screen.dart` |
 
+### 3.9 Travel Groups & Split Expenses
+| Feature | Description | Status | Implementation Files |
+| :--- | :--- | :--- | :--- |
+| **Travel Groups & Membership** | Role-based travel group creation, email invitations, member directory, permissions (owner/admin/member), shared group itineraries, and WhatsApp-style chat. | Completed | `lib/features/groups/screens/groups_list_screen.dart`, `lib/features/groups/screens/group_detail_screen.dart`, `lib/core/services/group_service.dart` |
+| **Split Expenses & Settle Up** | Integer paise money calculations, equal splits with deterministic leftover distribution, greedy settle-up minimization, offline payment recording with two-way confirmation, and home screen entry card. | Completed | `lib/features/home/widgets/split_expenses_card.dart`, `lib/features/groups/widgets/group_expenses_tab.dart`, `lib/features/groups/screens/add_expense_screen.dart`, `lib/core/services/expense_service.dart`, `lib/core/utils/expense_calculator.dart` |
+
 ---
 
 ## 4. SCREENS / PAGES AND NAVIGATION

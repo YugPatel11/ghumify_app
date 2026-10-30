@@ -5,14 +5,20 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/providers/group_provider.dart';
 import '../widgets/group_chat_tab.dart';
 import '../widgets/group_itinerary_tab.dart';
+import '../widgets/group_expenses_tab.dart';
 import '../widgets/group_live_map_tab.dart';
 import '../widgets/group_info_tab.dart';
 
-/// Main group detail screen with 4 tabs: Chat, Itinerary, Live Map, Info
+/// Main group detail screen with 5 tabs: Chat, Itinerary, Expenses, Live Map, Info
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
+  final int initialTabIndex;
 
-  const GroupDetailScreen({super.key, required this.groupId});
+  const GroupDetailScreen({
+    super.key,
+    required this.groupId,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<GroupDetailScreen> createState() => _GroupDetailScreenState();
@@ -25,7 +31,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    final validIndex = widget.initialTabIndex.clamp(0, 4);
+    _tabController = TabController(length: 5, initialIndex: validIndex, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GroupProvider>().openGroup(widget.groupId);
@@ -86,7 +93,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   ),
             bottom: TabBar(
               controller: _tabController,
-              isScrollable: false,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               indicatorColor: AppColors.brand,
               indicatorWeight: 3,
               labelColor: AppColors.brand,
@@ -109,6 +117,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   text: 'Itinerary',
                 ),
                 Tab(
+                  icon: Icon(Icons.account_balance_wallet_rounded, size: 18),
+                  text: 'Expenses',
+                ),
+                Tab(
                   icon: Icon(Icons.explore_rounded, size: 18),
                   text: 'Live Map',
                 ),
@@ -128,6 +140,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   children: [
                     GroupChatTab(groupId: widget.groupId),
                     GroupItineraryTab(groupId: widget.groupId),
+                    GroupExpensesTab(groupId: widget.groupId),
                     GroupLiveMapTab(groupId: widget.groupId),
                     GroupInfoTab(groupId: widget.groupId),
                   ],

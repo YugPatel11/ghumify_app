@@ -12,6 +12,7 @@ import '../../../core/widgets/destination_card.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/weather_card.dart';
+import '../widgets/split_expenses_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -343,6 +344,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
+
+              // ── Split Expenses Entry Card ──
+              const SliverToBoxAdapter(child: SplitExpensesHomeCard()),
 
               const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xl)),
 

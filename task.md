@@ -275,3 +275,30 @@
   * 18 unit and regression tests passing in `test/meal_suggestions_test.dart`.
   * Static analysis verified with 0 fatal errors.
 
+### TASK-012: Split Expenses (Group Spending Tracking, Equal Split, Greedy Settle-Up & Offline Settlements)
+* **Status:** Completed
+* **Branch:** `main`
+* **Description:**
+  Engineered and shipped the full-stack "Split Expenses" feature for Ghumify travel groups. Group members can record shared expenses, calculate exact equal shares with zero floating-point errors (integer paise precision), determine who owes whom with greedy transaction minimization, and record offline peer settlements with two-way confirmation. The feature is prominently accessible from the home screen via a dynamic balance card and from within each group via a dedicated "Expenses" tab.
+* **Key Improvements:**
+  1. **Pure Math & Balance Calculation Engine (`ExpenseCalculator` & `ExpenseCurrencyHelper`):**
+     * 100% integer paise precision (1 INR = 100 paise) eliminating floating-point rounding inaccuracies.
+     * Deterministic leftover distribution: extra paise distributed lexicographically so shares always sum exactly to total.
+     * Net balance calculation per member with zero-sum invariant (`Σ NetBalances == 0`).
+     * Greedy settle-up minimization: repeatedly pairs largest debtor with largest creditor to clear all group debts with minimal peer-to-peer transfers.
+  2. **Backend & Security (`ExpenseService` & `firestore.rules`):**
+     * Firestore security rules restricting expense read/write to current group members (`isGroupMember`).
+     * Only creator or group admin can edit or soft-delete an expense.
+     * Settlement workflow: debtor marks paid (`status: 'pending'`), creditor confirms or rejects, payer can cancel before confirmation.
+     * Chat system notifications and append-only activity audit logging on all expense additions, edits, and settlements.
+  3. **UI Components & User Experience:**
+     * `SplitExpensesHomeCard`: Home screen entry card displaying dynamic aggregate balance ("You owe" or "You get back" with icon + text), single-group direct launch, multi-group picker sheet, and zero-group empty state.
+     * `GroupExpensesTab`: Dedicated tab in `GroupDetailScreen` with 3-column metric card (Total Group Spend, You Paid, Your Share, Net Balance), settle-up cards with "Mark as paid" action, interactive pending settlement alerts, search, and category filters.
+     * `AddExpenseScreen`: Tactile expense creation form with live per-person share preview, multi-member checkboxes, and validation.
+     * `ExpenseDetailSheet`: Bottom sheet with full audit breakdown, per-person share table, edit & soft-delete capabilities.
+     * `MarkPaidDialog`: Clean dialog for recording offline peer settlements.
+* **Verification:**
+  * 17 unit and regression tests passing in `test/split_expenses_test.dart` covering equal splits, leftover paise, worked examples, edge cases, partial settlements, removed members, late joiners, stress test (100 expenses), and serialization.
+  * All 90 unit and regression tests passing across the app suite.
+
+
