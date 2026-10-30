@@ -5,6 +5,7 @@ import '../models/multi_day_itinerary_model.dart';
 import '../models/weather_model.dart';
 import '../models/place_model.dart';
 import '../models/chat_message_model.dart';
+import '../constants/food_preferences.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
 ///
@@ -34,6 +35,7 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
   }) async {
     final prompt = _buildItineraryPrompt(
       city: city,
@@ -48,6 +50,7 @@ class GeminiService {
       budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
+      foodPreference: foodPreference,
     );
 
     try {
@@ -69,6 +72,7 @@ class GeminiService {
         travelers: travelers,
         budget: budget,
         weather: weather,
+        foodPreference: foodPreference,
       );
     } catch (e) {
       if (e is GeminiRestException) rethrow;
@@ -97,6 +101,7 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
   }) async {
     final prompt = _buildMultiDayPrompt(
       city: city,
@@ -113,6 +118,7 @@ class GeminiService {
       budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
+      foodPreference: foodPreference,
     );
 
     try {
@@ -136,6 +142,7 @@ class GeminiService {
         travelers: travelers,
         budget: budget,
         weather: weather,
+        foodPreference: foodPreference,
       );
     } catch (e) {
       if (e is GeminiRestException) rethrow;
@@ -152,13 +159,7 @@ class GeminiService {
   /// [currentItinerary] is the JSON representation of the current itinerary.
   /// [chatHistory] is the list of previous messages in the conversation.
   /// [userMessage] is the new message from the user.
-  ///
-  /// Returns a [ChatMessageModel] with either text content or an updated itinerary.
-  /// Chat about an itinerary — can return text or a modified itinerary.
-  ///
-  /// [currentItinerary] is the JSON representation of the current itinerary.
-  /// [chatHistory] is the list of previous messages in the conversation.
-  /// [userMessage] is the new message from the user.
+  /// [foodPreference] is the user's dietary preference.
   ///
   /// Returns a [ChatMessageModel] with human-readable text content and an optional updated itinerary.
   Future<ChatMessageModel> chatAboutItinerary({
@@ -166,11 +167,13 @@ class GeminiService {
     required Map<String, dynamic> currentItinerary,
     required List<ChatMessageModel> chatHistory,
     bool isMultiDay = false,
+    String foodPreference = FoodPreference.all,
   }) async {
     final prompt = _buildChatPrompt(
       userMessage: userMessage,
       currentItinerary: currentItinerary,
       isMultiDay: isMultiDay,
+      foodPreference: foodPreference,
     );
 
     // Build conversation history for context — omit current message if already in history,
@@ -417,6 +420,7 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
   }) {
     final interestStr = interests.join(', ');
     final paceDesc = pace == 'relaxed'
@@ -462,6 +466,8 @@ ${knownPlaces.map((p) => '- ${p.name} (${p.category}) at [${p.latitude}, ${p.lon
 ''';
     }
 
+    final dietaryDirective = DietaryFilterService.getPromptDirective(foodPreference);
+
     return '''
 You are a travel planning expert for Indian cities. Generate a detailed, time-boxed travel itinerary.
 
@@ -472,6 +478,7 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
+- Food Preference: ${FoodPreference.getLabel(foodPreference)}
 ${travelers != null ? '- Travelers: $travelers' : ''}
 
 $ageGroupContext
@@ -480,14 +487,18 @@ $budgetContext
 $weatherContext
 $placesContext
 
+DIETARY REQUIREMENT:
+$dietaryDirective
+
 RULES:
 1. Create a sequential, time-boxed itinerary from $startTime to $endTime.
 2. Include travel time between stops (realistic for $travelMode in $city).
-3. Include famous tourist places, local food spots, and markets based on interests.
+3. Include famous tourist places, local food spots, and markets based on interests and food preference.
 4. Account for opening hours of places.
 5. Add tips for each stop (best photo spots, must-try items, cultural etiquette).
 6. Suggest what to carry based on weather and place types.
-7. Give the full itinerary as JSON in this EXACT format:
+7. For any food stop or meal break, strictly adhere to the Food Preference ($foodPreference). Set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
+8. Give the full itinerary as JSON in this EXACT format:
 
 {
   "aiSummary": "Brief overview of the day plan in 2-3 sentences",
@@ -501,6 +512,7 @@ RULES:
       "latitude": 22.7196,
       "longitude": 75.8577,
       "description": "What to see/do here",
+      "dietaryType": "veg",
       "travelMode": "driving",
       "travelMinutes": 15,
       "estimatedCost": 250,
@@ -521,7 +533,7 @@ RULES:
 IMPORTANT:
 - Use REAL places, REAL coordinates, and REAL food items famous in $city.
 - Do NOT invent fictional places.
-- Include at least one local food recommendation.
+- Include at least one local food recommendation conforming to the dietary requirement.
 - Travel time between stops should be realistic.
 - Output ONLY valid JSON, no markdown formatting, no code blocks.
 ''';
@@ -543,6 +555,7 @@ IMPORTANT:
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
   }) {
     final interestStr = interests.join(', ');
     final paceDesc = pace == 'relaxed'
@@ -587,6 +600,8 @@ ${knownPlaces.map((p) => '- ${p.name} (${p.category}) at [${p.latitude}, ${p.lon
 ''';
     }
 
+    final dietaryDirective = DietaryFilterService.getPromptDirective(foodPreference);
+
     return '''
 You are a travel planning expert for Indian cities. Generate a detailed $numberOfDays-DAY travel itinerary.
 
@@ -597,6 +612,7 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
+- Food Preference: ${FoodPreference.getLabel(foodPreference)}
 ${travelers != null ? '- Travelers: $travelers' : ''}
 
 $ageGroupContext
@@ -605,17 +621,21 @@ $budgetContext
 $weatherContext
 $placesContext
 
+DIETARY REQUIREMENT:
+$dietaryDirective
+
 MULTI-DAY PLANNING RULES:
 1. Distribute places intelligently across $numberOfDays days — do NOT dump everything in Day 1.
 2. Group nearby attractions together on the same day to minimize travel.
 3. Avoid unnecessary backtracking — plan a logical geographic flow each day.
 4. Each day should have a clear theme or area focus (e.g., "Day 1: Old City Heritage", "Day 2: Markets & Street Food").
 5. Include realistic travel time between stops for $travelMode.
-6. Include meal breaks (lunch + snack) each day at local food spots.
+6. Include meal breaks (lunch + snack) each day at local food spots matching the food preference ($foodPreference).
 7. Account for opening hours — temples may close at noon, markets open late.
 8. Pace: $paceDesc. Keep a reasonable number of stops per day.
 9. Include practical tips for each stop.
 10. Save the best sunset/evening activity for the end of each day.
+11. For any food stop or meal break, set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
 
 OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
 
@@ -652,6 +672,7 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "latitude": 22.7196,
           "longitude": 75.8577,
           "description": "What to see/do here",
+          "dietaryType": "veg",
           "travelMode": "$travelMode",
           "travelMinutes": 15,
           "estimatedCost": 250,
@@ -666,7 +687,7 @@ IMPORTANT:
 - Use REAL places, REAL coordinates, and REAL food items famous in $city.
 - Do NOT invent fictional places.
 - Each day MUST have unique stops — do NOT repeat places across days.
-- Include at least one local food recommendation per day.
+- Include at least one local food recommendation per day matching the dietary requirement.
 - Output ONLY valid JSON.
 ''';
   }
@@ -720,9 +741,11 @@ IMPORTANT:
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
     required bool isMultiDay,
+    String foodPreference = FoodPreference.all,
   }) {
     final sanitizedItinerary = _sanitizeItineraryForPrompt(currentItinerary);
     final itineraryJson = json.encode(sanitizedItinerary);
+    final chatbotDirective = DietaryFilterService.getChatbotDirective(foodPreference);
 
     return '''
 You are a warm, knowledgeable local travel companion for the Ghumify app. The user is currently viewing their ${isMultiDay ? 'multi-day' : 'single-day'} itinerary.
@@ -732,10 +755,14 @@ $itineraryJson
 
 USER MESSAGE: "$userMessage"
 
+DIETARY SETTING AND RULES:
+$chatbotDirective
+
 CRITICAL INSTRUCTIONS:
-1. Always communicate with the traveler in natural, human-friendly conversational language.
+1. Always communicate with the traveler in natural, human-friendly conversational language. Never show raw JSON, internal IDs, or raw prompts.
 2. If the user asks a QUESTION (e.g., questions about food, timings, weather, history, greetings, or advice):
    - Reply directly with helpful, warm, conversational text (use bullet points or line breaks for readability).
+   - Follow their food preference. If they ask about food that conflicts with their setting (e.g., Veg asking for butter chicken or Jain asking for aloo/onion dishes), politely acknowledge their food preference setting and answer or offer to change it.
    - Do NOT output raw JSON or code structures.
 3. If the user requests a CHANGE or MODIFICATION (e.g., "Replace a place", "Remove activity X", "Add a food stop", "Make Day 2 more relaxed", "I have less time"):
    - Return a JSON object with EXACTLY two fields:
@@ -744,6 +771,7 @@ CRITICAL INSTRUCTIONS:
        "updatedItinerary": { ...the complete updated itinerary object matching the schema of CURRENT ITINERARY... }
      }
    - The "chatMessage" MUST be written in friendly natural language. NEVER put raw JSON inside "chatMessage".
+   - Ensure all food stops comply with the Food Preference ($foodPreference).
    - Keep unchanged stops as-is. Recalculate times realistically.
    - Use REAL places, famous spots, and real coordinates.
 4. Output valid JSON only when returning a modified itinerary.
@@ -769,6 +797,7 @@ CRITICAL INSTRUCTIONS:
     int? travelers,
     int? budget,
     WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
   }) {
     try {
       String cleanJson = responseText.trim();
@@ -785,7 +814,8 @@ CRITICAL INSTRUCTIONS:
       final data = json.decode(cleanJson) as Map<String, dynamic>;
 
       final stops = (data['stops'] as List? ?? []).map((s) {
-        return ItineraryStop.fromMap(s as Map<String, dynamic>);
+        final stop = ItineraryStop.fromMap(s as Map<String, dynamic>);
+        return _validateAndEnrichStop(stop, foodPreference);
       }).toList();
 
       int totalMinutes = 0;
@@ -825,6 +855,7 @@ CRITICAL INSTRUCTIONS:
         estimatedTotalCost: estimatedTotalCost,
         remainingBudget: remainingBudget,
         expenseSummary: expenseSummary,
+        foodPreference: foodPreference,
       );
     } catch (e) {
       throw GeminiRestException(
@@ -849,6 +880,7 @@ CRITICAL INSTRUCTIONS:
     int? travelers,
     int? budget,
     WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
   }) {
     try {
       String cleanJson = responseText.trim();
@@ -867,7 +899,8 @@ CRITICAL INSTRUCTIONS:
       final days = (data['days'] as List? ?? []).map((dayData) {
         final d = dayData as Map<String, dynamic>;
         final stops = (d['stops'] as List? ?? []).map((s) {
-          return ItineraryStop.fromMap(s as Map<String, dynamic>);
+          final stop = ItineraryStop.fromMap(s as Map<String, dynamic>);
+          return _validateAndEnrichStop(stop, foodPreference);
         }).toList();
 
         final dayNumber = d['dayNumber'] as int? ?? 1;
@@ -899,6 +932,7 @@ CRITICAL INSTRUCTIONS:
           dayNumber: dayNumber,
           expenseSummary: expenseSummary,
           estimatedTotalCost: estimatedTotalCost,
+          foodPreference: foodPreference,
         );
       }).toList();
 
@@ -933,11 +967,68 @@ CRITICAL INSTRUCTIONS:
         estimatedTotalCost: estimatedTotalCost,
         remainingBudget: remainingBudget,
         overallExpenseSummary: overallExpenseSummary,
+        foodPreference: foodPreference,
       );
     } catch (e) {
       throw GeminiRestException(
           'Failed to parse multi-day itinerary: $e\nResponse was: $responseText');
     }
+  }
+
+  /// Post-response validation and enrichment for food stops
+  ItineraryStop _validateAndEnrichStop(ItineraryStop stop, String foodPreference) {
+    final nameLower = stop.name.toLowerCase();
+    final isFood = stop.type == 'food' ||
+        nameLower.contains('restaurant') ||
+        nameLower.contains('cafe') ||
+        nameLower.contains('dhaba') ||
+        nameLower.contains('bhojanalaya') ||
+        nameLower.contains('bhojnalaya') ||
+        nameLower.contains('sweets') ||
+        nameLower.contains('chaat') ||
+        nameLower.contains('bakery') ||
+        nameLower.contains('kitchen');
+
+    if (!isFood) return stop;
+
+    final fullText = '${stop.name} ${stop.description} ${stop.tips.join(" ")}';
+    final isCompliant = DietaryFilterService.isCompliant(foodPreference, fullText);
+
+    List<String> updatedTips = List<String>.from(stop.tips);
+    if (foodPreference == FoodPreference.jain) {
+      const jainNote = 'Please confirm Jain preparation with the restaurant.';
+      if (!updatedTips.any((t) => t.toLowerCase().contains('confirm jain'))) {
+        updatedTips.add(jainNote);
+      }
+    }
+
+    String dietaryType = stop.dietaryType ?? DietaryFilterService.inferDietaryType(fullText, preference: foodPreference);
+
+    if (!isCompliant) {
+      // Post-response filter: sanitize description & tags if strict preference violated
+      String sanitizedDescription = stop.description;
+      if (foodPreference == FoodPreference.jain) {
+        sanitizedDescription = 'Strict Jain-friendly options and pure vegetarian specialties. (Non-Jain items excluded)';
+        dietaryType = FoodPreference.jain;
+      } else if (foodPreference == FoodPreference.veg) {
+        sanitizedDescription = 'Pure vegetarian dishes and local refreshments. (Meat/egg items excluded)';
+        dietaryType = FoodPreference.veg;
+      } else if (foodPreference == FoodPreference.vegEgg) {
+        sanitizedDescription = 'Vegetarian specialties and fresh egg delicacies. (Meat/seafood excluded)';
+        dietaryType = FoodPreference.vegEgg;
+      }
+
+      return stop.copyWith(
+        description: sanitizedDescription,
+        tips: updatedTips,
+        dietaryType: dietaryType,
+      );
+    }
+
+    return stop.copyWith(
+      tips: updatedTips,
+      dietaryType: dietaryType,
+    );
   }
 
   DateTime _parseTime(String time) {

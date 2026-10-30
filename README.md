@@ -8,6 +8,8 @@ An AI-powered travel companion mobile application designed for exploring Indian 
 - **Conversational Trip Customization:** In-app AI travel chatbot to add, remove, and adjust stops on the fly without raw JSON leakage.
 - **Local Language Support:** Translation across 10 major Indian languages with Firestore caching.
 - **Full-Bleed Visual Splash Screen:** Immersive "splash page" visual with edge-matched native background and smooth fade-out transition.
+- **Food Preference & Dietary Personalization:** 5-tier dietary preference selector (Veg, Veg + Egg, Jain, Non-Veg, All) with persistent offline and cloud sync, strict AI itinerary and chatbot adherence, and automated post-response safety validation.
+- **OpenStreetMap Nearby Safety:** Emergency safety radar locating nearby hospitals, clinics, and police stations using OSM Overpass with multi-tier radius expansion (3km–10km), offline caching, Google Maps integration, direct calling, and attribution.
 - **Essential Services Discovery:** Instant lookups for nearby hospitals, pharmacies, ATMs, police, restrooms, and petrol stations.
 
 ## Setup & Configuration

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'nearby_service_model.dart';
 
 /// Represents a single stop in the itinerary
 class ItineraryStop {
@@ -16,6 +17,7 @@ class ItineraryStop {
   final int? travelMinutes; // from previous stop
   final List<String> tips; // e.g. "Don't miss the Maha Aarti at 7 PM"
   final int? estimatedCost; // newly added
+  final String? dietaryType; // "veg", "veg_egg", "jain", "non_veg"
 
   ItineraryStop({
     required this.name,
@@ -32,6 +34,7 @@ class ItineraryStop {
     this.travelMinutes,
     this.tips = const [],
     this.estimatedCost,
+    this.dietaryType,
   });
 
   factory ItineraryStop.fromMap(Map<String, dynamic> data) {
@@ -50,6 +53,7 @@ class ItineraryStop {
       travelMinutes: data['travelMinutes'],
       tips: List<String>.from(data['tips'] ?? []),
       estimatedCost: data['estimatedCost'],
+      dietaryType: data['dietaryType'],
     );
   }
 
@@ -69,7 +73,44 @@ class ItineraryStop {
       'travelMinutes': travelMinutes,
       'tips': tips,
       'estimatedCost': estimatedCost,
+      'dietaryType': dietaryType,
     };
+  }
+
+  ItineraryStop copyWith({
+    String? name,
+    String? type,
+    String? placeId,
+    String? startTime,
+    String? endTime,
+    int? durationMinutes,
+    double? latitude,
+    double? longitude,
+    String? description,
+    String? photoUrl,
+    String? travelMode,
+    int? travelMinutes,
+    List<String>? tips,
+    int? estimatedCost,
+    String? dietaryType,
+  }) {
+    return ItineraryStop(
+      name: name ?? this.name,
+      type: type ?? this.type,
+      placeId: placeId ?? this.placeId,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      description: description ?? this.description,
+      photoUrl: photoUrl ?? this.photoUrl,
+      travelMode: travelMode ?? this.travelMode,
+      travelMinutes: travelMinutes ?? this.travelMinutes,
+      tips: tips ?? this.tips,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      dietaryType: dietaryType ?? this.dietaryType,
+    );
   }
 }
 
@@ -91,6 +132,8 @@ class ItineraryModel {
   final String? aiSummary; // AI-generated overview
   final bool isSaved;
   final int dayNumber; // Day number in multi-day trip (1-indexed, defaults to 1)
+  final String foodPreference;
+  final List<NearbyServiceModel> nearbySafetyServices;
   final DateTime createdAt;
   
   // New Age & Budget fields
@@ -119,6 +162,8 @@ class ItineraryModel {
     this.aiSummary,
     this.isSaved = false,
     this.dayNumber = 1,
+    this.foodPreference = 'all',
+    this.nearbySafetyServices = const [],
     DateTime? createdAt,
     this.age,
     this.travelers,
@@ -150,6 +195,10 @@ class ItineraryModel {
       aiSummary: data['aiSummary'],
       isSaved: data['isSaved'] ?? false,
       dayNumber: data['dayNumber'] ?? 1,
+      foodPreference: data['foodPreference'] ?? 'all',
+      nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
+          .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       age: data['age'],
       travelers: data['travelers'],
@@ -179,6 +228,8 @@ class ItineraryModel {
       'aiSummary': aiSummary,
       'isSaved': isSaved,
       'dayNumber': dayNumber,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'age': age,
       'travelers': travelers,
@@ -207,6 +258,8 @@ class ItineraryModel {
       'aiSummary': aiSummary,
       'isSaved': isSaved,
       'dayNumber': dayNumber,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
       'age': age,
       'travelers': travelers,
@@ -225,6 +278,8 @@ class ItineraryModel {
     String? aiSummary,
     bool? isSaved,
     int? dayNumber,
+    String? foodPreference,
+    List<NearbyServiceModel>? nearbySafetyServices,
     int? estimatedTotalCost,
     int? remainingBudget,
     Map<String, dynamic>? expenseSummary,
@@ -246,6 +301,8 @@ class ItineraryModel {
       aiSummary: aiSummary ?? this.aiSummary,
       isSaved: isSaved ?? this.isSaved,
       dayNumber: dayNumber ?? this.dayNumber,
+      foodPreference: foodPreference ?? this.foodPreference,
+      nearbySafetyServices: nearbySafetyServices ?? this.nearbySafetyServices,
       createdAt: createdAt,
       age: age,
       travelers: travelers,

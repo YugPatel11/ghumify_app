@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as import_firestore;
 import 'itinerary_model.dart';
+import 'nearby_service_model.dart';
 
 /// Represents a complete multi-day itinerary
 class MultiDayItineraryModel {
@@ -29,6 +30,8 @@ class MultiDayItineraryModel {
   final int? estimatedTotalCost;
   final int? remainingBudget;
   final Map<String, dynamic>? overallExpenseSummary;
+  final String foodPreference;
+  final List<NearbyServiceModel> nearbySafetyServices;
 
   MultiDayItineraryModel({
     required this.id,
@@ -47,6 +50,7 @@ class MultiDayItineraryModel {
     this.weatherSummary,
     this.whatToCarry = const [],
     this.isSaved = false,
+    this.nearbySafetyServices = const [],
     DateTime? createdAt,
     this.age,
     this.travelers,
@@ -55,6 +59,7 @@ class MultiDayItineraryModel {
     this.estimatedTotalCost,
     this.remainingBudget,
     this.overallExpenseSummary,
+    this.foodPreference = 'all',
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory MultiDayItineraryModel.fromMap(Map<String, dynamic> data) {
@@ -113,6 +118,10 @@ class MultiDayItineraryModel {
       estimatedTotalCost: data['estimatedTotalCost'],
       remainingBudget: data['remainingBudget'],
       overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
+      foodPreference: data['foodPreference'] ?? 'all',
+      nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
+          .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
     );
   }
 
@@ -150,6 +159,10 @@ class MultiDayItineraryModel {
           whatToCarry: List<String>.from(dayData['whatToCarry'] ?? []),
           aiSummary: dayData['aiSummary'],
           dayNumber: dayData['dayNumber'] ?? 1,
+          foodPreference: dayData['foodPreference'] ?? 'all',
+          nearbySafetyServices: (dayData['nearbySafetyServices'] as List? ?? [])
+              .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+              .toList(),
           age: dayData['age'],
           travelers: dayData['travelers'],
           budget: dayData['budget'],
@@ -171,6 +184,10 @@ class MultiDayItineraryModel {
       estimatedTotalCost: data['estimatedTotalCost'],
       remainingBudget: data['remainingBudget'],
       overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
+      foodPreference: data['foodPreference'] ?? 'all',
+      nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
+          .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
     );
   }
 
@@ -205,6 +222,8 @@ class MultiDayItineraryModel {
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'overallExpenseSummary': overallExpenseSummary,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
     };
   }
 
@@ -238,6 +257,8 @@ class MultiDayItineraryModel {
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'overallExpenseSummary': overallExpenseSummary,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
     };
   }
 
@@ -250,6 +271,8 @@ class MultiDayItineraryModel {
     int? estimatedTotalCost,
     int? remainingBudget,
     Map<String, dynamic>? overallExpenseSummary,
+    String? foodPreference,
+    List<NearbyServiceModel>? nearbySafetyServices,
   }) {
     return MultiDayItineraryModel(
       id: id,
@@ -276,6 +299,8 @@ class MultiDayItineraryModel {
       estimatedTotalCost: estimatedTotalCost ?? this.estimatedTotalCost,
       remainingBudget: remainingBudget ?? this.remainingBudget,
       overallExpenseSummary: overallExpenseSummary ?? this.overallExpenseSummary,
+      foodPreference: foodPreference ?? this.foodPreference,
+      nearbySafetyServices: nearbySafetyServices ?? this.nearbySafetyServices,
     );
   }
 

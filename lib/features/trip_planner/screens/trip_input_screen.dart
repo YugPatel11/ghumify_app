@@ -8,10 +8,14 @@ import '../../../core/models/place_suggestion_model.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/utils/image_resolver.dart';
+import 'package:provider/provider.dart';
+import '../../../core/constants/food_preferences.dart';
+import '../../../core/providers/app_settings_provider.dart';
 import '../widgets/craft_header.dart';
 import '../widgets/craft_loading_dialog.dart';
 import '../widgets/craft_selector_card.dart';
 import '../widgets/craft_step_indicator.dart';
+import '../widgets/food_preference_selector.dart';
 
 class TripInputScreen extends StatefulWidget {
   const TripInputScreen({super.key});
@@ -381,6 +385,8 @@ class _TripInputScreenState extends State<TripInputScreen>
       if (!mounted) return;
       Navigator.of(context).pop(); // Dismiss loading
 
+      final foodPref = context.read<AppSettingsProvider>().foodPreference;
+
       if (_isMultiDay) {
         final data = {
           'city': cityTrimmed,
@@ -395,6 +401,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          'foodPreference': foodPref,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
@@ -411,6 +418,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          'foodPreference': foodPref,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
@@ -1808,6 +1816,23 @@ class _TripInputScreenState extends State<TripInputScreen>
 
           const SizedBox(height: AppTokens.xl),
 
+          // Food Preference Selector
+          Container(
+            padding: const EdgeInsets.all(AppTokens.lg),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+              border: Border.all(color: AppColors.border),
+              boxShadow: AppTokens.shadow(level: 1),
+            ),
+            child: const FoodPreferenceSelector(
+              showHeader: true,
+              isCompact: true,
+            ),
+          ),
+
+          const SizedBox(height: AppTokens.xl),
+
           // Itinerary Summary Preview Card (Live Review)
           const Text(
             'ITINERARY SUMMARY PREVIEW',
@@ -1902,6 +1927,54 @@ class _TripInputScreenState extends State<TripInputScreen>
                       value: '$_travelers ${_travelers == 1 ? "Person" : "People"}',
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: AppColors.borderLight),
+                const SizedBox(height: 10),
+                Consumer<AppSettingsProvider>(
+                  builder: (context, settings, _) {
+                    final pref = settings.foodPreference;
+                    final label = FoodPreference.getLabel(pref);
+                    final dotColor = FoodPreference.getIndicatorColor(pref);
+                    return Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Dietary Plan: ',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSoft,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.text,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Food filtered for $label',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: dotColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

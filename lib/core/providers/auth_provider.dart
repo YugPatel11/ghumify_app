@@ -138,6 +138,21 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update user's food preference
+  Future<void> updateFoodPreference(String preference) async {
+    if (_user == null) return;
+    try {
+      final updated = _user!.copyWith(foodPreference: preference);
+      await _authService.updateUserProfile(updated);
+      _user = updated;
+      notifyListeners();
+    } catch (e) {
+      // Keep local state responsive
+      _user = _user!.copyWith(foodPreference: preference);
+      notifyListeners();
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     try {

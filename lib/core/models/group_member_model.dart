@@ -9,6 +9,7 @@ class GroupMemberModel {
   final String role; // "owner" | "admin" | "member"
   final bool canEditItinerary;
   final bool isMuted;
+  final String foodPreference;
   final DateTime joinedAt;
   final DateTime lastSeenAt;
 
@@ -20,6 +21,7 @@ class GroupMemberModel {
     this.role = 'member',
     this.canEditItinerary = false,
     this.isMuted = false,
+    this.foodPreference = 'all',
     DateTime? joinedAt,
     DateTime? lastSeenAt,
   })  : joinedAt = joinedAt ?? DateTime.now(),
@@ -35,6 +37,7 @@ class GroupMemberModel {
       role: data['role'] ?? 'member',
       canEditItinerary: data['canEditItinerary'] ?? false,
       isMuted: data['isMuted'] ?? false,
+      foodPreference: data['foodPreference'] ?? 'all',
       joinedAt: (data['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastSeenAt: (data['lastSeenAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -49,6 +52,7 @@ class GroupMemberModel {
       'role': role,
       'canEditItinerary': canEditItinerary,
       'isMuted': isMuted,
+      'foodPreference': foodPreference,
       'joinedAt': Timestamp.fromDate(joinedAt),
       'lastSeenAt': Timestamp.fromDate(lastSeenAt),
     };
@@ -63,6 +67,7 @@ class GroupMemberModel {
     String? role,
     bool? canEditItinerary,
     bool? isMuted,
+    String? foodPreference,
     DateTime? lastSeenAt,
   }) {
     return GroupMemberModel(
@@ -73,6 +78,7 @@ class GroupMemberModel {
       role: role ?? this.role,
       canEditItinerary: canEditItinerary ?? this.canEditItinerary,
       isMuted: isMuted ?? this.isMuted,
+      foodPreference: foodPreference ?? this.foodPreference,
       joinedAt: joinedAt,
       lastSeenAt: lastSeenAt ?? this.lastSeenAt,
     );

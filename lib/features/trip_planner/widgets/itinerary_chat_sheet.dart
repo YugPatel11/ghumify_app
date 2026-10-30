@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
+import '../../../core/constants/food_preferences.dart';
 import '../../../core/models/chat_message_model.dart';
 import '../../../core/models/itinerary_model.dart';
 import '../../../core/models/multi_day_itinerary_model.dart';
+import '../../../core/providers/app_settings_provider.dart';
 import '../../../core/services/gemini_service.dart';
 import 'chat_bubble.dart';
 
@@ -159,12 +162,17 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
     _messageController.clear();
     _scrollToBottom();
 
+    final foodPref = widget.itinerary?.foodPreference ??
+        widget.multiDayItinerary?.foodPreference ??
+        (mounted ? context.read<AppSettingsProvider>().foodPreference : 'all');
+
     try {
       final response = await _geminiService.chatAboutItinerary(
         userMessage: cleanInput,
         currentItinerary: _currentItineraryMap,
         chatHistory: _messages,
         isMultiDay: _isMultiDay,
+        foodPreference: foodPref,
       );
 
       setState(() {
@@ -307,6 +315,10 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
   }
 
   Widget _buildHeader() {
+    final foodPref = widget.itinerary?.foodPreference ??
+        widget.multiDayItinerary?.foodPreference ??
+        (mounted ? context.read<AppSettingsProvider>().foodPreference : 'all');
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppTokens.lg, 4, AppTokens.md, AppTokens.md),
       child: Row(
@@ -325,19 +337,53 @@ class _ItineraryChatSheetState extends State<ItineraryChatSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Trip Assistant',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: AppColors.text,
-                    letterSpacing: 0.5,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'Trip Assistant',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: AppColors.text,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: FoodPreference.getIndicatorColor(foodPref).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: FoodPreference.getIndicatorColor(foodPref),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            FoodPreference.getLabel(foodPref),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: FoodPreference.getIndicatorColor(foodPref),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   'Ask questions or modify your itinerary',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: AppColors.textSoft,
                   ),
                 ),

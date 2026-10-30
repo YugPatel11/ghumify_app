@@ -120,6 +120,67 @@
   * Comprehensive test suite in `test/group_feature_test.dart` passing (12/12 tests).
   * Full project test suite passing (32/32 feature tests).
 
+### TASK-006: Food Preference Selector & Dietary AI Personalization Engine
+* **Status:** Completed
+* **Branch:** `redesign/craft-itinerary`
+* **Description:**
+  Added a 5-option radio button group for "Food Preference" across the app (`TripInputScreen` Step 4 and `SettingsScreen`), synced with `UserModel`, `AppSettingsProvider` (offline cache), and Firestore. Built a strict AI prompt injection and post-response validation/enrichment pipeline ensuring all meal stops and AI chatbot suggestions strictly follow dietary constraints (Jain, Veg, Veg + Egg, Non-Veg, All).
+* **Key Improvements:**
+  1. **Strict 5-Tier Dietary Taxonomy (`lib/core/constants/food_preferences.dart`):**
+     * Options in exact order: `Veg`, `Veg + Egg`, `Jain`, `Non-Veg`, `All`.
+     * Internal values: `"veg"`, `"veg_egg"`, `"jain"`, `"non_veg"`, `"all"`.
+     * Default for legacy and new users: `"all"`.
+     * Strictness hierarchy: Jain (4) > Veg (3) > Veg + Egg (2) > Non-Veg (1) > All (0).
+     * Clear one-line explanations and colored indicator dots (Green for Veg/Jain, Orange/Yellow for Veg + Egg, Red for Non-Veg, Gray for All).
+  2. **Tactile Selector Component (`FoodPreferenceSelector`):**
+     * Responsive radio card group with accessible tap targets (min 48dp), semantic radio states, and helper caption: "We will suggest food and restaurants based on your choice."
+     * Placed in `TripInputScreen` Step 4 (Passions & Review) and `SettingsScreen` (PREFERENCES tile opening bottom sheet).
+     * Instant bidirectional synchronization between local `SharedPreferences` and remote Firestore `users/{uid}`.
+  3. **Data Model & Legacy Preservation:**
+     * `UserModel`: Default `"all"`; backward-compatible with legacy Firestore records missing the field.
+     * `ItineraryModel` & `MultiDayItineraryModel`: Persists the `foodPreference` chosen at time of generation so historical trip fidelity is never lost.
+     * `ItineraryStop`: Added `dietaryType` tag for visual badges on food stops.
+     * `GroupMemberModel`: Stores each member's personal preference; group itinerary prompt directives harmonize choices and detect Jain vs Non-Veg conflicts.
+  4. **Strict AI Prompt Directives & Validation Filter (`GeminiService` & `DietaryFilterService`):**
+     * Injected strict rules into `_buildItineraryPrompt`, `_buildMultiDayPrompt`, and `_buildChatPrompt`.
+     * Jain stops enforce zero meat, seafood, egg, onion, garlic, or root vegetables, with mandatory disclaimer: *"Please confirm Jain preparation with the restaurant."*
+     * Veg stops enforce zero meat, seafood, or egg dishes; dairy allowed; prefers pure veg.
+     * Veg + Egg allows eggs but strictly rejects meat and seafood.
+     * Post-response validation auto-sanitizes offending items and enriches food cards with visual dietary badges.
+     * Chatbot handles explicit conflicting requests (e.g. Veg asking for butter chicken) by politely acknowledging their setting and offering recommendations or preference changes.
+* **Verification:**
+  * 19 unit tests passing in `test/food_preference_test.dart`.
+  * All 51 project unit and feature tests passing.
+  * `flutter analyze` completed with 0 errors and 0 warnings.
 
-
-
+### TASK-007: OpenStreetMap (OSM) Nearby Safety (Hospitals & Police Stations)
+* **Status:** Completed
+* **Branch:** `redesign/craft-itinerary`
+* **Description:**
+  Integrated OpenStreetMap Overpass API into the Itinerary section, Saved Itineraries, and Group Itineraries to discover nearby hospitals, clinics, and police stations. Includes multi-tier radius expansion (3km -> 5km -> 10km), official Google Maps search and turn-by-turn directions buttons, direct phone dialer actions, 24-hour location caching, coordinate rounding for privacy, and offline persistence.
+* **Key Improvements:**
+  1. **Multi-Element Overpass QL Pipeline (`PlacesService` & `SafetyConstants`):**
+     * Queries `nodes`, `ways`, and `relations` with `out center body;` for exact latitude/longitude.
+     * Comprehensive tags: `amenity=hospital`, `healthcare=hospital`, `amenity=clinic`, and `amenity=police`.
+     * Distinguishes Hospitals from Clinics with dedicated UI badges and icons.
+     * Multi-tier radius search starting at 3 km (3000m), auto-widening to 5 km (5000m) and 10 km (10000m) if sparse (<2 results).
+     * Deduplication across OSM ways/relations and sorting by Haversine distance. Results capped to top 5 per category.
+     * Exponential backoff retry for HTTP 429 and 504 with custom User-Agent (`SafetyConstants.overpassUserAgent`).
+  2. **Privacy, Compliance & Attribution:**
+     * Coordinates rounded to 3 decimal places (~110m) for privacy and cache hits.
+     * Live user location is never stored.
+     * Displays emergency notice and clickable "© OpenStreetMap contributors" attribution.
+     * Speed-dial pills for national emergency numbers (112, 100, 108).
+  3. **Google Maps & Direct Action Integration:**
+     * "Open in Google Maps": `https://www.google.com/maps/search/?api=1&query=LAT,LNG`
+     * "Directions": `https://www.google.com/maps/dir/?api=1&destination=LAT,LNG`
+     * "Call": standard `tel:` intent, shown only when verified phone number exists in OSM tags.
+  4. **Saved Itinerary & Groups Offline Persistence:**
+     * `ItineraryModel` & `MultiDayItineraryModel`: Stored `nearbySafetyServices` field with full backward compatibility for legacy records (defaults to empty list).
+     * Saved itineraries show saved places instantly with "Last updated: [time]" and "Refresh" action.
+     * Old saved itineraries render clean empty state with 1-tap "Load nearby hospitals and police stations" button.
+     * Group shared itineraries display saved safety places with refresh permission gated by admin policy.
+* **Verification:**
+  * 13 unit tests passing in `test/nearby_safety_test.dart`.
+  * All 62 project feature tests passing.
+  * `flutter analyze` passing with 0 errors and 0 warnings.

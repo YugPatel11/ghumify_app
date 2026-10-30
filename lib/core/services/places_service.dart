@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../constants/api_keys.dart';
+import '../constants/safety_constants.dart';
 import '../models/nearby_service_model.dart';
 import '../models/place_model.dart';
 import '../models/place_suggestion_model.dart';
@@ -30,83 +31,230 @@ class PlacesService {
     _sessionToken = null;
   }
 
-  /// Search for places nearby a location using free Overpass API (OpenStreetMap)
-  Future<List<NearbyServiceModel>> searchNearbyEmergencyServices({
+  // In-memory safety cache with timestamp
+  static final Map<String, _SafetyCacheEntry> _safetyCache = {};
+
+  /// Build a multi-element Overpass QL query for emergency safety amenities
+  static String buildOverpassSafetyQuery({
     required double latitude,
     required double longitude,
-    int radiusMeters = 5000,
-  }) async {
-    try {
-      final query = '''
-[out:json][timeout:10];
+    required int radiusMeters,
+    int timeoutSeconds = 15,
+  }) {
+    return '''
+[out:json][timeout:$timeoutSeconds];
 (
   node["amenity"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  node["healthcare"="hospital"](around:$radiusMeters,$latitude,$longitude);
   node["amenity"="clinic"](around:$radiusMeters,$latitude,$longitude);
   node["amenity"="police"](around:$radiusMeters,$latitude,$longitude);
   way["amenity"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  way["healthcare"="hospital"](around:$radiusMeters,$latitude,$longitude);
   way["amenity"="clinic"](around:$radiusMeters,$latitude,$longitude);
   way["amenity"="police"](around:$radiusMeters,$latitude,$longitude);
+  relation["amenity"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  relation["healthcare"="hospital"](around:$radiusMeters,$latitude,$longitude);
+  relation["amenity"="clinic"](around:$radiusMeters,$latitude,$longitude);
+  relation["amenity"="police"](around:$radiusMeters,$latitude,$longitude);
 );
 out center body;
 ''';
+  }
 
-      final response = await http.post(
-        Uri.parse(_overpassUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'data=${Uri.encodeComponent(query)}',
-      ).timeout(const Duration(seconds: 15));
+  /// Parse elements from Overpass response and calculate distance to origin
+  static List<NearbyServiceModel> parseOverpassElements(
+    List elements, {
+    required double originLat,
+    required double originLon,
+  }) {
+    final results = <NearbyServiceModel>[];
+    final seen = <String>{};
+    final locationService = LocationService();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final elements = data['elements'] as List? ?? [];
+    for (final raw in elements) {
+      if (raw is! Map<String, dynamic>) continue;
+      final element = raw;
+      final tags = element['tags'] as Map<String, dynamic>? ?? {};
 
-        final results = <NearbyServiceModel>[];
-        final seenNames = <String>{};
-
-        for (final element in elements) {
-          final tags = element['tags'] as Map<String, dynamic>? ?? {};
-          final name = tags['name'] as String? ?? tags['name:en'] as String?;
-
-          if (name == null || name.isEmpty) continue;
-          if (seenNames.contains(name.toLowerCase())) continue;
-          seenNames.add(name.toLowerCase());
-
-          double lat;
-          double lon;
-          if (element['type'] == 'way' && element['center'] != null) {
-            lat = (element['center']['lat'] as num?)?.toDouble() ?? 0.0;
-            lon = (element['center']['lon'] as num?)?.toDouble() ?? 0.0;
-          } else {
-            lat = (element['lat'] as num?)?.toDouble() ?? 0.0;
-            lon = (element['lon'] as num?)?.toDouble() ?? 0.0;
-          }
-
-          if (lat == 0.0 && lon == 0.0) continue;
-
-          final distance = _locationService.calculateDistance(
-            latitude, longitude, lat, lon,
-          );
-
-          final amenity = tags['amenity'] as String? ?? '';
-          results.add(NearbyServiceModel(
-            name: name,
-            type: amenity == 'police' ? 'police' : 'hospital',
-            latitude: lat,
-            longitude: lon,
-            address: tags['addr:full'] as String? ?? tags['addr:street'] as String?,
-            distanceKm: distance,
-          ));
+      // Coordinates
+      double lat = 0.0;
+      double lon = 0.0;
+      if (element['type'] == 'way' || element['type'] == 'relation') {
+        final center = element['center'] as Map<String, dynamic>?;
+        if (center != null) {
+          lat = (center['lat'] as num?)?.toDouble() ?? 0.0;
+          lon = (center['lon'] as num?)?.toDouble() ?? 0.0;
         }
-
-        results.sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
-        return results;
       } else {
-        throw PlacesException('Overpass API error: ${response.statusCode}');
+        lat = (element['lat'] as num?)?.toDouble() ?? 0.0;
+        lon = (element['lon'] as num?)?.toDouble() ?? 0.0;
       }
-    } catch (e) {
-      if (e is PlacesException) rethrow;
-      throw PlacesException('Failed to fetch nearby services: $e');
+
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180 || (lat == 0.0 && lon == 0.0)) {
+        continue;
+      }
+
+      final osmId = '${element['type']}_${element['id']}';
+      final name = (tags['name'] as String? ?? tags['name:en'] as String? ?? '').trim().toLowerCase();
+      final coordKey = '${lat.toStringAsFixed(3)}_${lon.toStringAsFixed(3)}';
+      final dedupKey = name.isNotEmpty ? '$name@$coordKey' : osmId;
+
+      if (seen.contains(dedupKey) || seen.contains(osmId)) continue;
+      seen.add(dedupKey);
+      seen.add(osmId);
+
+      final distance = locationService.calculateDistance(
+        originLat, originLon, lat, lon,
+      );
+
+      final model = NearbyServiceModel.fromOverpassElement(
+        element,
+        originLat: originLat,
+        originLon: originLon,
+        distanceKm: distance,
+      );
+
+      results.add(model);
     }
+
+    return results;
+  }
+
+  /// Search for places nearby a location using free Overpass API (OpenStreetMap)
+  /// Features:
+  /// - Automatic radius widening (3km -> 5km -> 10km) if results are sparse
+  /// - 24-hour location cache
+  /// - Coordinate rounding (~3 decimal places) for privacy and cache hits
+  /// - Exponential backoff retry for HTTP 429 and 504
+  Future<List<NearbyServiceModel>> searchNearbyEmergencyServices({
+    required double latitude,
+    required double longitude,
+    int? radiusMeters,
+    bool forceRefresh = false,
+  }) async {
+    // 1. Round coordinates to 3 decimal places (~110m) for privacy & cache consistency
+    final roundedLat = double.parse(latitude.toStringAsFixed(3));
+    final roundedLon = double.parse(longitude.toStringAsFixed(3));
+    final cacheKey = '${roundedLat}_$roundedLon';
+
+    // 2. Check 24-hour cache if not forcing refresh
+    if (!forceRefresh && _safetyCache.containsKey(cacheKey)) {
+      final entry = _safetyCache[cacheKey]!;
+      if (DateTime.now().difference(entry.timestamp) < SafetyConstants.cacheTtl) {
+        return entry.services;
+      }
+    }
+
+    // 3. Multi-tier radius widening strategy (3km -> 5km -> 10km)
+    final radiusTiers = radiusMeters != null
+        ? [radiusMeters]
+        : [
+            SafetyConstants.initialRadiusMeters,
+            SafetyConstants.expandedRadiusMeters,
+            SafetyConstants.maxRadiusMeters,
+          ];
+
+    List<NearbyServiceModel> lastResults = [];
+
+    for (final radius in radiusTiers) {
+      try {
+        final results = await _executeOverpassQueryWithRetry(
+          latitude: roundedLat,
+          longitude: roundedLon,
+          radiusMeters: radius,
+        );
+
+        lastResults = results;
+
+        final hospitalsCount =
+            results.where((s) => s.type == 'hospital').length;
+        final policeCount = results.where((s) => s.type == 'police').length;
+
+        // If we found at least 2 hospitals and 2 police stations, or we reached max radius, finish
+        if (hospitalsCount >= 2 && policeCount >= 2) {
+          break;
+        }
+      } catch (e) {
+        if (lastResults.isNotEmpty) break;
+        if (_safetyCache.containsKey(cacheKey)) {
+          return _safetyCache[cacheKey]!.services;
+        }
+        rethrow;
+      }
+    }
+
+    // 4. Sort and cap to top 5 of each category
+    final hospitals = lastResults.where((s) => s.type == 'hospital').toList()
+      ..sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
+    final police = lastResults.where((s) => s.type == 'police').toList()
+      ..sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
+
+    final cappedResults = [
+      ...hospitals.take(SafetyConstants.maxResultsPerCategory),
+      ...police.take(SafetyConstants.maxResultsPerCategory),
+    ];
+
+    // Store in cache
+    _safetyCache[cacheKey] = _SafetyCacheEntry(
+      services: cappedResults,
+      timestamp: DateTime.now(),
+    );
+
+    return cappedResults;
+  }
+
+  Future<List<NearbyServiceModel>> _executeOverpassQueryWithRetry({
+    required double latitude,
+    required double longitude,
+    required int radiusMeters,
+    int maxRetries = 2,
+  }) async {
+    final query = buildOverpassSafetyQuery(
+      latitude: latitude,
+      longitude: longitude,
+      radiusMeters: radiusMeters,
+    );
+
+    int attempt = 0;
+    while (attempt < maxRetries) {
+      attempt++;
+      try {
+        final response = await http.post(
+          Uri.parse(_overpassUrl),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': SafetyConstants.overpassUserAgent,
+          },
+          body: 'data=${Uri.encodeComponent(query)}',
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return parseOverpassElements(
+            data['elements'] as List? ?? [],
+            originLat: latitude,
+            originLon: longitude,
+          );
+        } else if (response.statusCode == 429 || response.statusCode == 504) {
+          if (attempt < maxRetries) {
+            await Future.delayed(Duration(milliseconds: 1000 * attempt));
+            continue;
+          }
+          throw PlacesException(
+              'Overpass API server busy or rate limited (HTTP ${response.statusCode})');
+        } else {
+          throw PlacesException('Overpass API error: ${response.statusCode}');
+        }
+      } catch (e) {
+        if (attempt >= maxRetries) {
+          if (e is PlacesException) rethrow;
+          throw PlacesException('Failed to fetch nearby services: $e');
+        }
+        await Future.delayed(Duration(milliseconds: 1000 * attempt));
+      }
+    }
+
+    return [];
   }
 
   /// High-performance smart autocomplete search for places, cities, and landmarks in India
@@ -585,4 +733,14 @@ class PlacesException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class _SafetyCacheEntry {
+  final List<NearbyServiceModel> services;
+  final DateTime timestamp;
+
+  _SafetyCacheEntry({
+    required this.services,
+    required this.timestamp,
+  });
 }

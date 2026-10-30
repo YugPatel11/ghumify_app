@@ -7,7 +7,9 @@ import '../../../app/theme/app_tokens.dart';
 import '../../../core/providers/group_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/models/group_activity_model.dart';
+import '../../../core/models/nearby_service_model.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../trip_planner/widgets/nearby_services_section.dart';
 
 /// Shared group itinerary tab with real-time sync, permission gating, and activity history
 class GroupItineraryTab extends StatelessWidget {
@@ -227,6 +229,38 @@ class GroupItineraryTab extends StatelessWidget {
                       : null,
                 );
               }),
+
+            const SizedBox(height: AppTokens.xl),
+
+            // Shared Group Safety Services
+            NearbyServicesSection(
+              latitude: stops.isNotEmpty
+                  ? (stops.first['latitude'] as num?)?.toDouble()
+                  : null,
+              longitude: stops.isNotEmpty
+                  ? (stops.first['longitude'] as num?)?.toDouble()
+                  : null,
+              locationName: city,
+              initialServices: (itinerary['nearbySafetyServices'] as List? ?? [])
+                  .map((s) => NearbyServiceModel.fromMap(
+                      Map<String, dynamic>.from(s as Map)))
+                  .toList(),
+              canRefresh: canEdit,
+              isSavedMode: true,
+              onServicesUpdated: canEdit
+                  ? (services) {
+                      FirebaseFirestore.instance
+                          .collection('groups')
+                          .doc(groupId)
+                          .collection('group_itineraries')
+                          .doc('active')
+                          .set({
+                        'nearbySafetyServices':
+                            services.map((s) => s.toMap()).toList(),
+                      }, SetOptions(merge: true));
+                    }
+                  : null,
+            ),
 
             const SizedBox(height: AppTokens.xxl),
           ],

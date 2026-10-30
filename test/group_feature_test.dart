@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghumify_app/core/models/group_model.dart';
-import 'package:ghumify_app/core/models/group_member_model.dart';
 import 'package:ghumify_app/core/models/group_message_model.dart';
 import 'package:ghumify_app/core/models/group_location_model.dart';
 import 'package:ghumify_app/core/models/group_invitation_model.dart';

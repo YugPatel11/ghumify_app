@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/food_preferences.dart';
 import '../../../core/services/gemini_service.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/places_service.dart';
@@ -97,6 +98,10 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
     final endDate = data['endDate'] as String? ??
         DateTime.now().toString().split(' ').first;
     final numberOfDays = data['numberOfDays'] as int? ?? 2;
+    final foodPreference = data['foodPreference'] as String? ?? 'all';
+    final age = data['age'] as int?;
+    final budget = data['budget'] as int?;
+    final travelers = data['travelers'] as int?;
 
     try {
       setState(() => _loadingMessage = 'Checking weather forecast...');
@@ -126,8 +131,12 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
         interests: interests,
         travelMode: travelMode,
         pace: pace,
+        age: age,
+        travelers: travelers,
+        budget: budget,
         weather: weather,
         knownPlaces: knownPlaces.take(20).toList(),
+        foodPreference: foodPreference,
       );
 
       setState(() => _loadingMessage = 'Finalizing details...');
@@ -691,7 +700,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
 
         const SliverToBoxAdapter(child: SizedBox(height: AppTokens.xxl)),
 
-        // ── Nearby Emergency Services (show on first tab only) ──
+        // ── Nearby Safety (Hospitals & Police Stations) ──
         if (day.dayNumber == 1)
           SliverToBoxAdapter(
             child: Padding(
@@ -699,6 +708,24 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
               child: NearbyServicesSection(
                 latitude: day.stops.isNotEmpty ? day.stops.first.latitude : null,
                 longitude: day.stops.isNotEmpty ? day.stops.first.longitude : null,
+                locationName: _itinerary?.city,
+                initialServices: _itinerary?.nearbySafetyServices,
+                isSavedMode: _itinerary?.isSaved ?? false,
+                onServicesUpdated: (services) async {
+                  setState(() {
+                    _itinerary = _itinerary?.copyWith(nearbySafetyServices: services);
+                  });
+                  if (_itinerary != null && _itinerary!.isSaved) {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection(AppConstants.itinerariesCollection)
+                          .doc(_itinerary!.id)
+                          .update({
+                        'nearbySafetyServices': services.map((s) => s.toMap()).toList(),
+                      });
+                    } catch (_) {}
+                  }
+                },
               ),
             ),
           ),
@@ -821,21 +848,27 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
                       child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.brandSoft,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${stop.startTime} — ${stop.endTime}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.brand,
-                            letterSpacing: 1.0,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.brandSoft,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${stop.startTime} — ${stop.endTime}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.brand,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
                           ),
-                        ),
+                          _buildDietaryBadge(stop),
+                        ],
                       ),
                       const SizedBox(height: AppTokens.sm),
                       Text(
@@ -956,6 +989,54 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDietaryBadge(ItineraryStop stop) {
+    final type = stop.dietaryType;
+    final nameLower = stop.name.toLowerCase();
+    final isFood = stop.type == 'food' ||
+        nameLower.contains('restaurant') ||
+        nameLower.contains('cafe') ||
+        nameLower.contains('dhaba') ||
+        nameLower.contains('bhojanalaya') ||
+        nameLower.contains('sweets');
+
+    if (type == null && !isFood) return const SizedBox.shrink();
+
+    final effectiveType = type ?? DietaryFilterService.inferDietaryType('${stop.name} ${stop.description}');
+    final label = FoodPreference.getLabel(effectiveType);
+    final color = FoodPreference.getIndicatorColor(effectiveType);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
