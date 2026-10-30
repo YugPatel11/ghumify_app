@@ -100,32 +100,28 @@ class _TripInputScreenState extends State<TripInputScreen>
     final stay1 = CityStayModel(
       id: 'city_0',
       name: currentCity,
-      state: 'India',
+      stateOrRegion: 'India',
       country: 'India',
       latitude: _selectedLatitude ?? 26.9124,
       longitude: _selectedLongitude ?? 75.7873,
       stayDays: 2,
-      arrivalDate: _startDate.toString().split(' ').first,
-      departureDate: _startDate.add(const Duration(days: 2)).toString().split(' ').first,
+      arrivalDate: _startDate,
+      departureDate: _startDate.add(const Duration(days: 2)),
       heroImage: _heroImage,
-      orderIndex: 0,
-      isStartCity: true,
     );
 
     final secondCityName = currentCity.toLowerCase() == 'udaipur' ? 'Jodhpur' : 'Udaipur';
     final stay2 = CityStayModel(
       id: 'city_1',
       name: secondCityName,
-      state: 'Rajasthan',
+      stateOrRegion: 'Rajasthan',
       country: 'India',
       latitude: currentCity.toLowerCase() == 'udaipur' ? 26.2389 : 24.5854,
       longitude: currentCity.toLowerCase() == 'udaipur' ? 73.0243 : 73.7125,
       stayDays: 2,
-      arrivalDate: _startDate.add(const Duration(days: 2)).toString().split(' ').first,
-      departureDate: _startDate.add(const Duration(days: 4)).toString().split(' ').first,
+      arrivalDate: _startDate.add(const Duration(days: 2)),
+      departureDate: _startDate.add(const Duration(days: 4)),
       heroImage: ImageResolver.getHeroImage(secondCityName),
-      orderIndex: 1,
-      isEndCity: true,
     );
 
     setState(() {

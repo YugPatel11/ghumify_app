@@ -31,7 +31,6 @@ class MultiCityRouteBuilder extends StatefulWidget {
 
 class _MultiCityRouteBuilderState extends State<MultiCityRouteBuilder> {
   final TransportService _transportService = TransportService();
-  final PlacesService _placesService = PlacesService();
 
   List<NearbyCitySuggestion> _nearbySuggestions = [];
   bool _isLoadingSuggestions = false;
@@ -137,15 +136,6 @@ class _MultiCityRouteBuilderState extends State<MultiCityRouteBuilder> {
     HapticFeedback.lightImpact();
     final updated = List<CityStayModel>.from(widget.cities);
     updated.removeAt(index);
-    widget.onCitiesChanged(_recalculateDates(updated));
-  }
-
-  void _reorderCities(int oldIndex, int newIndex) {
-    HapticFeedback.selectionClick();
-    final updated = List<CityStayModel>.from(widget.cities);
-    if (newIndex > oldIndex) newIndex -= 1;
-    final item = updated.removeAt(oldIndex);
-    updated.insert(newIndex, item);
     widget.onCitiesChanged(_recalculateDates(updated));
   }
 

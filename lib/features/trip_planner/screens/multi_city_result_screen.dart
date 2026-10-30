@@ -187,6 +187,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
       backgroundColor: Colors.transparent,
       builder: (ctx) => TransportOptionsSheet(
         leg: leg,
+        travelers: _trip!.travelers,
         onOptionSelected: (newOption) {
           final updatedLegs = List<TravelLegModel>.from(_trip!.legs);
           updatedLegs[legIndex] = leg.copyWith(selectedOption: newOption);
@@ -850,7 +851,20 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
           SliverToBoxAdapter(
             child: TravelLegCard(
               leg: leg,
-              onTapChangeOption: () => _openTransportSheet(actualIndex - 1),
+              travelers: _trip!.travelers,
+              onOptionSelected: (newOption) {
+                final updatedLegs = List<TravelLegModel>.from(_trip!.legs);
+                updatedLegs[actualIndex - 1] = leg.copyWith(selectedOption: newOption);
+                setState(() {
+                  _trip = _trip!.copyWith(
+                    legs: updatedLegs,
+                    estimatedTravelCost: updatedLegs.fold<int>(
+                      0,
+                      (sum, l) => sum + l.selectedOption.estimatedTotalCost,
+                    ),
+                  );
+                });
+              },
             ),
           ),
         );
@@ -915,7 +929,21 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
         SliverToBoxAdapter(
           child: TravelLegCard(
             leg: returnLeg,
-            onTapChangeOption: () => _openTransportSheet(_trip!.legs.length - 1),
+            travelers: _trip!.travelers,
+            onOptionSelected: (newOption) {
+              final returnIdx = _trip!.legs.length - 1;
+              final updatedLegs = List<TravelLegModel>.from(_trip!.legs);
+              updatedLegs[returnIdx] = returnLeg.copyWith(selectedOption: newOption);
+              setState(() {
+                _trip = _trip!.copyWith(
+                  legs: updatedLegs,
+                  estimatedTravelCost: updatedLegs.fold<int>(
+                    0,
+                    (sum, l) => sum + l.selectedOption.estimatedTotalCost,
+                  ),
+                );
+              });
+            },
           ),
         ),
       );
@@ -938,7 +966,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
           ClipRRect(
             borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             child: Image.asset(
-              city.heroImage,
+              city.heroImage ?? ImageResolver.getHeroImage(city.name),
               width: 52,
               height: 52,
               fit: BoxFit.cover,

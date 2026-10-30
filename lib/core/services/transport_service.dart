@@ -245,6 +245,200 @@ class TransportService {
     );
   }
 
+  /// Synchronously generates travel legs connecting consecutive cities in a circuit
+  List<TravelLegModel> generateLegsForCircuit({
+    required List<CityStayModel> cities,
+    required bool isRoundTrip,
+    required TravelersModel travelers,
+  }) {
+    final legs = <TravelLegModel>[];
+    if (cities.length < 2) return legs;
+
+    for (int i = 0; i < cities.length - 1; i++) {
+      final from = cities[i];
+      final to = cities[i + 1];
+      final straightLine = _locationService.calculateDistance(
+        from.latitude,
+        from.longitude,
+        to.latitude,
+        to.longitude,
+      );
+      final dist = (straightLine * roadRailWindingFactor).roundToDouble();
+      final options = _calculateOptionsSync(from, to, dist, straightLine, travelers);
+      final selected = options.firstWhere((o) => o.isRecommended, orElse: () => options.first);
+
+      legs.add(
+        TravelLegModel(
+          id: 'leg_${from.id}_${to.id}',
+          fromCity: from.name,
+          toCity: to.name,
+          fromLat: from.latitude,
+          fromLng: from.longitude,
+          toLat: to.latitude,
+          toLng: to.longitude,
+          distanceKm: dist,
+          availableOptions: options,
+          selectedOption: selected,
+        ),
+      );
+    }
+
+    if (isRoundTrip && cities.length >= 2) {
+      final from = cities.last;
+      final to = cities.first;
+      final straightLine = _locationService.calculateDistance(
+        from.latitude,
+        from.longitude,
+        to.latitude,
+        to.longitude,
+      );
+      final dist = (straightLine * roadRailWindingFactor).roundToDouble();
+      final options = _calculateOptionsSync(from, to, dist, straightLine, travelers);
+      final selected = options.firstWhere((o) => o.isRecommended, orElse: () => options.first);
+
+      legs.add(
+        TravelLegModel(
+          id: 'leg_return_${from.id}_${to.id}',
+          fromCity: from.name,
+          toCity: to.name,
+          fromLat: from.latitude,
+          fromLng: from.longitude,
+          toLat: to.latitude,
+          toLng: to.longitude,
+          distanceKm: dist,
+          availableOptions: options,
+          selectedOption: selected,
+          isReturnLeg: true,
+        ),
+      );
+    }
+
+    return legs;
+  }
+
+  List<TransportOptionModel> _calculateOptionsSync(
+    CityStayModel from,
+    CityStayModel to,
+    double groundKm,
+    double straightLineKm,
+    TravelersModel travelers,
+  ) {
+    final options = <TransportOptionModel>[];
+    final now = DateTime.now();
+
+    // 1. Train
+    final trainDuration = (groundKm / TransportConfig.trainAvgSpeedKmH * 60).round();
+    final trainAdultCost = (TransportConfig.trainBaseFare + groundKm * TransportConfig.trainPerKmRate).round();
+    int trainMinorsCost = (travelers.minors * (trainAdultCost * 0.5)).round();
+    final trainTotalGroup = (trainAdultCost * travelers.adults) + trainMinorsCost;
+    final trainOvernight = groundKm >= 500 || trainDuration >= 450;
+
+    options.add(
+      TransportOptionModel(
+        id: 'train_${from.name}_${to.name}',
+        mode: 'train',
+        modeName: 'Express / Mail Train',
+        durationMinutes: trainDuration,
+        estimatedCostPerPerson: trainAdultCost,
+        estimatedTotalCost: trainTotalGroup,
+        distanceKm: groundKm,
+        isOvernight: trainOvernight,
+        notes: trainOvernight ? 'Overnight journey with sleeper/AC berths available.' : 'Comfortable daytime train.',
+        comfortClass: '3A / 2A / Sleeper',
+        dataSource: TransportConfig.engineName,
+        isEstimate: true,
+        lastUpdated: now,
+        bookingUrl: TransportConfig.trainBookingUrl,
+      ),
+    );
+
+    // 2. Bus
+    final busDuration = (groundKm / TransportConfig.busAvgSpeedKmH * 60).round();
+    final busAdultCost = (TransportConfig.busBaseFare + groundKm * TransportConfig.busPerKmRate).round();
+    int busMinorsCost = (travelers.minors * (busAdultCost * 0.5)).round();
+    final busTotalGroup = (busAdultCost * travelers.adults) + busMinorsCost;
+    final busOvernight = groundKm >= 400 || busDuration >= 420;
+
+    options.add(
+      TransportOptionModel(
+        id: 'bus_${from.name}_${to.name}',
+        mode: 'bus',
+        modeName: 'Inter-City AC Bus',
+        durationMinutes: busDuration,
+        estimatedCostPerPerson: busAdultCost,
+        estimatedTotalCost: busTotalGroup,
+        distanceKm: groundKm,
+        isOvernight: busOvernight,
+        notes: 'AC Semi-Sleeper / Volvo service with highway halts.',
+        comfortClass: 'AC Sleeper / Seater',
+        dataSource: TransportConfig.engineName,
+        isEstimate: true,
+        lastUpdated: now,
+        bookingUrl: TransportConfig.busBookingUrl,
+      ),
+    );
+
+    // 3. Car / Taxi
+    final carDuration = (groundKm / TransportConfig.carAvgSpeedKmH * 60).round();
+    final isSuv = travelers.totalCount > TransportConfig.carSedanCapacity;
+    final carRatePerKm = isSuv ? TransportConfig.carSuvPerKmRate : TransportConfig.carSedanPerKmRate;
+    final tollEstimate = (groundKm * 0.9).round();
+    final carTotalVehicle = (groundKm * carRatePerKm + tollEstimate).round();
+    final carPerPerson = (carTotalVehicle / max(1, travelers.totalCount)).round();
+
+    options.add(
+      TransportOptionModel(
+        id: 'car_${from.name}_${to.name}',
+        mode: 'car',
+        modeName: isSuv ? 'SUV Outstation Cab (6+1)' : 'Sedan Outstation Cab (4+1)',
+        durationMinutes: carDuration,
+        estimatedCostPerPerson: carPerPerson,
+        estimatedTotalCost: carTotalVehicle,
+        distanceKm: groundKm,
+        isOvernight: false,
+        notes: 'Private door-to-door cab with AC & flexible halts.',
+        comfortClass: isSuv ? 'SUV (Innova / Ertiga)' : 'Sedan (Dzire / Etios)',
+        dataSource: TransportConfig.engineName,
+        isEstimate: true,
+        lastUpdated: now,
+        bookingUrl: TransportConfig.cabBookingUrl,
+      ),
+    );
+
+    // 4. Flight (if above threshold and airport cities)
+    if (straightLineKm >= TransportConfig.flightMinDistanceKm &&
+        TransportConfig.hasCommercialAirport(from.name) &&
+        TransportConfig.hasCommercialAirport(to.name)) {
+      final flightAirMinutes = (straightLineKm / TransportConfig.flightAvgSpeedKmH * 60).round();
+      final totalFlightDuration = flightAirMinutes + TransportConfig.flightAirportBufferMinutes;
+      final flightAdultCost = (TransportConfig.flightBaseFare + straightLineKm * TransportConfig.flightPerKmRate).round();
+      int flightMinorsCost = travelers.minors * flightAdultCost;
+      final flightTotalGroup = (flightAdultCost * travelers.adults) + flightMinorsCost;
+
+      options.add(
+        TransportOptionModel(
+          id: 'flight_${from.name}_${to.name}',
+          mode: 'flight',
+          modeName: 'Domestic Flight',
+          durationMinutes: totalFlightDuration,
+          estimatedCostPerPerson: flightAdultCost,
+          estimatedTotalCost: flightTotalGroup,
+          distanceKm: straightLineKm,
+          isOvernight: false,
+          notes: 'Fastest route connecting domestic terminals. Includes 2.5h security & boarding buffer.',
+          comfortClass: 'Economy (Air India / IndiGo / Vistara)',
+          dataSource: TransportConfig.engineName,
+          isEstimate: true,
+          lastUpdated: now,
+          bookingUrl: TransportConfig.flightBookingUrl,
+        ),
+      );
+    }
+
+    _assignRecommendations(options, groundKm, travelers);
+    return options;
+  }
+
   /// Suggests nearby prominent cities to visit based on real geographic distance
   Future<List<NearbyCitySuggestion>> getNearbyCitySuggestions({
     required String baseCity,

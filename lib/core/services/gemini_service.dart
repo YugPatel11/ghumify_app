@@ -203,14 +203,17 @@ class GeminiService {
       onProgress?.call('Planning $currentCity (${i + 1} of ${cities.length})...', progressFraction);
 
       final incomingLeg = (i > 0 && i - 1 < legs.length) ? legs[i - 1] : null;
+      final arrivalDateTime = cityStay.arrivalDate ?? DateTime.now();
+      final departureDateTime = cityStay.departureDate ?? arrivalDateTime.add(Duration(days: stayDays));
+      final arrivalStr = '${arrivalDateTime.year}-${arrivalDateTime.month.toString().padLeft(2, '0')}-${arrivalDateTime.day.toString().padLeft(2, '0')}';
+      final departureStr = '${departureDateTime.year}-${departureDateTime.month.toString().padLeft(2, '0')}-${departureDateTime.day.toString().padLeft(2, '0')}';
 
       try {
         if (stayDays == 1) {
-          final dayDate = cityStay.arrivalDate;
           final dayItinerary = await generateItinerary(
             userId: userId,
             city: currentCity,
-            date: dayDate,
+            date: arrivalStr,
             startTime: incomingLeg != null ? '11:00' : '09:00',
             endTime: '20:00',
             interests: interests,
@@ -224,15 +227,15 @@ class GeminiService {
           allDays.add(dayItinerary.copyWith(
             id: 'multicity_${cityStay.id}_day$runningDayNumber',
             city: currentCity,
-            date: dayDate,
+            date: arrivalStr,
             dayNumber: runningDayNumber++,
           ));
         } else {
           final multiDay = await generateMultiDayItinerary(
             userId: userId,
             city: currentCity,
-            startDate: cityStay.arrivalDate,
-            endDate: cityStay.departureDate,
+            startDate: arrivalStr,
+            endDate: departureStr,
             numberOfDays: stayDays,
             dailyStartTime: '09:00',
             dailyEndTime: '20:00',
@@ -255,7 +258,7 @@ class GeminiService {
       } catch (e) {
         // Fallback for this city if AI fails, ensure trip still succeeds
         for (int d = 0; d < stayDays; d++) {
-          final dayDate = DateTime.tryParse(cityStay.arrivalDate)?.add(Duration(days: d)) ?? DateTime.now();
+          final dayDate = arrivalDateTime.add(Duration(days: d));
           final formattedDate = '${dayDate.year}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
           allDays.add(ItineraryModel(
             id: 'fallback_${DateTime.now().millisecondsSinceEpoch}_day$runningDayNumber',

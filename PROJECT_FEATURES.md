@@ -199,6 +199,7 @@ Beyond planning, Ghumify acts as an all-in-one travel companion providing:
 | `/plan-trip` | `TripInputScreen` | Standalone (Auth required) | 4-step AI trip planning wizard |
 | `/itinerary` | `ItineraryResultScreen` | Standalone (Auth required) | Single-day AI itinerary result & timeline |
 | `/multi-day-itinerary` | `MultiDayResultScreen` | Standalone (Auth required) | Multi-day AI itinerary result & day tabs |
+| `/multi-city-itinerary` | `MultiCityResultScreen` | Standalone (Auth required) | Multi-city AI itinerary with transit legs, route overview, and switcher |
 | `/place/:id` | `PlaceDetailScreen` | Standalone (Auth required) | Detailed place overview, media & AI history |
 | `/saved-itineraries` | `SavedItinerariesScreen` | Standalone (Auth required) | Direct navigation link to saved trips |
 
@@ -232,9 +233,11 @@ graph TD
 
     PlanTrip -->|Single-Day Submit| ItineraryResult["/itinerary (ItineraryResultScreen)"]
     PlanTrip -->|Multi-Day Submit| MultiDayResult["/multi-day-itinerary (MultiDayResultScreen)"]
+    PlanTrip -->|Multi-City Submit| MultiCityResult["/multi-city-itinerary (MultiCityResultScreen)"]
 
     ItineraryResult -->|Open Chat| ChatModal["ItineraryChatSheet (Modal Bottom Sheet)"]
     MultiDayResult -->|Open Chat| ChatModal
+    MultiCityResult -->|Open Chat| ChatModal
     ItineraryResult -->|Place Tap| PlaceDetail
 ```
 
@@ -614,6 +617,7 @@ The application requires the following environment variables (defined in `.env` 
 - Wikimedia Commons dynamic image fetching.
 - Full two-way text translation across 10 Indian languages with Firestore caching.
 - Itinerary saving and user profile synchronization in Cloud Firestore.
+- Multi-city trip generation with inter-city transit planning (Train, Bus, Car/Taxi, Flight), realistic fare engine with adult/minor concessions, nearest-neighbor route optimization ("Best order"), and backward compatibility.
 - Decoupled conversational itinerary chatbot with automated anti-JSON sanitization and local session persistence.
 - Next.js route optimizer backend with distance matrix calculations.
 

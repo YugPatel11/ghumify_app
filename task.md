@@ -218,3 +218,33 @@
   * `flutter analyze` completed with 0 errors.
   * All 108 existing and new feature tests passing.
 
+### TASK-010: Multi-City Trip Feature (Interactive Route Builder, Inter-City Transit, & Route Optimizer)
+* **Status:** Completed
+* **Branch:** `redesign/craft-itinerary`
+* **Description:**
+  Engineered and shipped the end-to-end "Multi-City Trip" feature across the Craft Itinerary wizard, AI generation, and itinerary display. Users can connect 2 to 8 cities in a single journey, configure days per city or auto-distribute, reorder cities with drag handles and accessible up/down buttons, toggle round trips, explore nearby city suggestions based on real coordinates, and optimize route sequencing with "Best order" (with Undo). Inter-city travel legs between consecutive cities display realistic transit options (Train, Bus, Car/Taxi, Domestic Flight) calculated using calibrated Indian tariffs and speeds, with adult and minor fare concessions, transparent "Estimated" tags, and direct official booking links (IRCTC, RedBus, Uber, MakeMyTrip).
+* **Key Improvements:**
+  1. **Route Builder & City Selection (`MultiCityRouteBuilder` & `CityStayModel`):**
+     * Built tactile route builder widget with draggable city cards, stay days steppers, up/down accessibility buttons, between-city transit connectors, and "+" insert buttons.
+     * Enforced strict limits (2 to 8 cities, duplicate prevention, min 1 day per city).
+     * "Suggest nearby cities" chips calculated from real Haversine distance and road winding factors.
+     * "Best order" button using Greedy Nearest-Neighbor heuristic to minimize backtracking, with instant Undo notification.
+  2. **Inter-City Transit & Calibrated Fare Engine (`TransportConfig` & `TransportService`):**
+     * Rule-based estimation engine adhering to real 2026 Indian tariffs: Train ₹1.60/km (3AC benchmark), Bus ₹1.75/km (AC Semi-Sleeper), Sedan Cab ₹14/km, SUV Cab ₹19/km, Flight ₹3.20/km (above 320km threshold and between 35 commercial airport cities).
+     * Transparent data honesty: every option is explicitly tagged `isEstimate: true`, displays data source name and last updated timestamp, with zero hallucinated train/flight numbers or fake operator names.
+     * Adult & minor fare concessions: child 50% train/bus fare, private cab vehicle-based split across travelers.
+     * Deep-link actions launching official booking portals (IRCTC, RedBus, Uber, MakeMyTrip) without false partnership claims.
+  3. **Multi-City Itinerary Generation & Post-Response Validation (`GeminiService`):**
+     * City-by-city parallel/sequential generation with real-time UI progress updates ("Planning Jaipur (1 of 3)...").
+     * Enforces continuous date sequencing, sequential day numbering (1 to N), lighter arrival schedules on travel transition days, and kid-friendly & dietary filter compliance per city.
+  4. **Multi-City Result Screen & UI Updates (`MultiCityResultScreen`):**
+     * Route overview banner with numbered city nodes, total days, total distance, and total travel cost badges.
+     * City switcher tabs to jump between "Entire Route" and individual city itineraries.
+     * Timeline with distinct `TravelLegCard` journey cards separating city sections.
+     * Modal `TransportOptionsSheet` allowing travelers to switch preferred modes per leg and update total travel cost immediately.
+     * Saved itineraries card in `SavedItinerariesScreen` with "MULTI-CITY" badge and route summary, maintaining 100% backward compatibility for single-city trips.
+* **Verification:**
+  * 6 dedicated unit tests passing in `test/multi_city_trip_test.dart`.
+  * All 114 tests passing across the app suite.
+  * Code analysis verified with 0 fatal errors.
+

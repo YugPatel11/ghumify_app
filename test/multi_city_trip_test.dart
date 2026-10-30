@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ghumify_app/core/constants/transport_config.dart';
 import 'package:ghumify_app/core/models/city_stay_model.dart';
 import 'package:ghumify_app/core/models/multi_city_trip_model.dart';
 import 'package:ghumify_app/core/models/transport_option_model.dart';

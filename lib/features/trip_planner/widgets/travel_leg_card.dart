@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
-import '../../../core/constants/transport_config.dart';
 import '../../../core/models/transport_option_model.dart';
 import '../../../core/models/travel_leg_model.dart';
 import '../../../core/models/travelers_model.dart';
