@@ -74,7 +74,7 @@ class PlaceMediaService {
         );
       } else {
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       // Return empty gracefully on network or parsing error
     }
 

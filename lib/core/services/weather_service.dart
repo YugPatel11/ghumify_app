@@ -1,5 +1,3 @@
-import '../constants/api_keys.dart';
-import '../constants/app_constants.dart';
 import '../models/weather_model.dart';
 
 /// Service for fetching weather data from OpenWeatherMap API
