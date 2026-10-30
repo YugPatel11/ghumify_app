@@ -13,7 +13,8 @@ class MainShell extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/discover')) return 1;
     if (location.startsWith('/trips')) return 2;
-    if (location.startsWith('/settings')) return 3;
+    if (location.startsWith('/groups')) return 3;
+    if (location.startsWith('/settings')) return 4;
     return 0;
   }
 
@@ -29,6 +30,9 @@ class MainShell extends StatelessWidget {
         context.go('/trips');
         break;
       case 3:
+        context.go('/groups');
+        break;
+      case 4:
         context.go('/settings');
         break;
     }
@@ -76,11 +80,18 @@ class MainShell extends StatelessWidget {
                   onTap: () => _onItemTapped(context, 2),
                 ),
                 _NavItem(
+                  icon: Icons.groups_outlined,
+                  activeIcon: Icons.groups_rounded,
+                  label: 'Groups',
+                  isSelected: selectedIndex == 3,
+                  onTap: () => _onItemTapped(context, 3),
+                ),
+                _NavItem(
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Profile',
-                  isSelected: selectedIndex == 3,
-                  onTap: () => _onItemTapped(context, 3),
+                  isSelected: selectedIndex == 4,
+                  onTap: () => _onItemTapped(context, 4),
                 ),
               ],
             ),

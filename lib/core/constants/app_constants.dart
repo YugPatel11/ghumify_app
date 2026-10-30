@@ -78,6 +78,8 @@ class AppConstants {
   static const String eventsCollection = 'events';
   static const String translationsCollection = 'translations';
   static const String audioGuidesCollection = 'audioGuides';
+  static const String groupsCollection = 'groups';
+  static const String groupInvitationsCollection = 'group_invitations';
 
   // Weather
   static const String weatherBaseUrl =

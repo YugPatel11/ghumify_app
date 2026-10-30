@@ -5,6 +5,7 @@ import 'app/routes/app_router.dart';
 import 'app/theme/app_theme.dart';
 import 'core/providers/app_settings_provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/group_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -29,6 +30,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AppSettingsProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => GroupProvider()),
       ],
       child: const GhumifyApp(),
     ),
