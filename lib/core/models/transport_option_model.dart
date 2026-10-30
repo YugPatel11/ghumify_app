@@ -65,6 +65,8 @@ class TransportOptionModel {
     }
   }
 
+  IconData get modeIcon => iconData;
+
   TransportOptionModel copyWith({
     String? id,
     String? mode,

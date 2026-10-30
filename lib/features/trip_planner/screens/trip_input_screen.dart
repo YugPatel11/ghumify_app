@@ -18,6 +18,8 @@ import '../widgets/craft_step_indicator.dart';
 import '../widgets/food_preference_selector.dart';
 import '../../../core/models/travelers_model.dart';
 import '../widgets/travelers_selector.dart';
+import '../../../core/models/city_stay_model.dart';
+import '../widgets/multi_city_route_builder.dart';
 
 class TripInputScreen extends StatefulWidget {
   const TripInputScreen({super.key});
@@ -82,6 +84,57 @@ class _TripInputScreenState extends State<TripInputScreen>
   late DateTime _endDate = DateTime.now().add(const Duration(days: 3));
   int get _numberOfDays => _endDate.difference(_startDate).inDays + 1;
   bool get _isMultiDay => _numberOfDays > 1;
+
+  // Multi-City State
+  bool _isMultiCity = false;
+  List<CityStayModel> _multiCities = [];
+  bool _isRoundTrip = false;
+
+  void _enableMultiCityMode() {
+    HapticFeedback.selectionClick();
+    final currentCity = _cityController.text.trim().isNotEmpty
+        ? _cityController.text.trim()
+        : 'Jaipur';
+    _cityController.text = currentCity;
+
+    final stay1 = CityStayModel(
+      id: 'city_0',
+      name: currentCity,
+      state: 'India',
+      country: 'India',
+      latitude: _selectedLatitude ?? 26.9124,
+      longitude: _selectedLongitude ?? 75.7873,
+      stayDays: 2,
+      arrivalDate: _startDate.toString().split(' ').first,
+      departureDate: _startDate.add(const Duration(days: 2)).toString().split(' ').first,
+      heroImage: _heroImage,
+      orderIndex: 0,
+      isStartCity: true,
+    );
+
+    final secondCityName = currentCity.toLowerCase() == 'udaipur' ? 'Jodhpur' : 'Udaipur';
+    final stay2 = CityStayModel(
+      id: 'city_1',
+      name: secondCityName,
+      state: 'Rajasthan',
+      country: 'India',
+      latitude: currentCity.toLowerCase() == 'udaipur' ? 26.2389 : 24.5854,
+      longitude: currentCity.toLowerCase() == 'udaipur' ? 73.0243 : 73.7125,
+      stayDays: 2,
+      arrivalDate: _startDate.add(const Duration(days: 2)).toString().split(' ').first,
+      departureDate: _startDate.add(const Duration(days: 4)).toString().split(' ').first,
+      heroImage: ImageResolver.getHeroImage(secondCityName),
+      orderIndex: 1,
+      isEndCity: true,
+    );
+
+    setState(() {
+      _isMultiCity = true;
+      _multiCities = [stay1, stay2];
+      _endDate = _startDate.add(const Duration(days: 4));
+      _showSuggestions = false;
+    });
+  }
 
   // Autocomplete, Debounce & Hero State
   bool _isDetectingLocation = false;
@@ -328,9 +381,21 @@ class _TripInputScreenState extends State<TripInputScreen>
     HapticFeedback.lightImpact();
     // Validate Step 0 (Destination)
     if (_currentStep == 0) {
-      if (!_formKeyStep1.currentState!.validate()) return;
-      setState(() => _showSuggestions = false);
-      _searchFocusNode.unfocus();
+      if (_isMultiCity) {
+        if (_multiCities.length < 2) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please add at least 2 cities for a multi-city trip.'),
+              backgroundColor: AppColors.brandDeep,
+            ),
+          );
+          return;
+        }
+      } else {
+        if (!_formKeyStep1.currentState!.validate()) return;
+        setState(() => _showSuggestions = false);
+        _searchFocusNode.unfocus();
+      }
     }
 
     // Validate Step 2 (Group & Budget)
@@ -390,7 +455,23 @@ class _TripInputScreenState extends State<TripInputScreen>
 
       final foodPref = context.read<AppSettingsProvider>().foodPreference;
 
-      if (_isMultiDay) {
+      if (_isMultiCity) {
+        final totalDays = _multiCities.fold<int>(0, (s, c) => s + c.stayDays);
+        final data = {
+          'cities': _multiCities.map((c) => c.toMap()).toList(),
+          'isRoundTrip': _isRoundTrip,
+          'startDate': _startDate.toIso8601String(),
+          'endDate': _endDate.toIso8601String(),
+          'totalDays': totalDays,
+          'interests': _selectedInterests.toList(),
+          'travelMode': _travelMode,
+          'pace': _pace,
+          'travelers': _travelersModel.toMap(),
+          'foodPreference': foodPref,
+          'budget': int.tryParse(_budgetController.text),
+        };
+        context.pushReplacement('/multi-city-itinerary', extra: data);
+      } else if (_isMultiDay) {
         final data = {
           'city': cityTrimmed,
           'startTime': startTimeStr,
@@ -613,6 +694,72 @@ class _TripInputScreenState extends State<TripInputScreen>
   // STEP 1: DESTINATION & DATES ("Where & When")
   // ═════════════════════════════════════════════════════════════════════════
   Widget _buildStep1DestinationDates({required Key key}) {
+    if (_isMultiCity) {
+      return SingleChildScrollView(
+        key: key,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.lg,
+          vertical: AppTokens.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Multi-City Route',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Build your route and configure city stays.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSoft),
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _isMultiCity = false);
+                  },
+                  icon: const Icon(Icons.arrow_back, size: 14),
+                  label: const Text(
+                    'Single City',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTokens.md),
+            MultiCityRouteBuilder(
+              cities: _multiCities,
+              onCitiesChanged: (updated) {
+                setState(() {
+                  _multiCities = updated;
+                  final totalDays = _multiCities.fold<int>(0, (s, c) => s + c.stayDays);
+                  _endDate = _startDate.add(Duration(days: totalDays > 0 ? totalDays - 1 : 1));
+                });
+              },
+              isRoundTrip: _isRoundTrip,
+              onRoundTripChanged: (val) {
+                setState(() => _isRoundTrip = val);
+              },
+              startDate: _startDate,
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       key: key,
       padding: const EdgeInsets.symmetric(
@@ -820,6 +967,67 @@ class _TripInputScreenState extends State<TripInputScreen>
                   ),
                 );
               }).toList(),
+            ),
+
+            const SizedBox(height: AppTokens.md),
+
+            // Multi-city banner / button
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppTokens.md),
+              decoration: BoxDecoration(
+                color: AppColors.brandSoft.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                    ),
+                    child: const Icon(Icons.hub_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: AppTokens.md),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Visiting multiple cities?',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        Text(
+                          'Add 2 to 8 cities with inter-city transit.',
+                          style: TextStyle(fontSize: 11, color: AppColors.textSoft),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _enableMultiCityMode,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brandDeep,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+                      ),
+                    ),
+                    child: const Text(
+                      'Add City',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: AppTokens.xl),
@@ -1795,7 +2003,9 @@ class _TripInputScreenState extends State<TripInputScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            cityName,
+                            _isMultiCity
+                                ? _multiCities.map((c) => c.name).join(' → ') + (_isRoundTrip ? ' → ${_multiCities.first.name}' : '')
+                                : cityName,
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
@@ -1804,9 +2014,11 @@ class _TripInputScreenState extends State<TripInputScreen>
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _isMultiDay
-                                ? '$_numberOfDays Days (${_formatDate(_startDate)} - ${_formatDate(_endDate)})'
-                                : '1 Day (${_formatDate(_startDate)})',
+                            _isMultiCity
+                                ? '${_multiCities.fold<int>(0, (s, c) => s + c.stayDays)} Days (${_multiCities.length} Cities) · Transit included'
+                                : (_isMultiDay
+                                    ? '$_numberOfDays Days (${_formatDate(_startDate)} - ${_formatDate(_endDate)})'
+                                    : '1 Day (${_formatDate(_startDate)})'),
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSoft,
