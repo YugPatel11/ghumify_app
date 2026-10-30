@@ -1,13 +1,9 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../constants/api_keys.dart';
 import '../constants/app_constants.dart';
 import '../models/weather_model.dart';
 
 /// Service for fetching weather data from OpenWeatherMap API
 class WeatherService {
-  static String get _baseUrl => AppConstants.weatherBaseUrl;
-  static String get _apiKey => ApiKeys.openWeatherMapApiKey;
 
   /// Get current weather for a city
   Future<WeatherModel> getCurrentWeather(String city) async {

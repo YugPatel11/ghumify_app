@@ -26,7 +26,7 @@ An AI-powered travel companion mobile application designed for exploring Indian 
    ```env
    GEMINI_API_KEY=your_gemini_api_key
    GOOGLE_MAPS_API_KEY=your_google_places_api_key  # Optional: OSM Nominatim and curated catalog work without key
-   OPENWEATHER_API_KEY=your_openweather_api_key
+   OPENWEATHERMAP_API_KEY=your_openweather_api_key
    ```
 3. Run code analysis and tests:
    ```bash

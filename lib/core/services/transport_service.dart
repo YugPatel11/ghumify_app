@@ -1,12 +1,10 @@
 import 'dart:math';
 import '../constants/transport_config.dart';
 import '../models/city_stay_model.dart';
-import '../models/place_suggestion_model.dart';
 import '../models/transport_option_model.dart';
 import '../models/travel_leg_model.dart';
 import '../models/travelers_model.dart';
 import 'location_service.dart';
-import 'places_service.dart';
 
 /// Core transit planning, cost estimation, and route optimization service for multi-city travel.
 class TransportService {

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/place_model.dart';
-import '../models/itinerary_model.dart';
 
 class ApiService {
   // Use 10.0.2.2 for Android emulator to access localhost Next.js backend

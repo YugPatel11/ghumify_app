@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_settings_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 /// A utility to intelligently resolve destination-specific high-quality imagery.
 /// It provides beautiful landmarks or representative images based on the destination name.

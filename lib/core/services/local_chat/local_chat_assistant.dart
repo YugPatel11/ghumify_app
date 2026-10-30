@@ -1,5 +1,4 @@
 import '../../models/chat_message_model.dart';
-import '../../models/itinerary_model.dart';
 import '../translation_service.dart';
 import 'candidate_source.dart';
 import 'intent_parser.dart';

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
@@ -13,7 +12,6 @@ import '../../../core/models/city_stay_model.dart';
 import '../../../core/models/itinerary_model.dart';
 import '../../../core/models/multi_city_trip_model.dart';
 import '../../../core/models/travel_leg_model.dart';
-import '../../../core/models/transport_option_model.dart';
 import '../../../core/models/travelers_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/gemini_service.dart';

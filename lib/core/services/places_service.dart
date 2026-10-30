@@ -15,7 +15,6 @@ class PlacesService {
   static const String _nominatimUrl = 'https://nominatim.openstreetmap.org/search';
   static const String _overpassUrl = 'https://overpass-api.de/api/interpreter';
 
-  final LocationService _locationService = LocationService();
 
   // In-memory query cache for rapid responsive autocomplete
   final Map<String, List<PlaceSuggestion>> _suggestionsCache = {};

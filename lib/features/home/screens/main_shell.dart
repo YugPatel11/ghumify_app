@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_tokens.dart';
 
 /// Main shell with Figma-matching bottom navigation: Home, Explore, Trips, Profile
 class MainShell extends StatelessWidget {

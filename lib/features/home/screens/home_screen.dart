@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -10,7 +9,6 @@ import '../../../core/services/location_service.dart';
 import '../../../core/models/weather_model.dart';
 import '../../../core/widgets/destination_card.dart';
 import '../../../core/widgets/section_header.dart';
-import '../../../core/utils/image_resolver.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/split_expenses_card.dart';
 

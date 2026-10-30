@@ -141,7 +141,6 @@ class _PlaceMediaGalleryState extends State<PlaceMediaGallery> {
                           fit: BoxFit.cover,
                           placeholder: (context, url) => _buildShimmer(height: double.infinity),
                           errorWidget: (context, url, error) {
-                            print('IMAGE LOAD ERROR for $url:\n$error');
                             return Container(
                               color: AppColors.bgElevated,
                               child: const Icon(Icons.broken_image, color: AppColors.textSoft),

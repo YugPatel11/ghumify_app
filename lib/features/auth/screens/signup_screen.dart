@@ -79,7 +79,6 @@ class _SignupScreenState extends State<SignupScreen>
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<AuthProvider>().isLoading;
-    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
