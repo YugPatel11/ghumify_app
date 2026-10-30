@@ -11,17 +11,28 @@ import { Itinerary, ItineraryStop, Category } from '../lib/types';
 import { RADIUS, shadow } from '../lib/theme';
 import GradientView from '../components/GradientView';
 import ChatModal from '../components/ChatModal';
+import NotificationPreferencesModal from '../components/NotificationPreferencesModal';
+import NotificationInboxModal from '../components/NotificationInboxModal';
+import SosButton from '../components/SosButton';
+import { NotificationClient, AlertItem, TravelEstimateItem } from '../lib/notifications';
 
 interface Props {
   route: any;
   navigation: any;
 }
 
+const BACKEND_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+
 export default function PlanResultScreen({ route, navigation }: Props) {
   const { theme, t: tr } = useApp();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [isKnownCity, setIsKnownCity] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
+  const [prefModalOpen, setPrefModalOpen] = useState(false);
+  const [inboxModalOpen, setInboxModalOpen] = useState(false);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [estimates, setEstimates] = useState<TravelEstimateItem[]>([]);
+  const [activeBanner, setActiveBanner] = useState<{ title: string; body: string; stopId?: string } | null>(null);
   const params = route.params || {};
 
   useEffect(() => {
@@ -39,7 +50,62 @@ export default function PlanResultScreen({ route, navigation }: Props) {
       result.places,
     );
     setItinerary(it);
+
+    // Sync trip to server and register local backup alarms
+    const tripId = `trip_${result.city.id}_${Date.now()}`;
+    syncTripToServer(tripId, it);
   }, [params.cityName]);
+
+  const syncTripToServer = async (tripId: string, it: Itinerary) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const stopsPayload = it.stops.map((s, idx) => ({
+        id: s.id,
+        title: s.title,
+        subtitle: s.subtitle,
+        stopOrder: idx + 1,
+        stopType: s.type,
+        plannedArrivalAt: `${today}T${s.startTime}:00Z`,
+        plannedDepartureAt: `${today}T${s.endTime}:00Z`,
+        stayDurationMinutes: s.durationMin,
+        transportMode: 'driving',
+        lat: 26.9124, // fallback city coordinates
+        lng: 75.7873,
+      }));
+
+      await fetch(`${BACKEND_URL}/api/v1/trips/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: tripId,
+          userId: 'user_demo',
+          title: `${it.cityName} Day Trip`,
+          cityId: it.cityId,
+          cityName: it.cityName,
+          stops: stopsPayload,
+        }),
+      });
+
+      // Fetch scheduled alerts and travel estimates
+      const alertRes = await fetch(`${BACKEND_URL}/api/v1/trips/${tripId}/alerts`);
+      if (alertRes.ok) {
+        const data = await alertRes.json();
+        setAlerts(data.alerts || []);
+        setEstimates(data.travelEstimates || []);
+
+        // Schedule local backup alarms (Layer 2)
+        NotificationClient.scheduleLocalBackupAlerts(tripId, data.alerts || [], (triggered) => {
+          setActiveBanner({
+            title: triggered.type === 'leave_now' ? 'Time to Leave!' : 'Time to Head Out!',
+            body: `Alert for ${triggered.stopTitle}`,
+            stopId: triggered.stopId,
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Trip alert sync failed:', e);
+    }
+  };
 
   if (!itinerary) {
     return (
@@ -62,9 +128,34 @@ export default function PlanResultScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </Pressable>
-        <Pressable onPress={() => setChatOpen(true)} style={{ width: 40, alignItems: 'center' }} accessibilityLabel="Ask Ghumify AI">
-          <Ionicons name="sparkles" size={22} color={theme.brand} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setInboxModalOpen(true)}
+            style={styles.headerBtn}
+            accessibilityLabel="Trip Alerts Inbox"
+          >
+            <Ionicons name="notifications-outline" size={21} color={theme.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => setPrefModalOpen(true)}
+            style={styles.headerBtn}
+            accessibilityLabel="Notification Settings"
+          >
+            <Ionicons name="options-outline" size={21} color={theme.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => setChatOpen(true)}
+            style={styles.headerBtn}
+            accessibilityLabel="Ask Ghumify AI"
+          >
+            <Ionicons name="sparkles" size={21} color={theme.brand} />
+          </Pressable>
+          <SosButton
+            size="compact"
+            tripId={itinerary.cityId}
+            currentStopName={itinerary.stops[0]?.title}
+          />
+        </View>
       </View>
 
       <ChatModal
@@ -72,6 +163,48 @@ export default function PlanResultScreen({ route, navigation }: Props) {
         onClose={() => setChatOpen(false)}
         context={{ cityName: itinerary.cityName, hours: params.hours }}
       />
+
+      <NotificationPreferencesModal
+        visible={prefModalOpen}
+        onClose={() => setPrefModalOpen(false)}
+      />
+
+      <NotificationInboxModal
+        visible={inboxModalOpen}
+        onClose={() => setInboxModalOpen(false)}
+        onNavigateToStop={(stopId) => {
+          // Open place or focus stop
+        }}
+      />
+
+      {/* Foreground Alert Banner */}
+      {activeBanner && (
+        <View style={[styles.activeBanner, { backgroundColor: theme.brand, borderColor: theme.border }]}>
+          <View style={styles.activeBannerTextCol}>
+            <Text style={styles.activeBannerTitle}>{activeBanner.title}</Text>
+            <Text style={styles.activeBannerBody}>{activeBanner.body}</Text>
+          </View>
+          <View style={styles.activeBannerActions}>
+            <Pressable
+              onPress={() => {
+                if (activeBanner.stopId) {
+                  NotificationClient.handleDeparted('current_trip', activeBanner.stopId);
+                }
+                setActiveBanner(null);
+              }}
+              style={styles.bannerActionBtn}
+            >
+              <Text style={styles.bannerActionText}>I'm leaving</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setActiveBanner(null)}
+              style={[styles.bannerActionBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            >
+              <Text style={styles.bannerActionText}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Summary header */}
@@ -192,6 +325,14 @@ function TimelineStop({ stop, theme, index, onPress, tr }: any) {
         <View style={[styles.stopLine, { backgroundColor: theme.border }]} />
       </View>
       <View style={styles.stopContent}>
+        {isTravel ? (
+          <View style={[styles.travelBadge, { backgroundColor: theme.brandSoft, borderColor: theme.brand }]}>
+            <Ionicons name="navigate-circle" size={16} color={theme.brand} />
+            <Text style={[styles.travelBadgeText, { color: theme.brand }]}>
+              Leave at {fmt(stop.startTime)} · {stop.durationMin} min travel · Arrive {fmt(stop.endTime)}
+            </Text>
+          </View>
+        ) : null}
         <Text style={[styles.stopTitle, { color: isTravel ? theme.textMuted : theme.text }]}>{stop.title}</Text>
         <Text style={[styles.stopSub, { color: theme.textMuted }]}>{stop.subtitle}</Text>
         {stop.note ? (
@@ -199,7 +340,22 @@ function TimelineStop({ stop, theme, index, onPress, tr }: any) {
         ) : null}
         {pressable ? (
           <View style={styles.stopFooter}>
-            <Text style={[styles.stopDetail, { color: theme.accent }]}>{tr('viewDetails')} →</Text>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              <Pressable
+                onPress={() => NotificationClient.handleDeparted('current_trip', stop.id)}
+                style={[styles.miniActionBtn, { backgroundColor: theme.accentSoft }]}
+              >
+                <Ionicons name="exit-outline" size={13} color={theme.accent} />
+                <Text style={[styles.miniActionText, { color: theme.accent }]}>I'm leaving</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => NotificationClient.openNavigation(26.9124, 75.7873, stop.title)}
+                style={[styles.miniActionBtn, { backgroundColor: theme.brandSoft }]}
+              >
+                <Ionicons name="navigate-outline" size={13} color={theme.brand} />
+                <Text style={[styles.miniActionText, { color: theme.brand }]}>Navigate</Text>
+              </Pressable>
+            </View>
             <Text style={[styles.stopDur, { color: theme.textMuted }]}>{stop.startTime}–{stop.endTime}</Text>
           </View>
         ) : (
@@ -240,7 +396,16 @@ function stopIcon(stop: ItineraryStop): string {
 const styles = StyleSheet.create({
   headerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1 },
   backBtn: { width: 40, alignItems: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' },
+  activeBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, marginHorizontal: 16, marginTop: 10, borderRadius: RADIUS.md, borderWidth: 1 },
+  activeBannerTextCol: { flex: 1, paddingRight: 8 },
+  activeBannerTitle: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  activeBannerBody: { color: 'rgba(255,255,255,0.9)', fontSize: 12, marginTop: 2 },
+  activeBannerActions: { flexDirection: 'row', gap: 6 },
+  bannerActionBtn: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill },
+  bannerActionText: { fontSize: 11.5, fontWeight: 'bold', color: '#1e1b4b' },
   summaryHeader: { paddingHorizontal: 24, paddingVertical: 26, marginHorizontal: 16, marginTop: 10, borderRadius: RADIUS.xl, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
   summaryCity: { color: '#fff', fontSize: 26, fontWeight: '900' },
   summaryDate: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 18 },
@@ -260,10 +425,14 @@ const styles = StyleSheet.create({
   stopIconBubble: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   stopLine: { width: 2, flex: 1, minHeight: 16 },
   stopContent: { flex: 1, paddingVertical: 2 },
+  travelBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill, marginBottom: 8, alignSelf: 'flex-start', borderWidth: 1 },
+  travelBadgeText: { fontSize: 11.5, fontWeight: '700' },
   stopTitle: { fontSize: 15.5, fontWeight: '800', marginBottom: 3 },
   stopSub: { fontSize: 12.5, fontWeight: '600', marginBottom: 4 },
   stopNote: { fontSize: 12.5, lineHeight: 18, marginBottom: 6 },
-  stopFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+  stopFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  miniActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.pill },
+  miniActionText: { fontSize: 11, fontWeight: '700' },
   stopDetail: { fontSize: 12.5, fontWeight: '800' },
   stopDur: { fontSize: 11.5, fontWeight: '600' },
   stopDur2: { fontSize: 11.5, fontWeight: '600', marginTop: 4 },
@@ -278,3 +447,4 @@ const styles = StyleSheet.create({
   transportName: { fontSize: 14, fontWeight: '800' },
   transportEta: { fontSize: 11.5, fontWeight: '600' },
 });
+

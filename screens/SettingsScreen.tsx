@@ -15,6 +15,7 @@ import { LANGUAGES } from '../lib/i18n';
 import { LangCode } from '../lib/types';
 import { RADIUS, SPACING, shadow } from '../lib/theme';
 import GradientView from '../components/GradientView';
+import EmergencyContactsModal from '../components/EmergencyContactsModal';
 
 interface Props {
   navigation: any;
@@ -24,6 +25,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const { theme, lang, setLanguage, t: tr, syncing, syncError, isRtlMode } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [sosModalOpen, setSosModalOpen] = useState(false);
 
   const current = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
 
@@ -106,6 +108,36 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={[styles.alertText, { color: '#f59e0b' }]}>{syncError}</Text>
           </View>
         )}
+
+        {/* SOS & Emergency Contacts Section */}
+        <Pressable
+          onPress={() => setSosModalOpen(true)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1, marginBottom: SPACING.lg })}
+          accessibilityRole="button"
+          accessibilityLabel="Emergency Contacts and SOS Settings"
+        >
+          <View
+            style={[
+              styles.sosCard,
+              { backgroundColor: theme.card, borderColor: '#ef444450' },
+              isRtlMode && styles.rtlRow,
+              shadow(theme, 2),
+            ]}
+          >
+            <View style={styles.sosCardIconWrap}>
+              <Ionicons name="shield-checkmark" size={24} color="#ef4444" />
+            </View>
+            <View style={[{ flex: 1 }, isRtlMode && { alignItems: 'flex-end' }]}>
+              <Text style={[styles.sosCardTitle, { color: theme.text }, isRtlMode && styles.rtlText]}>
+                {tr('sos.emergencyContacts') || 'Emergency Contacts & SOS'}
+              </Text>
+              <Text style={[styles.sosCardSub, { color: theme.textMuted }, isRtlMode && styles.rtlText]}>
+                {tr('sos.manageDesc') || 'Manage trusted contacts, live alerts & medical profile'}
+              </Text>
+            </View>
+            <Ionicons name={isRtlMode ? 'chevron-back' : 'chevron-forward'} size={20} color={theme.textMuted} />
+          </View>
+        </Pressable>
 
         {/* Default Language Section */}
         <View style={styles.langSection}>
@@ -210,6 +242,12 @@ export default function SettingsScreen({ navigation }: Props) {
           {tr('settings.version') || 'Ghumify v1.0 · Made in India 🇮🇳'}
         </Text>
       </ScrollView>
+
+      {/* Emergency Contacts & SOS Settings Modal */}
+      <EmergencyContactsModal
+        visible={sosModalOpen}
+        onClose={() => setSosModalOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -385,6 +423,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     marginTop: 8,
+  },
+  sosCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  sosCardIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ef444415',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sosCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sosCardSub: {
+    fontSize: 12,
+    marginTop: 2,
   },
   rtlRow: {
     flexDirection: 'row-reverse',

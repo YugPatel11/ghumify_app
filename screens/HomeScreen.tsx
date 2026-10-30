@@ -10,6 +10,7 @@ import { RADIUS, SPACING, PALETTE } from '../lib/theme';
 import GradientView from '../components/GradientView';
 import MicButton from '../components/MicButton';
 import ChatModal from '../components/ChatModal';
+import SosButton from '../components/SosButton';
 import { useSpeechToText } from '../lib/useSpeechToText';
 
 const EXAMPLES = [
@@ -168,6 +169,7 @@ export default function HomeScreen({ navigation }: Props) {
                   <Text style={styles.brandName}>Ghumify</Text>
                   <Text style={styles.brandTag}>{tr('tagline')}</Text>
                 </View>
+                <SosButton size="compact" />
               </View>
               <Text style={styles.heroPrompt}>
                 {tr('home.heroPrompt') || 'Tell us where you want to go and how much time you have. We will craft the perfect plan.'}
