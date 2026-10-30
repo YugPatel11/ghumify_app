@@ -46,7 +46,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-.env 
+.env
+.env*.local
+node_modules/
+analyze_output.txt
+test_service.dart
 architecture.md
 tech_stack_details.md
 
