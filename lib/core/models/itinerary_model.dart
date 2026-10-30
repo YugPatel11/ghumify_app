@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'nearby_service_model.dart';
+import 'travelers_model.dart';
 
 /// Represents a single stop in the itinerary
 class ItineraryStop {
@@ -18,6 +19,10 @@ class ItineraryStop {
   final List<String> tips; // e.g. "Don't miss the Maha Aarti at 7 PM"
   final int? estimatedCost; // newly added
   final String? dietaryType; // "veg", "veg_egg", "jain", "non_veg"
+  final bool isKidFriendly;
+  final String? ageRangeRecommendation; // e.g. "All ages", "Ages 3+", "Toddlers"
+  final String? strollerAccess; // "yes", "no", "partial"
+  final String? childTicketInfo; // e.g. "Free under 5", "Please check on arrival"
 
   ItineraryStop({
     required this.name,
@@ -35,6 +40,10 @@ class ItineraryStop {
     this.tips = const [],
     this.estimatedCost,
     this.dietaryType,
+    this.isKidFriendly = false,
+    this.ageRangeRecommendation,
+    this.strollerAccess,
+    this.childTicketInfo,
   });
 
   factory ItineraryStop.fromMap(Map<String, dynamic> data) {
@@ -54,6 +63,10 @@ class ItineraryStop {
       tips: List<String>.from(data['tips'] ?? []),
       estimatedCost: data['estimatedCost'],
       dietaryType: data['dietaryType'],
+      isKidFriendly: data['isKidFriendly'] == true,
+      ageRangeRecommendation: data['ageRangeRecommendation'],
+      strollerAccess: data['strollerAccess'],
+      childTicketInfo: data['childTicketInfo'],
     );
   }
 
@@ -74,6 +87,10 @@ class ItineraryStop {
       'tips': tips,
       'estimatedCost': estimatedCost,
       'dietaryType': dietaryType,
+      'isKidFriendly': isKidFriendly,
+      'ageRangeRecommendation': ageRangeRecommendation,
+      'strollerAccess': strollerAccess,
+      'childTicketInfo': childTicketInfo,
     };
   }
 
@@ -93,6 +110,10 @@ class ItineraryStop {
     List<String>? tips,
     int? estimatedCost,
     String? dietaryType,
+    bool? isKidFriendly,
+    String? ageRangeRecommendation,
+    String? strollerAccess,
+    String? childTicketInfo,
   }) {
     return ItineraryStop(
       name: name ?? this.name,
@@ -110,6 +131,10 @@ class ItineraryStop {
       tips: tips ?? this.tips,
       estimatedCost: estimatedCost ?? this.estimatedCost,
       dietaryType: dietaryType ?? this.dietaryType,
+      isKidFriendly: isKidFriendly ?? this.isKidFriendly,
+      ageRangeRecommendation: ageRangeRecommendation ?? this.ageRangeRecommendation,
+      strollerAccess: strollerAccess ?? this.strollerAccess,
+      childTicketInfo: childTicketInfo ?? this.childTicketInfo,
     );
   }
 }
@@ -136,7 +161,7 @@ class ItineraryModel {
   final List<NearbyServiceModel> nearbySafetyServices;
   final DateTime createdAt;
   
-  // New Age & Budget fields
+  // Age & Budget fields
   final int? age;
   final int? travelers;
   final int? budget;
@@ -144,6 +169,12 @@ class ItineraryModel {
   final int? estimatedTotalCost;
   final int? remainingBudget;
   final Map<String, dynamic>? expenseSummary;
+
+  // Travelers Feature fields (clean, DPDP privacy compliant)
+  final int adultsCount;
+  final int minorsCount;
+  final List<String> minorAgeBands;
+  final String? travelersSummary;
 
   ItineraryModel({
     required this.id,
@@ -172,12 +203,41 @@ class ItineraryModel {
     this.estimatedTotalCost,
     this.remainingBudget,
     this.expenseSummary,
+    this.adultsCount = 1,
+    this.minorsCount = 0,
+    this.minorAgeBands = const [],
+    this.travelersSummary,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  TravelersModel get travelersModel => TravelersModel(
+        adults: adultsCount,
+        minors: minorsCount,
+        minorAgeBands: minorAgeBands,
+      );
+
+  bool get isFamilyFriendly => minorsCount > 0;
+
+  String get displayTravelersSummary =>
+      travelersSummary ?? travelersModel.summary;
 
   factory ItineraryModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return ItineraryModel.fromMap(data, docId: doc.id);
+  }
+
+  factory ItineraryModel.fromMap(Map<String, dynamic> data, {String docId = ''}) {
+    final parsedTravelers = (data['travelers'] as num?)?.toInt();
+    final parsedAdults = (data['adultsCount'] as num?)?.toInt() ??
+        (data['adults'] as num?)?.toInt() ??
+        parsedTravelers ??
+        1;
+    final parsedMinors = (data['minorsCount'] as num?)?.toInt() ??
+        (data['minors'] as num?)?.toInt() ??
+        0;
+    final parsedBands = List<String>.from(data['minorAgeBands'] ?? []);
+
     return ItineraryModel(
-      id: doc.id,
+      id: docId.isNotEmpty ? docId : (data['id'] ?? ''),
       userId: data['userId'] ?? '',
       city: data['city'] ?? '',
       date: data['date'] ?? '',
@@ -199,14 +259,24 @@ class ItineraryModel {
       nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
           .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
           .toList(),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['createdAt'] != null
+              ? DateTime.tryParse(data['createdAt'].toString()) ?? DateTime.now()
+              : DateTime.now()),
       age: data['age'],
-      travelers: data['travelers'],
-      budget: data['budget'],
+      travelers: parsedTravelers ?? (parsedAdults + parsedMinors),
+      budget: data['budget'] is int
+          ? data['budget']
+          : int.tryParse(data['budget']?.toString() ?? ''),
       currency: data['currency'] ?? 'INR',
       estimatedTotalCost: data['estimatedTotalCost'],
       remainingBudget: data['remainingBudget'],
       expenseSummary: data['expenseSummary'] as Map<String, dynamic>?,
+      adultsCount: parsedAdults,
+      minorsCount: parsedMinors,
+      minorAgeBands: parsedBands,
+      travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
     );
   }
 
@@ -232,12 +302,17 @@ class ItineraryModel {
       'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'age': age,
-      'travelers': travelers,
+      'travelers': travelers ?? (adultsCount + minorsCount),
       'budget': budget,
       'currency': currency,
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'expenseSummary': expenseSummary,
+      'adultsCount': adultsCount,
+      'minorsCount': minorsCount,
+      'minorAgeBands': minorAgeBands,
+      'travelersSummary': displayTravelersSummary,
+      'isFamilyFriendly': isFamilyFriendly,
     };
   }
 
@@ -262,16 +337,24 @@ class ItineraryModel {
       'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
       'age': age,
-      'travelers': travelers,
+      'travelers': travelers ?? (adultsCount + minorsCount),
       'budget': budget,
       'currency': currency,
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'expenseSummary': expenseSummary,
+      'adultsCount': adultsCount,
+      'minorsCount': minorsCount,
+      'minorAgeBands': minorAgeBands,
+      'travelersSummary': displayTravelersSummary,
+      'isFamilyFriendly': isFamilyFriendly,
     };
   }
 
   ItineraryModel copyWith({
+    String? id,
+    String? city,
+    String? date,
     List<ItineraryStop>? stops,
     String? weatherSummary,
     List<String>? whatToCarry,
@@ -283,12 +366,16 @@ class ItineraryModel {
     int? estimatedTotalCost,
     int? remainingBudget,
     Map<String, dynamic>? expenseSummary,
+    int? adultsCount,
+    int? minorsCount,
+    List<String>? minorAgeBands,
+    String? travelersSummary,
   }) {
     return ItineraryModel(
-      id: id,
+      id: id ?? this.id,
       userId: userId,
-      city: city,
-      date: date,
+      city: city ?? this.city,
+      date: date ?? this.date,
       startTime: startTime,
       endTime: endTime,
       totalDurationMinutes: totalDurationMinutes,
@@ -311,6 +398,10 @@ class ItineraryModel {
       estimatedTotalCost: estimatedTotalCost ?? this.estimatedTotalCost,
       remainingBudget: remainingBudget ?? this.remainingBudget,
       expenseSummary: expenseSummary ?? this.expenseSummary,
+      adultsCount: adultsCount ?? this.adultsCount,
+      minorsCount: minorsCount ?? this.minorsCount,
+      minorAgeBands: minorAgeBands ?? this.minorAgeBands,
+      travelersSummary: travelersSummary ?? this.travelersSummary,
     );
   }
 }

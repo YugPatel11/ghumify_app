@@ -191,6 +191,29 @@ class SavedItinerariesScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                itinerary.isFamilyFriendly ? Icons.family_restroom : Icons.people_outline,
+                                size: 13,
+                                color: itinerary.isFamilyFriendly ? AppColors.badgeNature : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  itinerary.displayTravelersSummary,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: itinerary.isFamilyFriendly ? AppColors.badgeNature : AppColors.textMuted,
+                                    fontSize: 12,
+                                    fontWeight: itinerary.isFamilyFriendly ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),

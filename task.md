@@ -184,3 +184,37 @@
   * 13 unit tests passing in `test/nearby_safety_test.dart`.
   * All 62 project feature tests passing.
   * `flutter analyze` passing with 0 errors and 0 warnings.
+
+### TASK-009: Travelers Feature (Adults, Children, Age Bands & Family-Friendly Itineraries)
+* **Status:** Completed
+* **Branch:** `redesign/craft-itinerary`
+* **Description:**
+  Engineered and shipped the end-to-end "Travelers" feature across the Craft Itinerary flow, single-day and multi-day itinerary generation, saved itineraries, and group trips. Enables users to specify Adults (18+, min 1, max 20) and Minors/Children (under 18, min 0, max 20) with tactile stepper controls and direct numeric input. When minors are present, users can customize age bands (Infant/Toddler 0–2, Young Child 3–5, Child 6–12, Teen 13–17) or skip to a safe default mix (6–12). Gemini AI prompts adapt pacing, dining, and venue selections (playgrounds, science museums, zoos, parks, no nightlife/bars). Post-response validation deterministically sanitizes any unsuitable places, enforces pace limits, and adds kid-friendly and stroller access tags.
+* **Key Improvements:**
+  1. **Tactile Travelers Input Component (`TravelersSelector` & `TravelersModel`):**
+     * Built dedicated `TravelersSelector` widget in Step 3 ("Group & Budget") of `TripInputScreen`.
+     * Tactile +/- steppers with >=44px touch targets, dynamic icon badges, and direct numeric input dialog on value tap.
+     * Enforced strict bounds (1–20 adults, 0–20 minors, no negatives or decimals) with friendly limit notifications.
+     * Solo trip auto-simplification: selects 1 adult, 0 minors.
+     * Collapsible "Age of Children" chips with skippable fallback banner ("If skipped, we plan for a general mix of children ages 6–12").
+     * Real-time dynamic summary line (e.g., "2 Adults, 2 Children (Ages 3–5 yrs, 6–12 yrs)").
+     * Strict privacy compliance with India's DPDP Act: stores counts and age bands only; never requests or stores names, birth dates, or photos of children.
+  2. **Backward-Compatible Data Persistence:**
+     * `TravelersModel`: Clean immutable model with serialization to/from Map and Firestore.
+     * `ItineraryModel` & `MultiDayItineraryModel`: Added `adultsCount`, `minorsCount`, `minorAgeBands`, `travelersSummary`, `isFamilyFriendly`, and `displayTravelersSummary`.
+     * Full backward compatibility: legacy itineraries without travelers fields gracefully default to scalar `travelers` count (or 1 adult, 0 minors) without null reference crashes.
+     * `ItineraryStop`: Added `isKidFriendly`, `ageRangeRecommendation`, `strollerAccess`, and `childTicketInfo` fields with safe fallbacks ("Please check on arrival" instead of guessing fake prices or limits).
+  3. **AI Generation Directives & Deterministic Post-Response Filter (`FamilyTravelService`):**
+     * Injected strict prompt directives into `GeminiService._buildItineraryPrompt` and `_buildMultiDayPrompt`.
+     * Adult-only trips (minors = 0) retain existing behavior with zero regressions.
+     * Family trips strictly ban nightclubs, bars, pubs, breweries, lounges, and dangerous cliffs, prioritizing parks, zoos, science centres, and early completion (by 8:30 PM).
+     * Post-response validation (`validateAndEnrichStops`): automatically replaces forbidden nightlife stops with wholesome cultural gardens, enforces max stops per day (4 for toddlers/infants, 5 for older kids), and tags stroller and ticket information.
+  4. **Visual Family Styling Across Screens:**
+     * `ItineraryResultScreen` & `MultiDayResultScreen`: "Family-friendly" green header banner, composition pill ("2 Adults, 2 Children"), and stop card chips for "Kid-Friendly", recommended age, stroller access, and child tickets.
+     * `SavedItinerariesScreen`: Added traveler composition row with family restroom icon and green badge for family trips.
+     * `GroupItineraryTab`: Displays shared group traveler composition banner; permissions enforced so only group admins can modify shared group plans.
+* **Verification:**
+  * 17 unit tests passing in `test/travelers_feature_test.dart`.
+  * `flutter analyze` completed with 0 errors.
+  * All 108 existing and new feature tests passing.
+

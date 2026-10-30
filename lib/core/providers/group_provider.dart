@@ -7,6 +7,7 @@ import '../models/group_message_model.dart';
 import '../models/group_invitation_model.dart';
 import '../models/group_location_model.dart';
 import '../models/group_activity_model.dart';
+import '../models/personal_itinerary_model.dart';
 import '../services/group_service.dart';
 import '../services/location_service.dart';
 
@@ -21,6 +22,9 @@ class GroupProvider extends ChangeNotifier {
   List<GroupMemberModel> _currentMembers = [];
   List<GroupMessageModel> _currentMessages = [];
   Map<String, dynamic>? _currentItinerary;
+  PersonalItineraryModel? _personalItinerary;
+  List<PersonalItineraryModel> _allPersonalItineraries = [];
+  String _itineraryMode = 'group'; // "group" (Whole Group) | "personal" (Only Me)
   List<GroupLocationModel> _liveLocations = [];
   List<GroupActivityModel> _activityLogs = [];
   bool _isSharingLiveLocation = false;
@@ -35,6 +39,8 @@ class GroupProvider extends ChangeNotifier {
   StreamSubscription? _membersSub;
   StreamSubscription? _messagesSub;
   StreamSubscription? _itinerarySub;
+  StreamSubscription? _personalItinerarySub;
+  StreamSubscription? _allPersonalItinerariesSub;
   StreamSubscription? _liveLocationsSub;
   StreamSubscription? _activityLogsSub;
 
@@ -45,6 +51,10 @@ class GroupProvider extends ChangeNotifier {
   List<GroupMemberModel> get currentMembers => _currentMembers;
   List<GroupMessageModel> get currentMessages => _currentMessages;
   Map<String, dynamic>? get currentItinerary => _currentItinerary;
+  PersonalItineraryModel? get personalItinerary => _personalItinerary;
+  List<PersonalItineraryModel> get allPersonalItineraries => _allPersonalItineraries;
+  String get itineraryMode => _itineraryMode;
+  bool get isPersonalMode => _itineraryMode == 'personal';
   List<GroupLocationModel> get liveLocations => _liveLocations;
   List<GroupActivityModel> get activityLogs => _activityLogs;
   bool get isSharingLiveLocation => _isSharingLiveLocation;
@@ -88,14 +98,26 @@ class GroupProvider extends ChangeNotifier {
     _groupService.resolveInvitationsForCurrentUser();
   }
 
+  /// Switch between "group" (Whole Group) and "personal" (Only Me) modes
+  void setItineraryMode(String mode) {
+    if (_itineraryMode != mode) {
+      _itineraryMode = mode;
+      notifyListeners();
+    }
+  }
+
   /// Open a specific group — starts streaming its data
   void openGroup(String groupId) {
     _currentGroupSub?.cancel();
     _membersSub?.cancel();
     _messagesSub?.cancel();
     _itinerarySub?.cancel();
+    _personalItinerarySub?.cancel();
+    _allPersonalItinerariesSub?.cancel();
     _liveLocationsSub?.cancel();
     _activityLogsSub?.cancel();
+
+    final myUid = _getUserId();
 
     _currentGroupSub = _groupService.streamGroup(groupId).listen(
       (group) {
@@ -125,10 +147,25 @@ class GroupProvider extends ChangeNotifier {
       },
     );
 
+    if (myUid.isNotEmpty) {
+      _personalItinerarySub = _groupService
+          .streamPersonalItinerary(groupId, myUid)
+          .listen((personal) {
+        _personalItinerary = personal;
+        notifyListeners();
+      });
+    }
+
+    _allPersonalItinerariesSub = _groupService
+        .streamAllPersonalItineraries(groupId)
+        .listen((allPersonal) {
+      _allPersonalItineraries = allPersonal;
+      notifyListeners();
+    });
+
     _liveLocationsSub = _groupService.streamLiveLocations(groupId).listen(
       (locations) {
         _liveLocations = locations;
-        final myUid = _getUserId();
         _isSharingLiveLocation = locations.any((l) => l.userId == myUid && l.isLive);
         notifyListeners();
       },
@@ -151,6 +188,8 @@ class GroupProvider extends ChangeNotifier {
     _membersSub?.cancel();
     _messagesSub?.cancel();
     _itinerarySub?.cancel();
+    _personalItinerarySub?.cancel();
+    _allPersonalItinerariesSub?.cancel();
     _liveLocationsSub?.cancel();
     _activityLogsSub?.cancel();
     _liveLocationTimer?.cancel();
@@ -159,6 +198,9 @@ class GroupProvider extends ChangeNotifier {
     _currentMembers = [];
     _currentMessages = [];
     _currentItinerary = null;
+    _personalItinerary = null;
+    _allPersonalItineraries = [];
+    _itineraryMode = 'group';
     _liveLocations = [];
     _activityLogs = [];
     _isSharingLiveLocation = false;
@@ -380,6 +422,56 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
+  /// Save personal itinerary with meeting points
+  Future<void> savePersonalItinerary({
+    required String groupId,
+    required PersonalItineraryModel personalItinerary,
+    String? actionDescription,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _groupService.savePersonalItinerary(
+        groupId: groupId,
+        personalItinerary: personalItinerary,
+        customActionDescription: actionDescription,
+      );
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Reset personal itinerary to follow shared group plan
+  Future<void> resetPersonalItinerary({
+    required String groupId,
+    required String userId,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _groupService.resetPersonalItinerary(
+        groupId: groupId,
+        userId: userId,
+      );
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   // ── Location Sharing ──
 
   Future<void> shareCurrentLocationPin(String groupId) async {
@@ -461,6 +553,8 @@ class GroupProvider extends ChangeNotifier {
     _membersSub?.cancel();
     _messagesSub?.cancel();
     _itinerarySub?.cancel();
+    _personalItinerarySub?.cancel();
+    _allPersonalItinerariesSub?.cancel();
     _liveLocationsSub?.cancel();
     _activityLogsSub?.cancel();
     _liveLocationTimer?.cancel();

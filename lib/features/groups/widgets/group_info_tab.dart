@@ -419,29 +419,38 @@ class _PolicySection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Itinerary Edit Policy',
+                'Shared Itinerary Edit Policy',
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textSoft,
                 ),
               ),
-              const SizedBox(height: AppTokens.sm),
+              const SizedBox(height: 4),
+              Text(
+                'Controls who can modify the shared plan in "Whole Group" mode. All group members can always customize their personal plan in "Only Me" mode with required meeting points.',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: AppColors.textMuted,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: AppTokens.md),
               _PolicyOption(
                 label: 'Admins Only',
-                subtitle: 'Only admins can edit the itinerary',
+                subtitle: 'Only admins can edit in "Whole Group" mode. Other members use "Only Me".',
                 isSelected: currentPolicy == 'admins_only',
                 onTap: () => provider.updateEditPolicy(groupId, 'admins_only'),
               ),
               _PolicyOption(
                 label: 'All Members',
-                subtitle: 'Everyone can edit the itinerary',
+                subtitle: 'Everyone in the group can edit in "Whole Group" or "Only Me" mode.',
                 isSelected: currentPolicy == 'all_members',
                 onTap: () => provider.updateEditPolicy(groupId, 'all_members'),
               ),
               _PolicyOption(
                 label: 'Selected Members',
-                subtitle: 'Choose specific members',
+                subtitle: 'Designated members can edit in "Whole Group" mode. All members can use "Only Me".',
                 isSelected: currentPolicy == 'selected_members',
                 onTap: () => provider.updateEditPolicy(groupId, 'selected_members'),
               ),

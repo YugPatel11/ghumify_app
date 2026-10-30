@@ -9,7 +9,8 @@ An AI-powered travel companion mobile application designed for exploring Indian 
 - **Local Language Support:** Translation across 10 major Indian languages with Firestore caching.
 - **Full-Bleed Visual Splash Screen:** Immersive "splash page" visual with edge-matched native background and smooth fade-out transition.
 - **Food Preference & Dietary Personalization:** 5-tier dietary preference selector (Veg, Veg + Egg, Jain, Non-Veg, All) with persistent offline and cloud sync, strict AI itinerary and chatbot adherence, and automated post-response safety validation.
-- **OpenStreetMap Nearby Safety:** Emergency safety radar locating nearby hospitals, clinics, and police stations using OSM Overpass with multi-tier radius expansion (3km–10km), offline caching, Google Maps integration, direct calling, and attribution.
+- **Travelers Composition & Family-Friendly Itineraries:** Stepper controls for Adults (18+) and Children (under 18) with skippable age bands (0–2, 3–5, 6–12, 13–17), DPDP Act privacy compliance, family-focused AI prompt directives (parks, playgrounds, science centers, zoos, no nightlife/bars), and deterministic post-response pace/safety validators.
+- **Two-Mode Group Itinerary Planning ("Whole Group" & "Only Me"):** Flexible dual-mode itinerary coordination allowing admins to update the shared master itinerary while permitting members to customize their own personal stops overlay. Every diverging personal plan strictly requires a designated meeting point with verified coordinates, rejoin time, and group stop linkage for safety and coordination. Includes upstream conflict reconciliation ("Needs Review" flags), Haversine travel time buffer warnings, direct Google Maps & Directions navigation, activity audit trails, and Firestore subcollection authorization.
 - **Essential Services Discovery:** Instant lookups for nearby hospitals, pharmacies, ATMs, police, restrooms, and petrol stations.
 
 ## Setup & Configuration

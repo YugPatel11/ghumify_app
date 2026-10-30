@@ -16,6 +16,8 @@ import '../widgets/craft_loading_dialog.dart';
 import '../widgets/craft_selector_card.dart';
 import '../widgets/craft_step_indicator.dart';
 import '../widgets/food_preference_selector.dart';
+import '../../../core/models/travelers_model.dart';
+import '../widgets/travelers_selector.dart';
 
 class TripInputScreen extends StatefulWidget {
   const TripInputScreen({super.key});
@@ -73,6 +75,7 @@ class _TripInputScreenState extends State<TripInputScreen>
 
   // Group & Budget State
   int _travelers = 1;
+  TravelersModel _travelersModel = const TravelersModel(adults: 1, minors: 0);
 
   // Multi-day Date State
   DateTime _startDate = DateTime.now().add(const Duration(days: 1));
@@ -401,6 +404,10 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          'adults': _travelersModel.adults,
+          'minors': _travelersModel.minors,
+          'minorAgeBands': _travelersModel.minorAgeBands,
+          'travelersSummary': _travelersModel.summary,
           'foodPreference': foodPref,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
@@ -418,6 +425,10 @@ class _TripInputScreenState extends State<TripInputScreen>
           'age': int.tryParse(_ageController.text),
           'budget': int.tryParse(_budgetController.text),
           'travelers': _travelers,
+          'adults': _travelersModel.adults,
+          'minors': _travelersModel.minors,
+          'minorAgeBands': _travelersModel.minorAgeBands,
+          'travelersSummary': _travelersModel.summary,
           'foodPreference': foodPref,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
@@ -1405,107 +1416,14 @@ class _TripInputScreenState extends State<TripInputScreen>
             ),
             const SizedBox(height: AppTokens.lg),
 
-            const Text(
-              'NUMBER OF TRAVELERS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
-                color: AppColors.textSoft,
-              ),
-            ),
-            const SizedBox(height: AppTokens.sm),
-
-            // Stepper Counter Card
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.md,
-                vertical: AppTokens.sm,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                border: Border.all(color: AppColors.border),
-                boxShadow: AppTokens.shadow(level: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.group_outlined,
-                        color: AppColors.brand,
-                        size: 22,
-                      ),
-                      const SizedBox(width: AppTokens.sm),
-                      Text(
-                        _travelers == 1
-                            ? 'Solo Explorer'
-                            : _travelers == 2
-                                ? 'Duo / Couple'
-                                : '$_travelers Travelers',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.remove_circle_outline_rounded,
-                          color: AppColors.textSoft,
-                        ),
-                        onPressed: () {
-                          if (_travelers > 1) {
-                            HapticFeedback.selectionClick();
-                            setState(() => _travelers--);
-                          }
-                        },
-                      ),
-                      Text(
-                        '$_travelers',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.brandDeep,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle_outline_rounded,
-                          color: AppColors.brand,
-                        ),
-                        onPressed: () {
-                          if (_travelers < 20) {
-                            HapticFeedback.selectionClick();
-                            setState(() => _travelers++);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppTokens.sm),
-
-            // Quick Group Presets
-            Row(
-              children: [
-                _buildGroupPreset(label: 'Solo (1)', count: 1),
-                const SizedBox(width: 6),
-                _buildGroupPreset(label: 'Couple (2)', count: 2),
-                const SizedBox(width: 6),
-                _buildGroupPreset(label: 'Family (4)', count: 4),
-                const SizedBox(width: 6),
-                _buildGroupPreset(label: 'Group (6+)', count: 6),
-              ],
+            TravelersSelector(
+              initialValue: _travelersModel,
+              onChanged: (updated) {
+                setState(() {
+                  _travelersModel = updated;
+                  _travelers = updated.totalCount;
+                });
+              },
             ),
 
             const SizedBox(height: AppTokens.xl),
@@ -1922,9 +1840,11 @@ class _TripInputScreenState extends State<TripInputScreen>
                           '${_travelMode.toUpperCase()} • ${_pace.toUpperCase()}',
                     ),
                     _buildDossierItem(
-                      icon: Icons.person_outline,
+                      icon: _travelersModel.hasMinors
+                          ? Icons.family_restroom_outlined
+                          : Icons.person_outline,
                       label: 'Travelers',
-                      value: '$_travelers ${_travelers == 1 ? "Person" : "People"}',
+                      value: _travelersModel.compactBadge,
                     ),
                   ],
                 ),

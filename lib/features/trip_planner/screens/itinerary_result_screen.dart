@@ -11,6 +11,7 @@ import '../../../core/services/gemini_service.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/models/itinerary_model.dart';
+import '../../../core/models/travelers_model.dart';
 import '../../../core/models/weather_model.dart';
 import '../../../core/models/place_model.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -94,6 +95,14 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     final age = data['age'] as int?;
     final budget = data['budget'] as int?;
     final travelers = data['travelers'] as int?;
+    final adults = data['adults'] as int? ?? travelers ?? 1;
+    final minors = data['minors'] as int? ?? 0;
+    final minorAgeBands = (data['minorAgeBands'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final travelersData = TravelersModel(
+      adults: adults,
+      minors: minors,
+      minorAgeBands: minorAgeBands,
+    );
 
     try {
       setState(() => _loadingMessage = 'Analyzing local weather...');
@@ -121,11 +130,12 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         travelMode: travelMode,
         pace: pace,
         age: age,
-        travelers: travelers,
+        travelers: travelersData.totalCount,
         budget: budget,
         weather: weather,
         knownPlaces: knownPlaces.take(15).toList(),
         foodPreference: foodPreference,
+        travelersData: travelersData,
       );
 
       setState(() => _loadingMessage = 'Finalizing details...');
@@ -437,26 +447,92 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                             ),
                           ),
                         ),
-                      if (itinerary.travelers != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.brand.withOpacity(0.3)),
-                          ),
-                          child: Text(
-                            'TRAVELERS: ${itinerary.travelers}',
-                            style: TextStyle(
-                              color: AppColors.brandDeep,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 2.0,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: itinerary.isFamilyFriendly
+                              ? AppColors.brand.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: itinerary.isFamilyFriendly
+                                ? AppColors.brand
+                                : AppColors.brand.withValues(alpha: 0.3),
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (itinerary.isFamilyFriendly) ...[
+                              const Icon(Icons.family_restroom_rounded,
+                                  size: 13, color: AppColors.brand),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              itinerary.isFamilyFriendly
+                                  ? itinerary.displayTravelersSummary.toUpperCase()
+                                  : 'TRAVELERS: ${itinerary.adultsCount} ADULT${itinerary.adultsCount > 1 ? 'S' : ''}',
+                              style: const TextStyle(
+                                color: AppColors.brandDeep,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
+                  if (itinerary.isFamilyFriendly) ...[
+                    const SizedBox(height: AppTokens.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppTokens.md),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                        border: Border.all(color: AppColors.brand.withValues(alpha: 0.2)),
+                        boxShadow: AppTokens.shadow(level: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.brand.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.family_restroom_rounded,
+                                size: 20, color: AppColors.brand),
+                          ),
+                          const SizedBox(width: AppTokens.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Family-Friendly Trip',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.brandDeep,
+                                  ),
+                                ),
+                                Text(
+                                  'Planned for ${itinerary.displayTravelersSummary} with kid-friendly venues, safe pacing, and restful breaks.',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSoft,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -894,7 +970,38 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                               ),
                             ),
                           ),
-                          _buildDietaryBadge(stop),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (stop.isKidFriendly) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.brand.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.child_care_rounded, size: 12, color: AppColors.brand),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Kid-Friendly',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.brandDeep,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              _buildDietaryBadge(stop),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: AppTokens.sm),
@@ -923,7 +1030,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                         cityName: _itinerary?.city,
                       ),
 
-                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0) || stop.tips.isNotEmpty)
+                      if ((stop.travelMinutes != null && stop.travelMinutes! > 0) || (stop.estimatedCost != null && stop.estimatedCost! > 0) || stop.tips.isNotEmpty || stop.isKidFriendly || stop.childTicketInfo != null)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: AppTokens.md),
                           child: Divider(color: AppColors.borderLight),
@@ -979,6 +1086,36 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                           ),
                         ),
 
+                      if (stop.ageRangeRecommendation != null || stop.strollerAccess != null || stop.childTicketInfo != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppTokens.sm),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              if (stop.ageRangeRecommendation != null && stop.ageRangeRecommendation!.isNotEmpty)
+                                _buildFamilyInfoChip(
+                                  icon: Icons.cake_outlined,
+                                  label: 'Age: ${stop.ageRangeRecommendation}',
+                                ),
+                              if (stop.strollerAccess != null && stop.strollerAccess!.isNotEmpty)
+                                _buildFamilyInfoChip(
+                                  icon: Icons.stroller_outlined,
+                                  label: stop.strollerAccess == 'yes'
+                                      ? 'Stroller Friendly'
+                                      : stop.strollerAccess == 'partial'
+                                          ? 'Partial Stroller Access'
+                                          : 'No Stroller Access',
+                                ),
+                              if (stop.childTicketInfo != null && stop.childTicketInfo!.isNotEmpty)
+                                _buildFamilyInfoChip(
+                                  icon: Icons.confirmation_number_outlined,
+                                  label: stop.childTicketInfo!,
+                                ),
+                            ],
+                          ),
+                        ),
+
                       if (stop.tips.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.all(AppTokens.md),
@@ -1021,6 +1158,32 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     ),
   ),
 );
+  }
+
+  Widget _buildFamilyInfoChip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.textSoft),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSoft,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDietaryBadge(ItineraryStop stop) {
@@ -1071,4 +1234,5 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     );
   }
 }
+
 

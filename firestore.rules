@@ -62,6 +62,12 @@ service cloud.firestore {
         allow delete: if isGroupAdmin(groupId);
       }
 
+      // ── Personal Itineraries Subcollection ──
+      match /personal_itineraries/{userId} {
+        allow read: if isGroupMember(groupId);
+        allow write: if isGroupMember(groupId) && request.auth.uid == userId;
+      }
+
       // ── Activity Logs Subcollection ──
       match /activity_logs/{logId} {
         allow read: if isGroupMember(groupId);

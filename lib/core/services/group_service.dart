@@ -6,6 +6,7 @@ import '../models/group_message_model.dart';
 import '../models/group_invitation_model.dart';
 import '../models/group_activity_model.dart';
 import '../models/group_location_model.dart';
+import '../models/personal_itinerary_model.dart';
 import '../constants/app_constants.dart';
 
 /// Service for group CRUD, membership management, chat, and invitations
@@ -133,7 +134,14 @@ class GroupService {
   /// Delete a group (owner only)
   Future<void> deleteGroup(String groupId) async {
     // Delete subcollections first
-    final subcollections = ['members', 'messages', 'group_itineraries', 'activity_logs', 'live_locations'];
+    final subcollections = [
+      'members',
+      'messages',
+      'group_itineraries',
+      'personal_itineraries',
+      'activity_logs',
+      'live_locations',
+    ];
     for (final sub in subcollections) {
       final snapshots = await _groupsRef.doc(groupId).collection(sub).get();
       final batch = _firestore.batch();
@@ -815,6 +823,9 @@ class GroupService {
     batch.set(msgRef, sysMsg.toFirestore());
 
     await batch.commit();
+
+    // Automatically check personal plans and flag conflicts if rejoin stops were changed/removed
+    await _reconcilePersonalItinerariesAfterGroupEdit(groupId, itineraryData);
   }
 
   /// Import an existing user itinerary into the group
@@ -867,6 +878,234 @@ class GroupService {
         actorName: userName,
         action: 'itinerary_edit',
         details: '$userName removed the group itinerary',
+      ).toFirestore(),
+    );
+
+    await batch.commit();
+  }
+
+  /// Check all diverged personal plans and flag any whose rejoin stop was removed
+  Future<void> _reconcilePersonalItinerariesAfterGroupEdit(
+    String groupId,
+    Map<String, dynamic> groupItineraryData,
+  ) async {
+    try {
+      final newStops = List<Map<String, dynamic>>.from(
+        (groupItineraryData['stops'] as List<dynamic>? ?? []).map(
+          (s) => Map<String, dynamic>.from(s as Map),
+        ),
+      );
+      final newStopNames = newStops
+          .map((s) => (s['name'] ?? '').toString().toLowerCase().trim())
+          .toSet();
+
+      final personalSnap = await _groupsRef
+          .doc(groupId)
+          .collection('personal_itineraries')
+          .get();
+
+      for (final doc in personalSnap.docs) {
+        final personal = PersonalItineraryModel.fromFirestore(doc);
+        if (!personal.hasDiverged) continue;
+
+        bool needsReview = false;
+        String? reason;
+
+        for (final mp in personal.meetingPoints) {
+          if (mp.rejoinStopName != null && mp.rejoinStopName!.trim().isNotEmpty) {
+            final rejoinLower = mp.rejoinStopName!.toLowerCase().trim();
+            if (!newStopNames.contains(rejoinLower)) {
+              needsReview = true;
+              reason =
+                  'The group rejoin stop "${mp.rejoinStopName}" was changed or removed in the shared itinerary.';
+              break;
+            }
+          }
+        }
+
+        if (needsReview) {
+          await doc.reference.update({
+            'status': 'needs_review',
+            'reviewReason': reason,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
+        }
+      }
+    } catch (_) {
+      // Best-effort check; do not fail primary group update
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PERSONAL ITINERARIES ("Only Me" Mode)
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Stream personal itinerary for a specific member in a group
+  Stream<PersonalItineraryModel?> streamPersonalItinerary(
+    String groupId,
+    String userId,
+  ) {
+    return _groupsRef
+        .doc(groupId)
+        .collection('personal_itineraries')
+        .doc(userId)
+        .snapshots()
+        .map((doc) => doc.exists ? PersonalItineraryModel.fromFirestore(doc) : null);
+  }
+
+  /// Stream all personal itineraries in a group (for summary card display to group)
+  Stream<List<PersonalItineraryModel>> streamAllPersonalItineraries(String groupId) {
+    return _groupsRef
+        .doc(groupId)
+        .collection('personal_itineraries')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => PersonalItineraryModel.fromFirestore(doc))
+            .where((pi) => pi.hasDiverged)
+            .toList());
+  }
+
+  /// Save or update a member's personal itinerary with mandatory meeting point validation
+  Future<void> savePersonalItinerary({
+    required String groupId,
+    required PersonalItineraryModel personalItinerary,
+    String? customActionDescription,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final group = await getGroup(groupId);
+    if (group == null) throw Exception('Group not found');
+    if (!group.isMember(user.uid)) {
+      throw Exception('Permission denied: You must be a group member to save a personal plan');
+    }
+    if (user.uid != personalItinerary.userId) {
+      throw Exception('Security violation: You cannot edit another member\'s personal plan');
+    }
+
+    // MANDATORY MEETING POINT VALIDATION
+    if (personalItinerary.hasDiverged) {
+      if (personalItinerary.meetingPoints.isEmpty) {
+        throw Exception(
+            'Meeting point required: Every personal plan diverging from the group plan must have at least one meeting point.');
+      }
+      for (final mp in personalItinerary.meetingPoints) {
+        if (mp.placeName.trim().isEmpty) {
+          throw Exception('Meeting place name cannot be empty.');
+        }
+        if (mp.meetTime.trim().isEmpty) {
+          throw Exception('Meeting time cannot be empty.');
+        }
+        if (mp.latitude == 0.0 && mp.longitude == 0.0) {
+          throw Exception('Meeting place must have valid map coordinates.');
+        }
+      }
+    }
+
+    final batch = _firestore.batch();
+    final personalRef = _groupsRef
+        .doc(groupId)
+        .collection('personal_itineraries')
+        .doc(user.uid);
+
+    batch.set(personalRef, personalItinerary.toFirestore());
+
+    final userName = personalItinerary.userName.isNotEmpty
+        ? personalItinerary.userName
+        : (user.displayName ?? 'A member');
+
+    final primaryMp = personalItinerary.meetingPoints.isNotEmpty
+        ? personalItinerary.meetingPoints.first
+        : null;
+
+    final mpDesc = primaryMp != null
+        ? ' (rejoining at ${primaryMp.placeName} at ${primaryMp.meetTime})'
+        : '';
+
+    final actionText = customActionDescription ??
+        'customized their personal plan$mpDesc';
+
+    // Activity Log
+    final logRef = _groupsRef.doc(groupId).collection('activity_logs').doc();
+    batch.set(
+      logRef,
+      GroupActivityModel(
+        id: logRef.id,
+        actorId: user.uid,
+        actorName: userName,
+        action: 'personal_itinerary_edit',
+        details: '$userName $actionText',
+      ).toFirestore(),
+    );
+
+    // Chat System Message
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    batch.set(
+      msgRef,
+      GroupMessageModel(
+        id: msgRef.id,
+        senderId: 'system',
+        senderName: 'System',
+        type: 'system',
+        content: '$userName $actionText',
+      ).toFirestore(),
+    );
+
+    await batch.commit();
+  }
+
+  /// Reset a member's personal itinerary back to the group plan
+  Future<void> resetPersonalItinerary({
+    required String groupId,
+    required String userId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final group = await getGroup(groupId);
+    if (group == null) throw Exception('Group not found');
+    if (!group.isMember(user.uid)) {
+      throw Exception('Permission denied: You are not a member of this group');
+    }
+    if (user.uid != userId && !group.isAdmin(user.uid)) {
+      throw Exception('Permission denied: You can only reset your own personal plan');
+    }
+
+    final userDoc = await _usersRef.doc(userId).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final userName = userData?['name'] ?? user.displayName ?? 'A member';
+
+    final batch = _firestore.batch();
+    final personalRef = _groupsRef
+        .doc(groupId)
+        .collection('personal_itineraries')
+        .doc(userId);
+
+    batch.delete(personalRef);
+
+    // Activity Log
+    final logRef = _groupsRef.doc(groupId).collection('activity_logs').doc();
+    batch.set(
+      logRef,
+      GroupActivityModel(
+        id: logRef.id,
+        actorId: user.uid,
+        actorName: userName,
+        action: 'personal_itinerary_reset',
+        details: '$userName reset their itinerary to the shared group plan',
+      ).toFirestore(),
+    );
+
+    // Chat System Message
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    batch.set(
+      msgRef,
+      GroupMessageModel(
+        id: msgRef.id,
+        senderId: 'system',
+        senderName: 'System',
+        type: 'system',
+        content: '$userName reset their itinerary to the shared group plan',
       ).toFirestore(),
     );
 
