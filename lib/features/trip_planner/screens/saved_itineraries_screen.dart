@@ -7,6 +7,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/models/itinerary_model.dart';
+import '../../../core/models/multi_city_trip_model.dart';
 import '../../../core/providers/auth_provider.dart';
 
 class SavedItinerariesScreen extends StatelessWidget {
@@ -63,7 +64,17 @@ class SavedItinerariesScreen extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, 100),
                           itemCount: docs.length,
                           itemBuilder: (context, index) {
-                            final itinerary = ItineraryModel.fromFirestore(docs[index]);
+                            final doc = docs[index];
+                            final data = doc.data() as Map<String, dynamic>;
+                            final isMultiCity = data['tripType'] == 'multi_city' ||
+                                (data['cities'] is List && (data['cities'] as List).isNotEmpty);
+
+                            if (isMultiCity) {
+                              final trip = MultiCityTripModel.fromMap(data);
+                              return _buildMultiCityCard(context, trip, doc.id);
+                            }
+
+                            final itinerary = ItineraryModel.fromFirestore(doc);
                             return _buildItineraryCard(context, itinerary);
                           },
                         );
@@ -191,6 +202,29 @@ class SavedItinerariesScreen extends StatelessWidget {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                itinerary.isFamilyFriendly ? Icons.family_restroom : Icons.people_outline,
+                                size: 13,
+                                color: itinerary.isFamilyFriendly ? AppColors.badgeNature : AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  itinerary.displayTravelersSummary,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: itinerary.isFamilyFriendly ? AppColors.badgeNature : AppColors.textMuted,
+                                    fontSize: 12,
+                                    fontWeight: itinerary.isFamilyFriendly ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -273,6 +307,150 @@ class SavedItinerariesScreen extends StatelessWidget {
         }
       }
     }
+  }
+
+  Widget _buildMultiCityCard(BuildContext context, MultiCityTripModel trip, String docId) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.md),
+      child: GestureDetector(
+        onTap: () {
+          context.push('/multi-city-itinerary', extra: {'trip': trip});
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.brandGradient,
+                        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.hub_rounded, color: Colors.white, size: 24),
+                      ),
+                    ),
+                    const SizedBox(width: AppTokens.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandDeep,
+                                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                ),
+                                child: const Text(
+                                  'MULTI-CITY',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${trip.totalDays} Days · ${trip.cities.length} Cities',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSoft,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            trip.routeSummary,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Transit: ₹${trip.estimatedTravelCost} · ${trip.legs.length} Legs',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: AppColors.border),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppTokens.md, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Created: ${trip.createdAt.year}-${trip.createdAt.month.toString().padLeft(2, '0')}-${trip.createdAt.day.toString().padLeft(2, '0')}',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSoft),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.error),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Multi-City Trip?'),
+                            content: const Text('Are you sure you want to remove this trip?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await FirebaseFirestore.instance
+                              .collection(AppConstants.itinerariesCollection)
+                              .doc(docId)
+                              .delete();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Multi-city trip deleted.')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -5,6 +5,12 @@ import '../models/multi_day_itinerary_model.dart';
 import '../models/weather_model.dart';
 import '../models/place_model.dart';
 import '../models/chat_message_model.dart';
+import '../constants/food_preferences.dart';
+import '../models/travelers_model.dart';
+import '../models/city_stay_model.dart';
+import '../models/travel_leg_model.dart';
+import '../models/multi_city_trip_model.dart';
+import 'family_travel_service.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
 ///
@@ -34,7 +40,14 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) async {
+    final effectiveTravelers = travelersData ??
+        (travelers != null
+            ? TravelersModel(adults: travelers, minors: 0)
+            : const TravelersModel(adults: 1, minors: 0));
+
     final prompt = _buildItineraryPrompt(
       city: city,
       date: date,
@@ -44,10 +57,12 @@ class GeminiService {
       travelMode: travelMode,
       pace: pace,
       age: age,
-      travelers: travelers,
+      travelers: effectiveTravelers.totalCount,
       budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
+      foodPreference: foodPreference,
+      travelersData: effectiveTravelers,
     );
 
     try {
@@ -66,9 +81,11 @@ class GeminiService {
         travelMode: travelMode,
         pace: pace,
         age: age,
-        travelers: travelers,
+        travelers: effectiveTravelers.totalCount,
         budget: budget,
         weather: weather,
+        foodPreference: foodPreference,
+        travelersData: effectiveTravelers,
       );
     } catch (e) {
       if (e is GeminiRestException) rethrow;
@@ -97,7 +114,14 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) async {
+    final effectiveTravelers = travelersData ??
+        (travelers != null
+            ? TravelersModel(adults: travelers, minors: 0)
+            : const TravelersModel(adults: 1, minors: 0));
+
     final prompt = _buildMultiDayPrompt(
       city: city,
       startDate: startDate,
@@ -109,10 +133,12 @@ class GeminiService {
       travelMode: travelMode,
       pace: pace,
       age: age,
-      travelers: travelers,
+      travelers: effectiveTravelers.totalCount,
       budget: budget,
       weather: weather,
       knownPlaces: knownPlaces,
+      foodPreference: foodPreference,
+      travelersData: effectiveTravelers,
     );
 
     try {
@@ -133,14 +159,195 @@ class GeminiService {
         travelMode: travelMode,
         pace: pace,
         age: age,
-        travelers: travelers,
+        travelers: effectiveTravelers.totalCount,
         budget: budget,
         weather: weather,
+        foodPreference: foodPreference,
+        travelersData: effectiveTravelers,
       );
     } catch (e) {
       if (e is GeminiRestException) rethrow;
       throw GeminiRestException('Failed to generate multi-day itinerary: $e');
     }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // MULTI-CITY ITINERARY
+  // ═══════════════════════════════════════════════════════
+
+  /// Generate a complete multi-city itinerary covering multiple destinations
+  Future<MultiCityTripModel> generateMultiCityItinerary({
+    required String userId,
+    required List<CityStayModel> cities,
+    required List<TravelLegModel> legs,
+    required DateTime startDate,
+    required DateTime endDate,
+    required List<String> interests,
+    required String travelMode,
+    required String pace,
+    required TravelersModel travelers,
+    required String foodPreference,
+    bool isRoundTrip = false,
+    int? budget,
+    void Function(String status, double progress)? onProgress,
+  }) async {
+    final List<ItineraryModel> allDays = [];
+    int runningDayNumber = 1;
+
+    for (int i = 0; i < cities.length; i++) {
+      final cityStay = cities[i];
+      final currentCity = cityStay.name;
+      final stayDays = cityStay.stayDays;
+
+      final progressFraction = i / cities.length;
+      onProgress?.call('Planning $currentCity (${i + 1} of ${cities.length})...', progressFraction);
+
+      final incomingLeg = (i > 0 && i - 1 < legs.length) ? legs[i - 1] : null;
+      final arrivalDateTime = cityStay.arrivalDate ?? DateTime.now();
+      final departureDateTime = cityStay.departureDate ?? arrivalDateTime.add(Duration(days: stayDays));
+      final arrivalStr = '${arrivalDateTime.year}-${arrivalDateTime.month.toString().padLeft(2, '0')}-${arrivalDateTime.day.toString().padLeft(2, '0')}';
+      final departureStr = '${departureDateTime.year}-${departureDateTime.month.toString().padLeft(2, '0')}-${departureDateTime.day.toString().padLeft(2, '0')}';
+
+      try {
+        if (stayDays == 1) {
+          final dayItinerary = await generateItinerary(
+            userId: userId,
+            city: currentCity,
+            date: arrivalStr,
+            startTime: incomingLeg != null ? '11:00' : '09:00',
+            endTime: '20:00',
+            interests: interests,
+            travelMode: travelMode,
+            pace: pace,
+            travelersData: travelers,
+            foodPreference: foodPreference,
+            budget: budget != null ? (budget ~/ cities.length) : null,
+          );
+
+          allDays.add(dayItinerary.copyWith(
+            id: 'multicity_${cityStay.id}_day$runningDayNumber',
+            city: currentCity,
+            date: arrivalStr,
+            dayNumber: runningDayNumber++,
+          ));
+        } else {
+          final multiDay = await generateMultiDayItinerary(
+            userId: userId,
+            city: currentCity,
+            startDate: arrivalStr,
+            endDate: departureStr,
+            numberOfDays: stayDays,
+            dailyStartTime: '09:00',
+            dailyEndTime: '20:00',
+            interests: interests,
+            travelMode: travelMode,
+            pace: pace,
+            travelersData: travelers,
+            foodPreference: foodPreference,
+            budget: budget != null ? (budget ~/ cities.length) : null,
+          );
+
+          for (final day in multiDay.days) {
+            allDays.add(day.copyWith(
+              id: 'multicity_${cityStay.id}_day$runningDayNumber',
+              city: currentCity,
+              dayNumber: runningDayNumber++,
+            ));
+          }
+        }
+      } catch (e) {
+        // Fallback for this city if AI fails, ensure trip still succeeds
+        for (int d = 0; d < stayDays; d++) {
+          final dayDate = arrivalDateTime.add(Duration(days: d));
+          final formattedDate = '${dayDate.year}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
+          allDays.add(ItineraryModel(
+            id: 'fallback_${DateTime.now().millisecondsSinceEpoch}_day$runningDayNumber',
+            userId: userId,
+            city: currentCity,
+            date: formattedDate,
+            startTime: '09:00',
+            endTime: '18:00',
+            totalDurationMinutes: 540,
+            interests: interests,
+            travelMode: travelMode,
+            pace: pace,
+            dayNumber: runningDayNumber++,
+            foodPreference: foodPreference,
+            adultsCount: travelers.adults,
+            minorsCount: travelers.minors,
+            minorAgeBands: travelers.minorAgeBands,
+            travelersSummary: travelers.summary,
+            aiSummary: 'Explore the iconic heritage, culinary delights, and local culture of $currentCity.',
+            stops: [
+              ItineraryStop(
+                placeId: '${currentCity.toLowerCase()}_center',
+                name: '$currentCity City Center & Old Town',
+                description: 'Walk through historic lanes, iconic landmarks, and vibrant artisan markets.',
+                startTime: '09:30',
+                endTime: '12:30',
+                durationMinutes: 180,
+                type: 'place',
+                latitude: cityStay.latitude,
+                longitude: cityStay.longitude,
+                tips: ['Wear comfortable walking shoes', 'Carry water'],
+                dietaryType: foodPreference,
+                isKidFriendly: true,
+                strollerAccess: 'partial',
+              ),
+              ItineraryStop(
+                placeId: '${currentCity.toLowerCase()}_lunch',
+                name: '$currentCity Traditional Dining',
+                description: 'Authentic regional lunch featuring local specialties conforming to your dietary preference.',
+                startTime: '13:00',
+                endTime: '14:15',
+                durationMinutes: 75,
+                type: 'food',
+                latitude: cityStay.latitude,
+                longitude: cityStay.longitude,
+                tips: ['Ask for chef recommendations'],
+                dietaryType: foodPreference,
+                isKidFriendly: true,
+              ),
+              ItineraryStop(
+                placeId: '${currentCity.toLowerCase()}_evening',
+                name: '$currentCity Sunset Promenade & Cultural Market',
+                description: 'Enjoy the vibrant evening atmosphere, handicrafts, and cultural sights.',
+                startTime: '16:00',
+                endTime: '18:30',
+                durationMinutes: 150,
+                type: 'market',
+                latitude: cityStay.latitude,
+                longitude: cityStay.longitude,
+                tips: ['Great photo spots at sunset'],
+                dietaryType: foodPreference,
+                isKidFriendly: true,
+              ),
+            ],
+          ));
+        }
+      }
+    }
+
+    onProgress?.call('Finalizing multi-city itinerary...', 1.0);
+
+    final title = isRoundTrip
+        ? '${cities.first.name} Circuit (${cities.length} Cities)'
+        : '${cities.first.name} to ${cities.last.name} (${cities.length} Cities)';
+
+    return MultiCityTripModel(
+      id: 'multicity_${DateTime.now().millisecondsSinceEpoch}',
+      userId: userId,
+      title: title,
+      startDate: startDate,
+      endDate: endDate,
+      totalDays: allDays.length,
+      cities: cities,
+      legs: legs,
+      isRoundTrip: isRoundTrip,
+      days: allDays,
+      travelers: travelers,
+      foodPreference: foodPreference,
+    );
   }
 
   // ═══════════════════════════════════════════════════════
@@ -152,25 +359,37 @@ class GeminiService {
   /// [currentItinerary] is the JSON representation of the current itinerary.
   /// [chatHistory] is the list of previous messages in the conversation.
   /// [userMessage] is the new message from the user.
+  /// [foodPreference] is the user's dietary preference.
   ///
-  /// Returns a [ChatMessageModel] with either text content or an updated itinerary.
+  /// Returns a [ChatMessageModel] with human-readable text content and an optional updated itinerary.
   Future<ChatMessageModel> chatAboutItinerary({
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
     required List<ChatMessageModel> chatHistory,
     bool isMultiDay = false,
+    String foodPreference = FoodPreference.all,
   }) async {
     final prompt = _buildChatPrompt(
       userMessage: userMessage,
       currentItinerary: currentItinerary,
       isMultiDay: isMultiDay,
+      foodPreference: foodPreference,
     );
 
-    // Build conversation history for context
-    final conversationHistory = chatHistory
+    // Build conversation history for context — omit current message if already in history,
+    // and sanitize any prior raw JSON dumps
+    final previousMessages = chatHistory.isNotEmpty &&
+            chatHistory.last.isUser &&
+            chatHistory.last.content == userMessage
+        ? chatHistory.sublist(0, chatHistory.length - 1)
+        : chatHistory;
+
+    final conversationHistory = previousMessages
         .map((m) => {
               'role': m.isUser ? 'user' : 'model',
-              'content': m.content,
+              'content': m.content.length > 300 && m.content.startsWith('{')
+                  ? "I've updated your itinerary."
+                  : m.content,
             })
         .toList();
 
@@ -186,32 +405,53 @@ class GeminiService {
 
       // Try to parse as JSON (modified itinerary)
       Map<String, dynamic>? updatedItinerary;
-      String textContent = responseText;
+      String textContent = '';
 
-      try {
-        String cleanJson = responseText.trim();
-        if (cleanJson.startsWith('```json')) {
-          cleanJson = cleanJson.substring(7);
-        } else if (cleanJson.startsWith('```')) {
-          cleanJson = cleanJson.substring(3);
-        }
-        if (cleanJson.endsWith('```')) {
-          cleanJson = cleanJson.substring(0, cleanJson.length - 3);
-        }
-        cleanJson = cleanJson.trim();
-
-        // Check if response contains JSON itinerary data
-        if (cleanJson.startsWith('{') &&
-            (cleanJson.contains('"stops"') || cleanJson.contains('"days"'))) {
+      final cleanJson = _extractJson(responseText);
+      if (cleanJson != null) {
+        try {
           final parsed = json.decode(cleanJson) as Map<String, dynamic>;
-          updatedItinerary = parsed;
-          textContent = parsed['chatMessage'] as String? ??
-              parsed['aiSummary'] as String? ??
-              'I\'ve updated your itinerary based on your request.';
+
+          if (parsed.containsKey('updatedItinerary') &&
+              parsed['updatedItinerary'] is Map<String, dynamic>) {
+            updatedItinerary =
+                parsed['updatedItinerary'] as Map<String, dynamic>;
+            textContent = parsed['chatMessage'] as String? ?? '';
+          } else if (parsed.containsKey('stops') || parsed.containsKey('days')) {
+            updatedItinerary = parsed;
+            textContent = parsed['chatMessage'] as String? ??
+                parsed['aiSummary'] as String? ??
+                parsed['overallSummary'] as String? ??
+                '';
+          } else if (parsed.containsKey('chatMessage')) {
+            textContent = parsed['chatMessage'] as String? ?? '';
+            if (parsed.containsKey('itinerary') &&
+                parsed['itinerary'] is Map<String, dynamic>) {
+              updatedItinerary =
+                  parsed['itinerary'] as Map<String, dynamic>;
+            }
+          }
+        } catch (_) {
+          // JSON parsing failed or output was truncated
         }
-      } catch (_) {
-        // Not JSON — treat as plain text response
       }
+
+      // If textContent is still empty
+      if (textContent.trim().isEmpty) {
+        if (cleanJson == null) {
+          // Normal plain text response from Gemini
+          textContent = responseText.trim();
+        } else if (updatedItinerary != null) {
+          // Generate a friendly bulleted summary from the updated stops
+          textContent = _generateItinerarySummaryText(updatedItinerary);
+        } else {
+          // Model outputted partial or raw JSON without chatMessage
+          textContent = ChatMessageModel.sanitizeContent(responseText);
+        }
+      }
+
+      // Final safety net: ensure textContent never contains raw JSON
+      textContent = ChatMessageModel.sanitizeContent(textContent);
 
       return ChatMessageModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -234,6 +474,58 @@ class GeminiService {
         content: errorMessage,
       );
     }
+  }
+
+  /// Extracts a JSON block from model response text
+  String? _extractJson(String text) {
+    String trimmed = text.trim();
+    if (trimmed.startsWith('```json')) {
+      trimmed = trimmed.substring(7);
+    } else if (trimmed.startsWith('```')) {
+      trimmed = trimmed.substring(3);
+    }
+    if (trimmed.endsWith('```')) {
+      trimmed = trimmed.substring(0, trimmed.length - 3);
+    }
+    trimmed = trimmed.trim();
+
+    final firstBrace = trimmed.indexOf('{');
+    final lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace != -1 && lastBrace != -1 && lastBrace > firstBrace) {
+      return trimmed.substring(firstBrace, lastBrace + 1);
+    }
+    if (trimmed.startsWith('{')) {
+      return trimmed;
+    }
+    return null;
+  }
+
+  /// Generate a friendly natural-language summary from an itinerary map
+  String _generateItinerarySummaryText(Map<String, dynamic> data) {
+    final buffer = StringBuffer();
+    final city = data['city'] as String?;
+    if (city != null && city.isNotEmpty) {
+      buffer.writeln("I've updated your schedule for $city:\n");
+    } else {
+      buffer.writeln("I've updated your itinerary based on your request:\n");
+    }
+
+    final stops = data['stops'] as List?;
+    if (stops != null && stops.isNotEmpty) {
+      for (final s in stops) {
+        if (s is Map) {
+          final name = s['name'] ?? 'Stop';
+          final start = s['startTime'] ?? '';
+          final end = s['endTime'] ?? '';
+          final timeStr = (start.isNotEmpty && end.isNotEmpty) ? ' ($start - $end)' : '';
+          buffer.writeln('• $name$timeStr');
+        }
+      }
+      buffer.writeln("\nTap 'Apply Changes to Itinerary' below to save this to your trip!");
+    } else {
+      buffer.writeln("Your updated itinerary is ready. Tap 'Apply Changes to Itinerary' below to apply it.");
+    }
+    return buffer.toString().trim();
   }
 
   // ═══════════════════════════════════════════════════════
@@ -328,6 +620,8 @@ class GeminiService {
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) {
     final interestStr = interests.join(', ');
     final paceDesc = pace == 'relaxed'
@@ -373,6 +667,9 @@ ${knownPlaces.map((p) => '- ${p.name} (${p.category}) at [${p.latitude}, ${p.lon
 ''';
     }
 
+    final dietaryDirective = DietaryFilterService.getPromptDirective(foodPreference);
+    final travelersDirective = FamilyTravelService.getTravelersPromptDirective(travelersData ?? const TravelersModel());
+
     return '''
 You are a travel planning expert for Indian cities. Generate a detailed, time-boxed travel itinerary.
 
@@ -383,7 +680,8 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
-${travelers != null ? '- Travelers: $travelers' : ''}
+- Food Preference: ${FoodPreference.getLabel(foodPreference)}
+- Travelers: ${travelersData?.summary ?? '$travelers'}
 
 $ageGroupContext
 $budgetContext
@@ -391,14 +689,21 @@ $budgetContext
 $weatherContext
 $placesContext
 
+$travelersDirective
+
+DIETARY REQUIREMENT:
+$dietaryDirective
+
 RULES:
 1. Create a sequential, time-boxed itinerary from $startTime to $endTime.
 2. Include travel time between stops (realistic for $travelMode in $city).
-3. Include famous tourist places, local food spots, and markets based on interests.
+3. Include famous tourist places, local food spots, and markets based on interests and food preference.
 4. Account for opening hours of places.
 5. Add tips for each stop (best photo spots, must-try items, cultural etiquette).
 6. Suggest what to carry based on weather and place types.
-7. Give the full itinerary as JSON in this EXACT format:
+7. For any food stop or meal break, strictly adhere to the Food Preference ($foodPreference). Set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
+8. For family trips (with children/minors), ensure "isKidFriendly" is accurately indicated (true/false), and provide "ageRangeRecommendation" ("All ages", "Ages 3-5", etc.), "strollerAccess" ("yes", "no", "partial"), and "childTicketInfo" ("Free under 5", "Please check on arrival", etc.). Never invent ticket prices or rules.
+9. Give the full itinerary as JSON in this EXACT format:
 
 {
   "aiSummary": "Brief overview of the day plan in 2-3 sentences",
@@ -412,6 +717,11 @@ RULES:
       "latitude": 22.7196,
       "longitude": 75.8577,
       "description": "What to see/do here",
+      "dietaryType": "veg",
+      "isKidFriendly": true,
+      "ageRangeRecommendation": "All ages",
+      "strollerAccess": "yes",
+      "childTicketInfo": "Please check on arrival",
       "travelMode": "driving",
       "travelMinutes": 15,
       "estimatedCost": 250,
@@ -432,7 +742,7 @@ RULES:
 IMPORTANT:
 - Use REAL places, REAL coordinates, and REAL food items famous in $city.
 - Do NOT invent fictional places.
-- Include at least one local food recommendation.
+- Include at least one local food recommendation conforming to the dietary requirement.
 - Travel time between stops should be realistic.
 - Output ONLY valid JSON, no markdown formatting, no code blocks.
 ''';
@@ -454,6 +764,8 @@ IMPORTANT:
     int? budget,
     WeatherModel? weather,
     List<PlaceModel>? knownPlaces,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) {
     final interestStr = interests.join(', ');
     final paceDesc = pace == 'relaxed'
@@ -498,6 +810,9 @@ ${knownPlaces.map((p) => '- ${p.name} (${p.category}) at [${p.latitude}, ${p.lon
 ''';
     }
 
+    final dietaryDirective = DietaryFilterService.getPromptDirective(foodPreference);
+    final travelersDirective = FamilyTravelService.getTravelersPromptDirective(travelersData ?? const TravelersModel());
+
     return '''
 You are a travel planning expert for Indian cities. Generate a detailed $numberOfDays-DAY travel itinerary.
 
@@ -508,7 +823,8 @@ INPUTS:
 - Interests: $interestStr
 - Travel mode: $travelMode
 - Pace: $paceDesc
-${travelers != null ? '- Travelers: $travelers' : ''}
+- Food Preference: ${FoodPreference.getLabel(foodPreference)}
+- Travelers: ${travelersData?.summary ?? '$travelers'}
 
 $ageGroupContext
 $budgetContext
@@ -516,17 +832,24 @@ $budgetContext
 $weatherContext
 $placesContext
 
+$travelersDirective
+
+DIETARY REQUIREMENT:
+$dietaryDirective
+
 MULTI-DAY PLANNING RULES:
 1. Distribute places intelligently across $numberOfDays days — do NOT dump everything in Day 1.
 2. Group nearby attractions together on the same day to minimize travel.
 3. Avoid unnecessary backtracking — plan a logical geographic flow each day.
 4. Each day should have a clear theme or area focus (e.g., "Day 1: Old City Heritage", "Day 2: Markets & Street Food").
 5. Include realistic travel time between stops for $travelMode.
-6. Include meal breaks (lunch + snack) each day at local food spots.
+6. Include meal breaks (lunch + snack) each day at local food spots matching the food preference ($foodPreference).
 7. Account for opening hours — temples may close at noon, markets open late.
 8. Pace: $paceDesc. Keep a reasonable number of stops per day.
 9. Include practical tips for each stop.
 10. Save the best sunset/evening activity for the end of each day.
+11. For any food stop or meal break, set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
+12. For family trips (with children/minors), ensure "isKidFriendly" is accurately set, and provide "ageRangeRecommendation", "strollerAccess", and "childTicketInfo". Never invent ticket prices or rules.
 
 OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
 
@@ -563,6 +886,11 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "latitude": 22.7196,
           "longitude": 75.8577,
           "description": "What to see/do here",
+          "dietaryType": "veg",
+          "isKidFriendly": true,
+          "ageRangeRecommendation": "All ages",
+          "strollerAccess": "yes",
+          "childTicketInfo": "Please check on arrival",
           "travelMode": "$travelMode",
           "travelMinutes": 15,
           "estimatedCost": 250,
@@ -577,37 +905,94 @@ IMPORTANT:
 - Use REAL places, REAL coordinates, and REAL food items famous in $city.
 - Do NOT invent fictional places.
 - Each day MUST have unique stops — do NOT repeat places across days.
-- Include at least one local food recommendation per day.
+- Include at least one local food recommendation per day matching the dietary requirement.
 - Output ONLY valid JSON.
 ''';
   }
 
-  /// Build chat prompt with itinerary context
+  /// Sanitizes an itinerary map to protect user privacy and internal database IDs
+  Map<String, dynamic> _sanitizeItineraryForPrompt(Map<String, dynamic> raw) {
+    final sanitized = Map<String, dynamic>.from(raw);
+    sanitized.remove('userId');
+    sanitized.remove('id');
+    sanitized.remove('createdAt');
+    sanitized.remove('isSaved');
+
+    // Clean single-day stops if present
+    if (sanitized['stops'] is List) {
+      sanitized['stops'] = (sanitized['stops'] as List).map((s) {
+        if (s is Map) {
+          final cleanStop = Map<String, dynamic>.from(s);
+          cleanStop.remove('placeId');
+          return cleanStop;
+        }
+        return s;
+      }).toList();
+    }
+
+    // Clean multi-day days if present
+    if (sanitized['days'] is List) {
+      sanitized['days'] = (sanitized['days'] as List).map((d) {
+        if (d is Map) {
+          final cleanDay = Map<String, dynamic>.from(d);
+          if (cleanDay['stops'] is List) {
+            cleanDay['stops'] = (cleanDay['stops'] as List).map((s) {
+              if (s is Map) {
+                final cleanStop = Map<String, dynamic>.from(s);
+                cleanStop.remove('placeId');
+                return cleanStop;
+              }
+              return s;
+            }).toList();
+          }
+          return cleanDay;
+        }
+        return d;
+      }).toList();
+    }
+
+    return sanitized;
+  }
+
+  /// Build chat prompt with sanitized itinerary context
   String _buildChatPrompt({
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
     required bool isMultiDay,
+    String foodPreference = FoodPreference.all,
   }) {
-    final itineraryJson = json.encode(currentItinerary);
+    final sanitizedItinerary = _sanitizeItineraryForPrompt(currentItinerary);
+    final itineraryJson = json.encode(sanitizedItinerary);
+    final chatbotDirective = DietaryFilterService.getChatbotDirective(foodPreference);
 
     return '''
-You are a smart travel assistant for the Ghumify app. The user is viewing their ${isMultiDay ? 'multi-day' : 'single-day'} itinerary and has a question or request.
+You are a warm, knowledgeable local travel companion for the Ghumify app. The user is currently viewing their ${isMultiDay ? 'multi-day' : 'single-day'} itinerary.
 
-CURRENT ITINERARY:
+CURRENT ITINERARY CONTEXT:
 $itineraryJson
 
 USER MESSAGE: "$userMessage"
 
-INSTRUCTIONS:
-1. If the user is asking a QUESTION (e.g., "Is this too packed?", "What should I eat?"), respond with helpful text.
-2. If the user is requesting a CHANGE (e.g., "Replace this place", "Remove activity X", "Add a food stop", "Make Day 2 more relaxed"), respond with the FULL MODIFIED ITINERARY as JSON in the exact same format as above, with an added "chatMessage" field explaining what you changed.
-3. When modifying, keep all unchanged stops as-is. Only modify what the user asked for.
-4. Recalculate times if you add/remove/reorder stops.
-5. Use REAL places with REAL coordinates — never invent fictional places.
-6. Be conversational and helpful in your text responses.
+DIETARY SETTING AND RULES:
+$chatbotDirective
 
-If responding with text only, just write your response as plain text.
-If responding with a modified itinerary, output ONLY valid JSON (no markdown, no code blocks).
+CRITICAL INSTRUCTIONS:
+1. Always communicate with the traveler in natural, human-friendly conversational language. Never show raw JSON, internal IDs, or raw prompts.
+2. If the user asks a QUESTION (e.g., questions about food, timings, weather, history, greetings, or advice):
+   - Reply directly with helpful, warm, conversational text (use bullet points or line breaks for readability).
+   - Follow their food preference. If they ask about food that conflicts with their setting (e.g., Veg asking for butter chicken or Jain asking for aloo/onion dishes), politely acknowledge their food preference setting and answer or offer to change it.
+   - Do NOT output raw JSON or code structures.
+3. If the user requests a CHANGE or MODIFICATION (e.g., "Replace a place", "Remove activity X", "Add a food stop", "Make Day 2 more relaxed", "I have less time"):
+   - Return a JSON object with EXACTLY two fields:
+     {
+       "chatMessage": "A warm, natural-language explanation of what you changed (with a clear, readable bullet-point summary of the updated stops and times). Never leave this empty or output raw JSON here.",
+       "updatedItinerary": { ...the complete updated itinerary object matching the schema of CURRENT ITINERARY... }
+     }
+   - The "chatMessage" MUST be written in friendly natural language. NEVER put raw JSON inside "chatMessage".
+   - Ensure all food stops comply with the Food Preference ($foodPreference).
+   - Keep unchanged stops as-is. Recalculate times realistically.
+   - Use REAL places, famous spots, and real coordinates.
+4. Output valid JSON only when returning a modified itinerary.
 ''';
   }
 
@@ -630,6 +1015,8 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
     int? travelers,
     int? budget,
     WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) {
     try {
       String cleanJson = responseText.trim();
@@ -645,9 +1032,22 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
 
       final data = json.decode(cleanJson) as Map<String, dynamic>;
 
-      final stops = (data['stops'] as List? ?? []).map((s) {
-        return ItineraryStop.fromMap(s as Map<String, dynamic>);
+      final initialStops = (data['stops'] as List? ?? []).map((s) {
+        final stop = ItineraryStop.fromMap(s as Map<String, dynamic>);
+        return _validateAndEnrichStop(stop, foodPreference);
       }).toList();
+
+      final activeTravelers = travelersData ??
+          TravelersModel(
+            adults: travelers ?? 1,
+            minors: 0,
+          );
+
+      // Post-response validation: Kid-friendly enforcement, pace, and banned keyword removal
+      final stops = FamilyTravelService.validateAndEnrichStops(
+        initialStops,
+        activeTravelers,
+      );
 
       int totalMinutes = 0;
       if (stops.isNotEmpty) {
@@ -680,12 +1080,17 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
         whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
         aiSummary: data['aiSummary'] as String?,
         age: age,
-        travelers: travelers,
+        travelers: activeTravelers.totalCount,
         budget: budget,
         currency: 'INR',
         estimatedTotalCost: estimatedTotalCost,
         remainingBudget: remainingBudget,
         expenseSummary: expenseSummary,
+        foodPreference: foodPreference,
+        adultsCount: activeTravelers.adults,
+        minorsCount: activeTravelers.minors,
+        minorAgeBands: activeTravelers.minorAgeBands,
+        travelersSummary: activeTravelers.summary,
       );
     } catch (e) {
       throw GeminiRestException(
@@ -710,6 +1115,8 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
     int? travelers,
     int? budget,
     WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
   }) {
     try {
       String cleanJson = responseText.trim();
@@ -725,11 +1132,24 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
 
       final data = json.decode(cleanJson) as Map<String, dynamic>;
 
+      final activeTravelers = travelersData ??
+          TravelersModel(
+            adults: travelers ?? 1,
+            minors: 0,
+          );
+
       final days = (data['days'] as List? ?? []).map((dayData) {
         final d = dayData as Map<String, dynamic>;
-        final stops = (d['stops'] as List? ?? []).map((s) {
-          return ItineraryStop.fromMap(s as Map<String, dynamic>);
+        final initialStops = (d['stops'] as List? ?? []).map((s) {
+          final stop = ItineraryStop.fromMap(s as Map<String, dynamic>);
+          return _validateAndEnrichStop(stop, foodPreference);
         }).toList();
+
+        // Post-response validation for each day
+        final stops = FamilyTravelService.validateAndEnrichStops(
+          initialStops,
+          activeTravelers,
+        );
 
         final dayNumber = d['dayNumber'] as int? ?? 1;
         final dayDate = d['date'] as String? ?? startDate;
@@ -760,6 +1180,11 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
           dayNumber: dayNumber,
           expenseSummary: expenseSummary,
           estimatedTotalCost: estimatedTotalCost,
+          foodPreference: foodPreference,
+          adultsCount: activeTravelers.adults,
+          minorsCount: activeTravelers.minors,
+          minorAgeBands: activeTravelers.minorAgeBands,
+          travelersSummary: activeTravelers.summary,
         );
       }).toList();
 
@@ -788,17 +1213,78 @@ If responding with a modified itinerary, output ONLY valid JSON (no markdown, no
             data['weatherSummary'] as String? ?? weather?.conditionDescription,
         whatToCarry: List<String>.from(data['whatToCarry'] ?? []),
         age: age,
-        travelers: travelers,
+        travelers: activeTravelers.totalCount,
         budget: budget,
         currency: 'INR',
         estimatedTotalCost: estimatedTotalCost,
         remainingBudget: remainingBudget,
         overallExpenseSummary: overallExpenseSummary,
+        foodPreference: foodPreference,
+        adultsCount: activeTravelers.adults,
+        minorsCount: activeTravelers.minors,
+        minorAgeBands: activeTravelers.minorAgeBands,
+        travelersSummary: activeTravelers.summary,
       );
     } catch (e) {
       throw GeminiRestException(
           'Failed to parse multi-day itinerary: $e\nResponse was: $responseText');
     }
+  }
+
+  /// Post-response validation and enrichment for food stops
+  ItineraryStop _validateAndEnrichStop(ItineraryStop stop, String foodPreference) {
+    final nameLower = stop.name.toLowerCase();
+    final isFood = stop.type == 'food' ||
+        nameLower.contains('restaurant') ||
+        nameLower.contains('cafe') ||
+        nameLower.contains('dhaba') ||
+        nameLower.contains('bhojanalaya') ||
+        nameLower.contains('bhojnalaya') ||
+        nameLower.contains('sweets') ||
+        nameLower.contains('chaat') ||
+        nameLower.contains('bakery') ||
+        nameLower.contains('kitchen');
+
+    if (!isFood) return stop;
+
+    final fullText = '${stop.name} ${stop.description} ${stop.tips.join(" ")}';
+    final isCompliant = DietaryFilterService.isCompliant(foodPreference, fullText);
+
+    List<String> updatedTips = List<String>.from(stop.tips);
+    if (foodPreference == FoodPreference.jain) {
+      const jainNote = 'Please confirm Jain preparation with the restaurant.';
+      if (!updatedTips.any((t) => t.toLowerCase().contains('confirm jain'))) {
+        updatedTips.add(jainNote);
+      }
+    }
+
+    String dietaryType = stop.dietaryType ?? DietaryFilterService.inferDietaryType(fullText, preference: foodPreference);
+
+    if (!isCompliant) {
+      // Post-response filter: sanitize description & tags if strict preference violated
+      String sanitizedDescription = stop.description;
+      if (foodPreference == FoodPreference.jain) {
+        sanitizedDescription = 'Strict Jain-friendly options and pure vegetarian specialties. (Non-Jain items excluded)';
+        dietaryType = FoodPreference.jain;
+      } else if (foodPreference == FoodPreference.veg) {
+        sanitizedDescription = 'Pure vegetarian dishes and local refreshments. (Meat/egg items excluded)';
+        dietaryType = FoodPreference.veg;
+      } else if (foodPreference == FoodPreference.vegEgg) {
+        sanitizedDescription = 'Vegetarian specialties and fresh egg delicacies. (Meat/seafood excluded)';
+        dietaryType = FoodPreference.vegEgg;
+      }
+
+      return stop.copyWith(
+        description: sanitizedDescription,
+        tips: updatedTips,
+        dietaryType: dietaryType,
+      );
+    }
+
+    return stop.copyWith(
+      tips: updatedTips,
+      dietaryType: dietaryType,
+    );
   }
 
   DateTime _parseTime(String time) {

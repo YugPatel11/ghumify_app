@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
+import '../../../core/constants/food_preferences.dart';
+import '../../../core/providers/app_settings_provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../trip_planner/widgets/food_preference_selector.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,6 +14,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final settingsProvider = context.watch<AppSettingsProvider>();
     final user = authProvider.user;
 
     return Scaffold(
@@ -135,6 +139,14 @@ class SettingsScreen extends StatelessWidget {
                     subtitle: 'English',
                     onTap: () {},
                   ),
+                  _SettingsTile(
+                    icon: Icons.restaurant_rounded,
+                    iconColor: FoodPreference.getIndicatorColor(settingsProvider.foodPreference),
+                    title: 'Food Preference',
+                    subtitle: FoodPreference.getLabel(settingsProvider.foodPreference),
+                    showDivider: true,
+                    onTap: () => _showFoodPreferenceSheet(context),
+                  ),
                 ],
               ),
 
@@ -224,6 +236,59 @@ class SettingsScreen extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
+    );
+  }
+
+  void _showFoodPreferenceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.fromLTRB(AppTokens.lg, AppTokens.md, AppTokens.lg, AppTokens.xl),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusXl)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppTokens.md),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const FoodPreferenceSelector(
+                showHeader: true,
+              ),
+              const SizedBox(height: AppTokens.lg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetContext),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brand,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                    ),
+                  ),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

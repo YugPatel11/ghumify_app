@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart' as import_firestore;
 import 'itinerary_model.dart';
+import 'nearby_service_model.dart';
+import 'travelers_model.dart';
 
 /// Represents a complete multi-day itinerary
 class MultiDayItineraryModel {
@@ -21,7 +23,7 @@ class MultiDayItineraryModel {
   final bool isSaved;
   final DateTime createdAt;
 
-  // New Age & Budget fields
+  // Age & Budget fields
   final int? age;
   final int? travelers;
   final int? budget;
@@ -29,6 +31,14 @@ class MultiDayItineraryModel {
   final int? estimatedTotalCost;
   final int? remainingBudget;
   final Map<String, dynamic>? overallExpenseSummary;
+  final String foodPreference;
+  final List<NearbyServiceModel> nearbySafetyServices;
+
+  // Travelers Feature fields (clean, DPDP privacy compliant)
+  final int adultsCount;
+  final int minorsCount;
+  final List<String> minorAgeBands;
+  final String? travelersSummary;
 
   MultiDayItineraryModel({
     required this.id,
@@ -47,6 +57,7 @@ class MultiDayItineraryModel {
     this.weatherSummary,
     this.whatToCarry = const [],
     this.isSaved = false,
+    this.nearbySafetyServices = const [],
     DateTime? createdAt,
     this.age,
     this.travelers,
@@ -55,9 +66,35 @@ class MultiDayItineraryModel {
     this.estimatedTotalCost,
     this.remainingBudget,
     this.overallExpenseSummary,
+    this.foodPreference = 'all',
+    this.adultsCount = 1,
+    this.minorsCount = 0,
+    this.minorAgeBands = const [],
+    this.travelersSummary,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  TravelersModel get travelersModel => TravelersModel(
+        adults: adultsCount,
+        minors: minorsCount,
+        minorAgeBands: minorAgeBands,
+      );
+
+  bool get isFamilyFriendly => minorsCount > 0;
+
+  String get displayTravelersSummary =>
+      travelersSummary ?? travelersModel.summary;
+
   factory MultiDayItineraryModel.fromMap(Map<String, dynamic> data) {
+    final parsedTravelers = (data['travelers'] as num?)?.toInt();
+    final parsedAdults = (data['adultsCount'] as num?)?.toInt() ??
+        (data['adults'] as num?)?.toInt() ??
+        parsedTravelers ??
+        1;
+    final parsedMinors = (data['minorsCount'] as num?)?.toInt() ??
+        (data['minors'] as num?)?.toInt() ??
+        0;
+    final parsedBands = List<String>.from(data['minorAgeBands'] ?? []);
+
     return MultiDayItineraryModel(
       id: data['id'] ?? '',
       userId: data['userId'] ?? '',
@@ -72,32 +109,7 @@ class MultiDayItineraryModel {
       pace: data['pace'] ?? 'moderate',
       days: (data['days'] as List? ?? []).map((d) {
         final dayData = d as Map<String, dynamic>;
-        return ItineraryModel(
-          id: dayData['id'] ?? '',
-          userId: dayData['userId'] ?? '',
-          city: dayData['city'] ?? '',
-          date: dayData['date'] ?? '',
-          startTime: dayData['startTime'] ?? '',
-          endTime: dayData['endTime'] ?? '',
-          totalDurationMinutes: dayData['totalDurationMinutes'] ?? 0,
-          interests: List<String>.from(dayData['interests'] ?? []),
-          travelMode: dayData['travelMode'] ?? 'driving',
-          pace: dayData['pace'] ?? 'moderate',
-          stops: (dayData['stops'] as List? ?? [])
-              .map((s) => ItineraryStop.fromMap(s as Map<String, dynamic>))
-              .toList(),
-          weatherSummary: dayData['weatherSummary'],
-          whatToCarry: List<String>.from(dayData['whatToCarry'] ?? []),
-          aiSummary: dayData['aiSummary'],
-          dayNumber: dayData['dayNumber'] ?? 1,
-          age: dayData['age'],
-          travelers: dayData['travelers'],
-          budget: dayData['budget'],
-          currency: dayData['currency'] ?? 'INR',
-          estimatedTotalCost: dayData['estimatedTotalCost'],
-          remainingBudget: dayData['remainingBudget'],
-          expenseSummary: dayData['expenseSummary'] as Map<String, dynamic>?,
-        );
+        return ItineraryModel.fromMap(dayData);
       }).toList(),
       overallSummary: data['overallSummary'],
       weatherSummary: data['weatherSummary'],
@@ -107,17 +119,35 @@ class MultiDayItineraryModel {
           ? DateTime.parse(data['createdAt'])
           : DateTime.now(),
       age: data['age'],
-      travelers: data['travelers'],
+      travelers: parsedTravelers ?? (parsedAdults + parsedMinors),
       budget: data['budget'],
       currency: data['currency'] ?? 'INR',
       estimatedTotalCost: data['estimatedTotalCost'],
       remainingBudget: data['remainingBudget'],
       overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
+      foodPreference: data['foodPreference'] ?? 'all',
+      nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
+          .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
+      adultsCount: parsedAdults,
+      minorsCount: parsedMinors,
+      minorAgeBands: parsedBands,
+      travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
     );
   }
 
   factory MultiDayItineraryModel.fromFirestore(import_firestore.DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final parsedTravelers = (data['travelers'] as num?)?.toInt();
+    final parsedAdults = (data['adultsCount'] as num?)?.toInt() ??
+        (data['adults'] as num?)?.toInt() ??
+        parsedTravelers ??
+        1;
+    final parsedMinors = (data['minorsCount'] as num?)?.toInt() ??
+        (data['minors'] as num?)?.toInt() ??
+        0;
+    final parsedBands = List<String>.from(data['minorAgeBands'] ?? []);
+
     return MultiDayItineraryModel(
       id: doc.id,
       userId: data['userId'] ?? '',
@@ -132,32 +162,7 @@ class MultiDayItineraryModel {
       pace: data['pace'] ?? 'moderate',
       days: (data['days'] as List? ?? []).map((d) {
         final dayData = d as Map<String, dynamic>;
-        return ItineraryModel(
-          id: dayData['id'] ?? '',
-          userId: dayData['userId'] ?? '',
-          city: dayData['city'] ?? '',
-          date: dayData['date'] ?? '',
-          startTime: dayData['startTime'] ?? '',
-          endTime: dayData['endTime'] ?? '',
-          totalDurationMinutes: dayData['totalDurationMinutes'] ?? 0,
-          interests: List<String>.from(dayData['interests'] ?? []),
-          travelMode: dayData['travelMode'] ?? 'driving',
-          pace: dayData['pace'] ?? 'moderate',
-          stops: (dayData['stops'] as List? ?? [])
-              .map((s) => ItineraryStop.fromMap(s as Map<String, dynamic>))
-              .toList(),
-          weatherSummary: dayData['weatherSummary'],
-          whatToCarry: List<String>.from(dayData['whatToCarry'] ?? []),
-          aiSummary: dayData['aiSummary'],
-          dayNumber: dayData['dayNumber'] ?? 1,
-          age: dayData['age'],
-          travelers: dayData['travelers'],
-          budget: dayData['budget'],
-          currency: dayData['currency'] ?? 'INR',
-          estimatedTotalCost: dayData['estimatedTotalCost'],
-          remainingBudget: dayData['remainingBudget'],
-          expenseSummary: dayData['expenseSummary'] as Map<String, dynamic>?,
-        );
+        return ItineraryModel.fromMap(dayData);
       }).toList(),
       overallSummary: data['overallSummary'],
       weatherSummary: data['weatherSummary'],
@@ -165,12 +170,20 @@ class MultiDayItineraryModel {
       isSaved: data['isSaved'] ?? false,
       createdAt: (data['createdAt'] as import_firestore.Timestamp?)?.toDate() ?? DateTime.now(),
       age: data['age'],
-      travelers: data['travelers'],
+      travelers: parsedTravelers ?? (parsedAdults + parsedMinors),
       budget: data['budget'],
       currency: data['currency'] ?? 'INR',
       estimatedTotalCost: data['estimatedTotalCost'],
       remainingBudget: data['remainingBudget'],
       overallExpenseSummary: data['overallExpenseSummary'] as Map<String, dynamic>?,
+      foodPreference: data['foodPreference'] ?? 'all',
+      nearbySafetyServices: (data['nearbySafetyServices'] as List? ?? [])
+          .map((s) => NearbyServiceModel.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
+      adultsCount: parsedAdults,
+      minorsCount: parsedMinors,
+      minorAgeBands: parsedBands,
+      travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
     );
   }
 
@@ -199,12 +212,19 @@ class MultiDayItineraryModel {
       'isSaved': isSaved,
       'createdAt': createdAt.toIso8601String(),
       'age': age,
-      'travelers': travelers,
+      'travelers': travelers ?? (adultsCount + minorsCount),
       'budget': budget,
       'currency': currency,
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'overallExpenseSummary': overallExpenseSummary,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
+      'adultsCount': adultsCount,
+      'minorsCount': minorsCount,
+      'minorAgeBands': minorAgeBands,
+      'travelersSummary': displayTravelersSummary,
+      'isFamilyFriendly': isFamilyFriendly,
     };
   }
 
@@ -232,12 +252,19 @@ class MultiDayItineraryModel {
       'isSaved': isSaved,
       'createdAt': import_firestore.Timestamp.fromDate(createdAt),
       'age': age,
-      'travelers': travelers,
+      'travelers': travelers ?? (adultsCount + minorsCount),
       'budget': budget,
       'currency': currency,
       'estimatedTotalCost': estimatedTotalCost,
       'remainingBudget': remainingBudget,
       'overallExpenseSummary': overallExpenseSummary,
+      'foodPreference': foodPreference,
+      'nearbySafetyServices': nearbySafetyServices.map((s) => s.toMap()).toList(),
+      'adultsCount': adultsCount,
+      'minorsCount': minorsCount,
+      'minorAgeBands': minorAgeBands,
+      'travelersSummary': displayTravelersSummary,
+      'isFamilyFriendly': isFamilyFriendly,
     };
   }
 
@@ -250,6 +277,12 @@ class MultiDayItineraryModel {
     int? estimatedTotalCost,
     int? remainingBudget,
     Map<String, dynamic>? overallExpenseSummary,
+    String? foodPreference,
+    List<NearbyServiceModel>? nearbySafetyServices,
+    int? adultsCount,
+    int? minorsCount,
+    List<String>? minorAgeBands,
+    String? travelersSummary,
   }) {
     return MultiDayItineraryModel(
       id: id,
@@ -276,6 +309,12 @@ class MultiDayItineraryModel {
       estimatedTotalCost: estimatedTotalCost ?? this.estimatedTotalCost,
       remainingBudget: remainingBudget ?? this.remainingBudget,
       overallExpenseSummary: overallExpenseSummary ?? this.overallExpenseSummary,
+      foodPreference: foodPreference ?? this.foodPreference,
+      nearbySafetyServices: nearbySafetyServices ?? this.nearbySafetyServices,
+      adultsCount: adultsCount ?? this.adultsCount,
+      minorsCount: minorsCount ?? this.minorsCount,
+      minorAgeBands: minorAgeBands ?? this.minorAgeBands,
+      travelersSummary: travelersSummary ?? this.travelersSummary,
     );
   }
 

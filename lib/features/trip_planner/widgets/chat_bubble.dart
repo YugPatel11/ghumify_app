@@ -77,13 +77,20 @@ class ChatBubble extends StatelessWidget {
                         : AppColors.borderGlass
                   ),
                 ),
-                child: Text(
-                  message.content,
-                  style: TextStyle(
-                    color: isUser ? Colors.white : AppColors.text,
-                    fontSize: 15,
-                    height: 1.5,
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final displayContent =
+                        ChatMessageModel.sanitizeContent(message.content);
+                    return Text(
+                      displayContent,
+                      softWrap: true,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : AppColors.text,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

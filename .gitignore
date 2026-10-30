@@ -49,3 +49,7 @@ app.*.map.json
 .env 
 architecture.md
 tech_stack_details.md
+
+# Design tooling (keep tokens, ignore generated)
+designpowers/
+

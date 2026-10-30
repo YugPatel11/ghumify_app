@@ -1,4 +1,4 @@
-# Ghumify App - Simple Presentation Details
+                                                                                                                                                        # Ghumify App - Simple Presentation Details
 
 ## 1. How Users Use the App (Workflow)
 1. **Welcome Screen:** Users open the app and see what it does.

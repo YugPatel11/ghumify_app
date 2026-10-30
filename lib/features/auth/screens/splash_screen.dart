@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
-import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/app_settings_provider.dart';
 
+/// Full-screen splash screen displaying the curated "splash page" visual
+/// with seamless startup initialization, zero-flash transitions, and safe routing.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -15,184 +18,125 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _logoController;
-  late AnimationController _fadeController;
-  late Animation<double> _logoScale;
-  late Animation<double> _logoOpacity;
-  late Animation<double> _textOpacity;
-  late Animation<Offset> _textSlide;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _fadeTransitionController;
+  late Animation<double> _fadeAnimation;
+  bool _isNavigating = false;
+
+  // Background color matching the top edge of splash page.png to prevent any visible letterboxing
+  static const Color _splashEdgeColor = Color(0xFF5997C9);
 
   @override
   void initState() {
     super.initState();
 
-    _logoController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _logoScale = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
-    );
-
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _logoController,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+    // Set immersive edge-to-edge transparent system overlay for the splash
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
 
-    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
+    _fadeTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+      value: 1.0, // Fully visible initially
     );
 
-    _textSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeTransitionController,
+      curve: Curves.easeInOut,
     );
 
-    _startAnimation();
+    _runStartupSequence();
   }
 
-  void _startAnimation() async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 800));
-    _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 1500));
-    _navigate();
-  }
+  /// Coordinates service readiness, auth state validation, and smooth navigation.
+  Future<void> _runStartupSequence() async {
+    final stopwatch = Stopwatch()..start();
 
-  void _navigate() async {
-    if (!mounted) return;
-    final authProvider = context.read<AuthProvider>();
-    final settingsProvider = context.read<AppSettingsProvider>();
+    String nextRoute = '/login';
 
-    if (settingsProvider.isFirstLaunch) {
-      context.go('/onboarding');
-      return;
-    }
+    try {
+      // 1. Minimum display time benchmark (1500ms) to ensure smooth presentation without flickering
+      const minDisplayDuration = Duration(milliseconds: 1600);
 
-    // Check if Firebase has a logged-in user
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser != null) {
-      // Wait briefly for auth provider listener to load user model
-      int attempts = 0;
-      while (authProvider.user == null && attempts < 10) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        attempts++;
+      final settingsProvider = context.read<AppSettingsProvider>();
+      final authProvider = context.read<AuthProvider>();
+
+      if (settingsProvider.isFirstLaunch) {
+        nextRoute = '/onboarding';
+      } else {
+        final firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser != null) {
+          // Await auth listener to hydrate user profile with a strict safety timeout
+          int attempts = 0;
+          while (authProvider.user == null && attempts < 8 && mounted) {
+            await Future.delayed(const Duration(milliseconds: 150));
+            attempts++;
+          }
+          nextRoute = authProvider.isLoggedIn ? '/home' : '/login';
+        } else {
+          nextRoute = '/login';
+        }
       }
-      if (mounted) {
-        context.go(authProvider.isLoggedIn ? '/home' : '/login');
+
+      // Ensure minimum display time has elapsed
+      final elapsed = stopwatch.elapsed;
+      if (elapsed < minDisplayDuration) {
+        await Future.delayed(minDisplayDuration - elapsed);
       }
-    } else {
-      context.go('/login');
+    } catch (_) {
+      // Defensive fallback to prevent splash lockup on any startup exception
+      nextRoute = '/login';
+    } finally {
+      stopwatch.stop();
+      if (mounted && !_isNavigating) {
+        _isNavigating = true;
+        // Smooth fade-out transition before route replacement
+        await _fadeTransitionController.reverse();
+        if (mounted) {
+          context.go(nextRoute);
+        }
+      }
     }
   }
 
   @override
   void dispose() {
-    _logoController.dispose();
-    _fadeController.dispose();
+    _fadeTransitionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF0F4F9),
-              Color(0xFFE8EDF7),
-              Color(0xFFF0F4F9),
-            ],
+      backgroundColor: _splashEdgeColor,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: _splashEdgeColor,
+          child: Image.asset(
+            AppConstants.splashPagePath,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                AppConstants.splashPageOriginalPath,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              );
+            },
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo animation
-            AnimatedBuilder(
-              animation: _logoController,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _logoOpacity.value,
-                  child: Transform.scale(
-                    scale: _logoScale.value,
-                    child: child,
-                  ),
-                );
-              },
-              child: Image.asset(
-                AppConstants.logoPath,
-                width: 200,
-                height: 200,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Tagline animation
-            SlideTransition(
-              position: _textSlide,
-              child: FadeTransition(
-                opacity: _textOpacity,
-                child: Column(
-                  children: [
-                    Text(
-                      AppConstants.appTagline,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.brand.withOpacity(0.8),
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppConstants.appDescription,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 60),
-
-            // Loading indicator
-            FadeTransition(
-              opacity: _textOpacity,
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.brand.withOpacity(0.7),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

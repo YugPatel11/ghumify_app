@@ -11,12 +11,14 @@ import '../../features/home/screens/main_shell.dart';
 import '../../features/trip_planner/screens/trip_input_screen.dart';
 import '../../features/trip_planner/screens/itinerary_result_screen.dart';
 import '../../features/trip_planner/screens/multi_day_result_screen.dart';
+import '../../features/trip_planner/screens/multi_city_result_screen.dart';
 import '../../features/place_discovery/screens/discover_screen.dart';
 import '../../features/place_detail/screens/place_detail_screen.dart';
 import '../../features/translator/screens/translator_screen.dart';
 import '../../features/trip_planner/screens/saved_itineraries_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
+import '../../features/groups/screens/groups_list_screen.dart';
 
 /// App router using GoRouter
 class AppRouter {
@@ -105,6 +107,12 @@ class AppRouter {
                 child: SettingsScreen(),
               ),
             ),
+            GoRoute(
+              path: '/groups',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: GroupsListScreen(),
+              ),
+            ),
           ],
         ),
 
@@ -131,6 +139,13 @@ class AppRouter {
           builder: (context, state) {
             final extra = state.extra as Map<String, dynamic>?;
             return MultiDayResultScreen(itineraryData: extra);
+          },
+        ),
+        GoRoute(
+          path: '/multi-city-itinerary',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            return MultiCityResultScreen(tripData: extra);
           },
         ),
         GoRoute(
