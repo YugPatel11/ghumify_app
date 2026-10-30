@@ -67,6 +67,7 @@ class _TripInputScreenState extends State<TripInputScreen>
   TimeOfDay _endTime = const TimeOfDay(hour: 18, minute: 30);
   String _travelMode = 'driving';
   String _pace = 'moderate';
+  bool _avoidCrowds = false;
 
   // Interests State
   final Set<String> _selectedInterests = {
@@ -464,6 +465,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           'pace': _pace,
           'travelers': _travelersModel.toMap(),
           'foodPreference': foodPref,
+          'avoidCrowds': _avoidCrowds,
           'budget': int.tryParse(_budgetController.text),
         };
         context.pushReplacement('/multi-city-itinerary', extra: data);
@@ -486,6 +488,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           'minorAgeBands': _travelersModel.minorAgeBands,
           'travelersSummary': _travelersModel.summary,
           'foodPreference': foodPref,
+          'avoidCrowds': _avoidCrowds,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
@@ -507,6 +510,7 @@ class _TripInputScreenState extends State<TripInputScreen>
           'minorAgeBands': _travelersModel.minorAgeBands,
           'travelersSummary': _travelersModel.summary,
           'foodPreference': foodPref,
+          'avoidCrowds': _avoidCrowds,
           if (_selectedLatitude != null) 'latitude': _selectedLatitude,
           if (_selectedLongitude != null) 'longitude': _selectedLongitude,
         };
@@ -1451,6 +1455,70 @@ class _TripInputScreenState extends State<TripInputScreen>
   // ═════════════════════════════════════════════════════════════════════════
   // STEP 2: STYLE & PACE ("How You Move")
   // ═════════════════════════════════════════════════════════════════════════
+  Widget _buildCrowdToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(
+          color: _avoidCrowds ? AppColors.brand : AppColors.border,
+          width: _avoidCrowds ? 1.5 : 1.0,
+        ),
+        boxShadow: AppTokens.shadow(level: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _avoidCrowds ? AppColors.brandSoft : AppColors.card,
+              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+            ),
+            child: Icon(
+              Icons.groups_outlined,
+              color: _avoidCrowds ? AppColors.brand : AppColors.textSoft,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppTokens.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Avoid crowded places',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Prioritizes quieter hours and peaceful spots',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _avoidCrowds,
+            onChanged: (val) {
+              HapticFeedback.selectionClick();
+              setState(() => _avoidCrowds = val);
+            },
+            activeTrackColor: AppColors.brand.withValues(alpha: 0.5),
+            activeThumbColor: AppColors.brand,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStep2StyleAndPace({required Key key}) {
     return SingleChildScrollView(
       key: key,
@@ -1581,6 +1649,8 @@ class _TripInputScreenState extends State<TripInputScreen>
               setState(() => _pace = 'fast');
             },
           ),
+          const SizedBox(height: AppTokens.xl),
+          _buildCrowdToggle(),
         ],
       ),
     );
