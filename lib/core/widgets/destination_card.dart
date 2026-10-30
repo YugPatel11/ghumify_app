@@ -171,12 +171,16 @@ class DestinationCard extends StatelessWidget {
                             children: [
                               const Icon(Icons.location_on, size: 14, color: Colors.white70),
                               const SizedBox(width: 4),
-                              Text(
-                                subtitle!,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                              Expanded(
+                                child: Text(
+                                  subtitle!,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -282,3 +286,4 @@ class DestinationCard extends StatelessWidget {
     return '$count';
   }
 }
+

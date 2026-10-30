@@ -399,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 0.72,
+                      childAspectRatio: 0.66,
                     ),
                     itemCount: _popular.length,
                     itemBuilder: (context, index) {
@@ -525,3 +525,4 @@ class _DestinationData {
   final bool isAsset;
   const _DestinationData(this.name, this.subtitle, this.image, this.badge, this.rating, this.reviewCount, this.price, this.isAsset);
 }
+

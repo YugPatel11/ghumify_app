@@ -84,6 +84,8 @@ class WeatherCard extends StatelessWidget {
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -92,6 +94,8 @@ class WeatherCard extends StatelessWidget {
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 12,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -149,3 +153,4 @@ class WeatherCard extends StatelessWidget {
     }
   }
 }
+

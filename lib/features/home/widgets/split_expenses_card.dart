@@ -412,12 +412,16 @@ class _SplitExpensesHomeCardState extends State<SplitExpensesHomeCard> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Split Expenses',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.text,
+                        Flexible(
+                          child: Text(
+                            'Split Expenses',
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (balanceBadge != null) ...[
@@ -452,3 +456,4 @@ class _SplitExpensesHomeCardState extends State<SplitExpensesHomeCard> {
     );
   }
 }
+
