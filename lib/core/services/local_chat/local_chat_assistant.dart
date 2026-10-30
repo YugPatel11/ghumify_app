@@ -155,8 +155,17 @@ class LocalChatAssistant {
           targetLang: intent.targetLanguage ?? 'hi',
         );
 
+      case LocalChatIntentType.queryInfo:
+        return _handleQueryInfo(
+          messageId: messageId,
+          userMessage: userMessage,
+          currentItinerary: currentItinerary,
+          isMultiDay: isMultiDay,
+          intent: intent,
+        );
+
       case LocalChatIntentType.unknown:
-      default:
+
         return ChatMessageModel(
           id: messageId,
           role: 'assistant',
@@ -346,5 +355,117 @@ class LocalChatAssistant {
       );
     }
   }
-}
 
+  ChatMessageModel _handleQueryInfo({
+    required String messageId,
+    required String userMessage,
+    required Map<String, dynamic> currentItinerary,
+    required bool isMultiDay,
+    required ParsedIntent intent,
+  }) {
+    final norm = IntentParser.normalize(userMessage);
+
+    // Extract all stops
+    final allStops = <Map<String, dynamic>>[];
+    if (isMultiDay) {
+      final days = (currentItinerary['days'] as List? ?? []);
+      for (final day in days) {
+        if (day is Map) {
+          final stops = (day['stops'] as List? ?? []);
+          for (final s in stops) {
+            if (s is Map<String, dynamic>) allStops.add(s);
+          }
+        }
+      }
+    } else {
+      final stops = (currentItinerary['stops'] as List? ?? []);
+      for (final s in stops) {
+        if (s is Map<String, dynamic>) allStops.add(s);
+      }
+    }
+
+    // 1. Photo spots / camera / view
+    if (norm.contains('photo') || norm.contains('camera') || norm.contains('view') || norm.contains('sunset') || norm.contains('spot')) {
+      final photoStops = allStops.where((s) {
+        final type = (s['type'] as String? ?? '').toLowerCase();
+        final tips = (s['tips'] as List? ?? []).join(' ').toLowerCase();
+        return type == 'monument' || type == 'nature' || tips.contains('photo') || tips.contains('view') || tips.contains('sunset');
+      }).toList();
+
+      final listToUse = photoStops.isNotEmpty ? photoStops : allStops;
+      final buffer = StringBuffer('[Offline Mode] Top scenic & photo spots in your itinerary:\n\n');
+      for (final s in listToUse.take(3)) {
+        final name = s['name'] ?? 'Attraction';
+        final tips = (s['tips'] as List? ?? []).where((t) => t.toString().toLowerCase().contains('photo') || t.toString().toLowerCase().contains('view')).toList();
+        final tipText = tips.isNotEmpty ? tips.first : 'Great vantage point for photography.';
+        buffer.writeln('📸 **$name**: $tipText');
+      }
+      return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+    }
+
+    // 2. What to carry / pack / bring
+    if (norm.contains('pack') || norm.contains('carry') || norm.contains('bring') || norm.contains('bag')) {
+      final carry = (currentItinerary['whatToCarry'] as List? ?? []).map((e) => e.toString()).toList();
+      final items = carry.isNotEmpty ? carry : [
+        '💧 Water bottle',
+        '📱 Fully charged phone & offline maps',
+        '👟 Comfortable walking shoes',
+        '🧴 Sunscreen / hat',
+        '💵 Backup cash & ID card',
+      ];
+      final buffer = StringBuffer('[Offline Mode] Essential items to carry for your trip:\n\n');
+      for (final item in items) {
+        buffer.writeln('• $item');
+      }
+      return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+    }
+
+    // 3. Specific place query by name or index
+    if (intent.targetStopIndex != null && intent.targetStopIndex! >= 0 && intent.targetStopIndex! < allStops.length) {
+      final s = allStops[intent.targetStopIndex!];
+      final name = s['name'] ?? 'Stop';
+      final desc = s['description'] ?? 'Popular attraction.';
+      final start = s['startTime'] ?? '';
+      final end = s['endTime'] ?? '';
+      final cost = s['cost'] != null ? '₹${s['cost']}' : 'Free / Standard entry';
+      final tips = (s['tips'] as List? ?? []).take(2).toList();
+
+      final buffer = StringBuffer('[Offline Mode] **$name**\n\n');
+      buffer.writeln('• **Time:** $start - $end');
+      buffer.writeln('• **Estimated Cost:** $cost');
+      buffer.writeln('• **About:** $desc');
+      if (tips.isNotEmpty) {
+        buffer.writeln('• **Tips:** ${tips.join("; ")}');
+      }
+      return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+    }
+
+    // 4. Plan / schedule / overview / summary
+    if (norm.contains('plan') || norm.contains('schedule') || norm.contains('overview') || norm.contains('summary') || norm.contains('today')) {
+      final summary = currentItinerary['aiSummary'] as String? ?? currentItinerary['overallSummary'] as String? ?? 'Here is your planned schedule:';
+      final buffer = StringBuffer('[Offline Mode] $summary\n\n');
+      for (int i = 0; i < allStops.length; i++) {
+        final s = allStops[i];
+        final name = s['name'] ?? 'Stop ${i + 1}';
+        final start = s['startTime'] ?? '';
+        final end = s['endTime'] ?? '';
+        buffer.writeln('${i + 1}. **$name** ($start - $end)');
+      }
+      return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+    }
+
+    // Default query fallback: show general overview
+    final cityName = currentItinerary['city'] as String? ?? 'your destination';
+    return ChatMessageModel(
+      id: messageId,
+      role: 'assistant',
+      content: '[Offline Mode] Exploring $cityName with ${allStops.length} stops planned. You can ask for:\n\n'
+          '• "Best photo spots?"\n'
+          '• "What to carry?"\n'
+          '• "Add food stop"\n'
+          '• "Replace [place name]"\n'
+          '• "Make it more relaxed"',
+    );
+  }
+
+}

@@ -639,6 +639,18 @@ out center body;
     'curated_golden_temple': 'स्वर्ण मंदिर golden temple amritsar harmandir sahib',
   };
 
+  static List<PlaceSuggestion> get curatedDatabase => _curatedDatabase;
+
+  static List<PlaceSuggestion> getCuratedPlacesForCity(String city) {
+    final clean = city.toLowerCase().trim();
+    return _curatedDatabase.where((p) {
+      if (p.type == 'city') return false;
+      return p.name.toLowerCase().contains(clean) ||
+          p.secondaryText.toLowerCase().contains(clean) ||
+          p.fullDescription.toLowerCase().contains(clean);
+    }).toList();
+  }
+
   static const List<PlaceSuggestion> _curatedDatabase = [
     // Major Cities
     PlaceSuggestion(

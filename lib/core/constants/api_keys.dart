@@ -13,9 +13,9 @@ class ApiKeys {
   static String get backendBaseUrl =>
       dotenv.env['BACKEND_BASE_URL'] ?? 'http://10.0.2.2:3000';
 
-  /// Feature flag for local rule-based chat fallback (default: false)
+  /// Feature flag for local rule-based chat fallback (default: true)
   static bool get localChatFallbackEnabled =>
-      (dotenv.env['LOCAL_CHAT_FALLBACK_ENABLED'] ?? 'false').toLowerCase() == 'true';
+      (dotenv.env['LOCAL_CHAT_FALLBACK_ENABLED'] ?? 'true').toLowerCase() == 'true';
 
   /// Developer-only flag to force local chat tier (default: false, ignored if fallback disabled)
   static bool get forceLocalChat =>

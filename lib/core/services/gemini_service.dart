@@ -15,6 +15,7 @@ import '../models/multi_city_trip_model.dart';
 import 'family_travel_service.dart';
 import '../constants/api_keys.dart';
 import 'local_chat/local_chat_assistant.dart';
+import 'places_service.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
 ///
@@ -92,8 +93,24 @@ class GeminiService {
         travelersData: effectiveTravelers,
       );
     } catch (e) {
-      if (e is GeminiRestException) rethrow;
-      throw GeminiRestException('Failed to generate itinerary: $e');
+
+      return _generateOfflineSingleDayItinerary(
+        userId: userId,
+        city: city,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        interests: interests,
+        travelMode: travelMode,
+        pace: pace,
+        age: age,
+        travelers: effectiveTravelers.totalCount,
+        budget: budget,
+        weather: weather,
+        foodPreference: foodPreference,
+        travelersData: effectiveTravelers,
+        knownPlaces: knownPlaces,
+      );
     }
   }
 
@@ -170,8 +187,26 @@ class GeminiService {
         travelersData: effectiveTravelers,
       );
     } catch (e) {
-      if (e is GeminiRestException) rethrow;
-      throw GeminiRestException('Failed to generate multi-day itinerary: $e');
+
+      return _generateOfflineMultiDayItinerary(
+        userId: userId,
+        city: city,
+        startDate: startDate,
+        endDate: endDate,
+        numberOfDays: numberOfDays,
+        dailyStartTime: dailyStartTime,
+        dailyEndTime: dailyEndTime,
+        interests: interests,
+        travelMode: travelMode,
+        pace: pace,
+        age: age,
+        travelers: effectiveTravelers.totalCount,
+        budget: budget,
+        weather: weather,
+        foodPreference: foodPreference,
+        travelersData: effectiveTravelers,
+        knownPlaces: knownPlaces,
+      );
     }
   }
 
@@ -1423,8 +1458,363 @@ CRITICAL INSTRUCTIONS:
         );
       }
     } catch (_) {
-      // Fallback to standard AI path
+      // Fallback to standard AI path for modify endpoint
     }
     return null;
   }
+
+  int _timeStringToMinutes(String timeStr) {
+    try {
+      final parts = timeStr.trim().split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    } catch (_) {
+      return 9 * 60;
+    }
+  }
+
+  String _minutesToTimeString(int minutes) {
+    final normalized = (minutes % (24 * 60) + (24 * 60)) % (24 * 60);
+    final h = (normalized ~/ 60).toString().padLeft(2, '0');
+    final m = (normalized % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  ItineraryModel _generateOfflineSingleDayItinerary({
+    required String userId,
+    required String city,
+    required String date,
+    required String startTime,
+    required String endTime,
+    required List<String> interests,
+    required String travelMode,
+    required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
+    WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
+    List<PlaceModel>? knownPlaces,
+  }) {
+    final effectiveTravelers = travelersData ??
+        (travelers != null
+            ? TravelersModel(adults: travelers, minors: 0)
+            : const TravelersModel(adults: 1, minors: 0));
+
+    final startMin = _timeStringToMinutes(startTime);
+    final endMin = _timeStringToMinutes(endTime);
+    final totalWindow = (endMin > startMin) ? (endMin - startMin) : 540;
+
+    int visitDuration;
+    if (pace == 'relaxed') {
+      visitDuration = 120;
+    } else if (pace == 'fast') {
+      visitDuration = 60;
+    } else {
+      visitDuration = 90;
+    }
+    const travelGap = 20;
+
+    final candidates = <Map<String, dynamic>>[];
+    if (knownPlaces != null && knownPlaces.isNotEmpty) {
+      for (final p in knownPlaces) {
+        candidates.add({
+          'id': p.id,
+          'name': p.name,
+          'category': p.category,
+          'desc': p.description,
+          'lat': p.latitude,
+          'lng': p.longitude,
+          'fee': p.entryFee?.toInt() ?? 50,
+        });
+      }
+    }
+
+    if (candidates.length < 4) {
+      final curated = PlacesService.getCuratedPlacesForCity(city);
+      for (final c in curated) {
+        if (!candidates.any((x) => x['name'].toString().toLowerCase() == c.name.toLowerCase())) {
+          candidates.add({
+            'id': c.placeId,
+            'name': c.name,
+            'category': c.type,
+            'desc': c.fullDescription,
+            'lat': c.latitude,
+            'lng': c.longitude,
+            'fee': 50,
+          });
+        }
+      }
+    }
+
+    if (candidates.length < 4) {
+      candidates.addAll([
+        {
+          'id': 'offline_${city.toLowerCase()}_monument',
+          'name': '$city Historical Landmark',
+          'category': 'monument',
+          'desc': 'Prominent historic landmark showcasing the architecture and heritage of $city.',
+          'lat': 26.9124,
+          'lng': 75.7873,
+          'fee': 100,
+        },
+        {
+          'id': 'offline_${city.toLowerCase()}_palace',
+          'name': '$city City Heritage Complex',
+          'category': 'monument',
+          'desc': 'Royal museum and cultural complex in $city with historical galleries.',
+          'lat': 26.9258,
+          'lng': 75.8237,
+          'fee': 150,
+        },
+        {
+          'id': 'offline_${city.toLowerCase()}_bazaar',
+          'name': '$city Traditional Artisan Bazaar',
+          'category': 'market',
+          'desc': 'Famous local market known for traditional handicrafts, textiles, and street delicacies.',
+          'lat': 26.9239,
+          'lng': 75.8267,
+          'fee': 0,
+        },
+        {
+          'id': 'offline_${city.toLowerCase()}_garden',
+          'name': '$city Royal Gardens & Sunset Point',
+          'category': 'nature',
+          'desc': 'Tranquil garden landscape providing panoramic sunset vistas.',
+          'lat': 26.9855,
+          'lng': 75.8513,
+          'fee': 30,
+        },
+      ]);
+    }
+
+    final rawStops = <ItineraryStop>[];
+    int currentMin = startMin;
+    int candidateIdx = 0;
+    bool hadLunch = false;
+
+    while (currentMin + 60 <= endMin && candidateIdx < candidates.length) {
+      if (!hadLunch && (currentMin >= 12 * 60 + 30 || currentMin >= startMin + 180)) {
+        final lunchEnd = currentMin + 60;
+        rawStops.add(ItineraryStop(
+          placeId: 'offline_lunch_${rawStops.length + 1}',
+          name: 'Lunch at $city Heritage Dining',
+          type: 'food',
+          startTime: _minutesToTimeString(currentMin),
+          endTime: _minutesToTimeString(lunchEnd),
+          durationMinutes: 60,
+          description: 'Authentic local cuisine featuring regional specialties.',
+          dietaryType: foodPreference,
+          isKidFriendly: true,
+          estimatedCost: 350 * effectiveTravelers.totalCount,
+          tips: ['Try the signature local specialty', 'Ask for non-spicy options for kids'],
+          estimatedCrowdLevel: 'moderate',
+          crowdConfidence: 'high',
+          crowdReason: 'Standard lunch hour peak',
+        ));
+        hadLunch = true;
+        currentMin = lunchEnd + travelGap;
+        continue;
+      }
+
+      final c = candidates[candidateIdx++];
+      final stopEnd = currentMin + visitDuration;
+      if (stopEnd > endMin) break;
+
+      final crowdLevelStr = currentMin < 11 * 60
+          ? 'low'
+          : (currentMin >= 16 * 60 ? 'moderate' : 'low');
+
+      rawStops.add(ItineraryStop(
+        placeId: c['id'] as String? ?? 'offline_stop_${rawStops.length + 1}',
+        name: c['name'] as String,
+        type: c['category'] as String? ?? 'sightseeing',
+        startTime: _minutesToTimeString(currentMin),
+        endTime: _minutesToTimeString(stopEnd),
+        durationMinutes: visitDuration,
+        latitude: c['lat'] as double?,
+        longitude: c['lng'] as double?,
+        description: c['desc'] as String? ?? 'A must-visit spot in $city.',
+        isKidFriendly: true,
+        estimatedCost: (c['fee'] as int? ?? 50) * effectiveTravelers.adults,
+        tips: const [
+          'Wear comfortable footwear for walking',
+          'Keep your camera and phone charged for photos',
+        ],
+        estimatedCrowdLevel: crowdLevelStr,
+        crowdConfidence: 'medium',
+        crowdReason: crowdLevelStr == 'low' ? 'Usually quieter during these hours' : 'Popular afternoon slot',
+      ));
+
+      currentMin = stopEnd + travelGap;
+    }
+
+    final stops = FamilyTravelService.validateAndEnrichStops(
+      rawStops,
+      effectiveTravelers,
+    );
+
+    int totalMinutes = 0;
+    if (stops.isNotEmpty) {
+      final first = _parseTime(stops.first.startTime);
+      final last = _parseTime(stops.last.endTime);
+      totalMinutes = last.difference(first).inMinutes;
+    }
+
+    final totalCost = stops.fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0));
+    final expenseMap = {
+      'attractions': stops.where((s) => s.type != 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
+      'food': stops.where((s) => s.type == 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
+      'travel': 200,
+      'total': totalCost + 200,
+    };
+
+    int? remainingBudget;
+    if (budget != null && budget > 0) {
+      remainingBudget = budget - (totalCost + 200);
+    }
+
+    return ItineraryModel(
+      id: 'offline_${DateTime.now().millisecondsSinceEpoch}',
+      userId: userId,
+      city: city,
+      date: date,
+      startTime: startTime,
+      endTime: endTime,
+      totalDurationMinutes: totalMinutes > 0 ? totalMinutes : totalWindow,
+      interests: interests,
+      travelMode: travelMode,
+      pace: pace,
+      stops: stops,
+      weatherSummary: weather?.conditionDescription ?? 'Favorable travel conditions',
+      whatToCarry: const [
+        '💧 Water bottle',
+        '📱 Fully charged phone & offline maps',
+        '👟 Comfortable walking shoes',
+        '🧴 Sunscreen & sunglasses',
+        '💵 Cash / UPI cards backup',
+      ],
+      aiSummary: 'Offline Curated Itinerary for $city featuring top highlights tailored for ${effectiveTravelers.summary}.',
+      age: age,
+      travelers: effectiveTravelers.totalCount,
+      budget: budget,
+      currency: 'INR',
+      estimatedTotalCost: totalCost + 200,
+      remainingBudget: remainingBudget,
+      expenseSummary: expenseMap,
+      foodPreference: foodPreference,
+      adultsCount: effectiveTravelers.adults,
+      minorsCount: effectiveTravelers.minors,
+      minorAgeBands: effectiveTravelers.minorAgeBands,
+      travelersSummary: effectiveTravelers.summary,
+      crowdModelVersion: 'v1.0-offline',
+    );
+  }
+
+  MultiDayItineraryModel _generateOfflineMultiDayItinerary({
+    required String userId,
+    required String city,
+    required String startDate,
+    required String endDate,
+    required int numberOfDays,
+    required String dailyStartTime,
+    required String dailyEndTime,
+    required List<String> interests,
+    required String travelMode,
+    required String pace,
+    int? age,
+    int? travelers,
+    int? budget,
+    WeatherModel? weather,
+    String foodPreference = FoodPreference.all,
+    TravelersModel? travelersData,
+    List<PlaceModel>? knownPlaces,
+  }) {
+    final effectiveTravelers = travelersData ??
+        (travelers != null
+            ? TravelersModel(adults: travelers, minors: 0)
+            : const TravelersModel(adults: 1, minors: 0));
+
+    final parsedStart = DateTime.tryParse(startDate) ?? DateTime.now();
+    final allDays = <ItineraryModel>[];
+
+    for (int dayIdx = 1; dayIdx <= numberOfDays; dayIdx++) {
+      final dayDate = parsedStart.add(Duration(days: dayIdx - 1)).toIso8601String().split('T').first;
+      final singleDay = _generateOfflineSingleDayItinerary(
+        userId: userId,
+        city: city,
+        date: dayDate,
+        startTime: dailyStartTime,
+        endTime: dailyEndTime,
+        interests: interests,
+        travelMode: travelMode,
+        pace: pace,
+        age: age,
+        travelers: effectiveTravelers.totalCount,
+        budget: budget != null ? (budget ~/ numberOfDays) : null,
+        weather: weather,
+        foodPreference: foodPreference,
+        travelersData: effectiveTravelers,
+        knownPlaces: knownPlaces,
+      );
+
+      allDays.add(singleDay.copyWith(
+        id: 'offline_${DateTime.now().millisecondsSinceEpoch}_day$dayIdx',
+        dayNumber: dayIdx,
+        date: dayDate,
+        aiSummary: 'Day $dayIdx: Curated exploration of $city highlights with balanced pacing.',
+      ));
+    }
+
+    final overallTotalCost = allDays.fold<int>(0, (sum, d) => sum + (d.estimatedTotalCost ?? 0));
+    int? overallRemainingBudget;
+    if (budget != null && budget > 0) {
+      overallRemainingBudget = budget - overallTotalCost;
+    }
+
+    final overallExpenseMap = {
+      'attractions': allDays.fold<int>(0, (sum, d) => sum + ((d.expenseSummary?['attractions'] as int?) ?? 0)),
+      'food': allDays.fold<int>(0, (sum, d) => sum + ((d.expenseSummary?['food'] as int?) ?? 0)),
+      'travel': allDays.fold<int>(0, (sum, d) => sum + ((d.expenseSummary?['travel'] as int?) ?? 0)),
+      'total': overallTotalCost,
+    };
+
+    return MultiDayItineraryModel(
+      id: 'offline_multiday_${DateTime.now().millisecondsSinceEpoch}',
+      userId: userId,
+      city: city,
+      startDate: startDate,
+      endDate: endDate,
+      numberOfDays: numberOfDays,
+      dailyStartTime: dailyStartTime,
+      dailyEndTime: dailyEndTime,
+      interests: interests,
+      travelMode: travelMode,
+      pace: pace,
+      days: allDays,
+      overallSummary: 'Offline Curated $numberOfDays-Day Itinerary for $city curated with balanced pacing and local attractions.',
+      weatherSummary: weather?.conditionDescription ?? 'Favorable travel conditions',
+      whatToCarry: const [
+        '💧 Water bottle',
+        '📱 Fully charged phone & offline maps',
+        '👟 Comfortable walking shoes',
+        '🧴 Sunscreen & sunglasses',
+        '💵 Cash / UPI cards backup',
+      ],
+      age: age,
+      travelers: effectiveTravelers.totalCount,
+      budget: budget,
+      currency: 'INR',
+      estimatedTotalCost: overallTotalCost,
+      remainingBudget: overallRemainingBudget,
+      overallExpenseSummary: overallExpenseMap,
+      foodPreference: foodPreference,
+      adultsCount: effectiveTravelers.adults,
+      minorsCount: effectiveTravelers.minors,
+      minorAgeBands: effectiveTravelers.minorAgeBands,
+      travelersSummary: effectiveTravelers.summary,
+      crowdModelVersion: 'v1.0-offline',
+    );
+  }
+
 }

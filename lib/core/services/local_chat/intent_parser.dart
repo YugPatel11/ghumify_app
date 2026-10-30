@@ -6,6 +6,7 @@ enum LocalChatIntentType {
   moreRelaxed,
   nearestService,
   translateCached,
+  queryInfo,
   help,
   unknown,
 }
@@ -183,7 +184,7 @@ class IntentParser {
     // 7. Remove Stop
     if (_matches(norm, ['remove', 'delete', 'hata do', 'hatao', 'nikal do', 'drop', 'skip', 'chhod do', 'cut'])) {
       if (stopRef.isAmbiguous) {
-        return ParsedIntent(
+        return const ParsedIntent(
           type: LocalChatIntentType.removeStop,
           isAmbiguous: true,
           ambiguityReason: 'Which stop would you like to remove? Please name the place.',
@@ -200,7 +201,7 @@ class IntentParser {
     // 8. Replace Stop
     if (_matches(norm, ['replace', 'badal do', 'badlo', 'swap', 'change', 'kuch aur', 'dusra dikhao', 'alternative'])) {
       if (stopRef.isAmbiguous) {
-        return ParsedIntent(
+        return const ParsedIntent(
           type: LocalChatIntentType.replaceStop,
           isAmbiguous: true,
           ambiguityReason: 'Which stop would you like to replace? Please specify the place name.',
@@ -208,6 +209,41 @@ class IntentParser {
       }
       return ParsedIntent(
         type: LocalChatIntentType.replaceStop,
+        targetStopIndex: stopRef.index,
+        targetStopName: stopRef.name,
+        targetDayNumber: targetDay,
+      );
+    }
+
+    // 9. Informational Queries & General Questions
+    if (_matches(norm, [
+      'photo',
+      'picture',
+      'camera',
+      'selfie',
+      'view',
+      'sunset',
+      'spot',
+      'pack',
+      'carry',
+      'bring',
+      'bag',
+      'plan',
+      'schedule',
+      'overview',
+      'summary',
+      'details',
+      'tips',
+      'ticket',
+      'fee',
+      'cost',
+      'about',
+      'tell me',
+      'kya dekhein',
+      'kya karein',
+    ])) {
+      return ParsedIntent(
+        type: LocalChatIntentType.queryInfo,
         targetStopIndex: stopRef.index,
         targetStopName: stopRef.name,
         targetDayNumber: targetDay,
