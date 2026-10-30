@@ -52,4 +52,5 @@ tech_stack_details.md
 
 # Design tooling (keep tokens, ignore generated)
 designpowers/
-
+APP_CONTEXT.md
+*.rar

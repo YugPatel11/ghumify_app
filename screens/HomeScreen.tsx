@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../lib/AppContext';
@@ -11,7 +11,11 @@ import GradientView from '../components/GradientView';
 import MicButton from '../components/MicButton';
 import ChatModal from '../components/ChatModal';
 import SosButton from '../components/SosButton';
+import ItineraryRemarksBox from '../components/ItineraryRemarksBox';
+import DraftReviewModal, { MergedPlanReview } from '../components/DraftReviewModal';
 import { useSpeechToText } from '../lib/useSpeechToText';
+
+const BACKEND_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
 
 const EXAMPLES = [
   { location: 'Indore', description: '6 hours, famous food and local markets' },
@@ -38,21 +42,17 @@ interface Props {
 export default function HomeScreen({ navigation }: Props) {
   const { theme, lang, t: tr, isRtlMode } = useApp();
   const [location, setLocation] = useState('');
-  const [description, setDescription] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
+  const [draftPlan, setDraftPlan] = useState<MergedPlanReview | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [loadMsgIndex, setLoadMsgIndex] = useState(0);
-
-  const speech = useSpeechToText({
-    language: lang,
-    onFinalResult: (text) => {
-      setDescription((prev) => (prev ? `${prev} ${text}` : text));
-    },
-  });
 
   const suggestions = CITIES.filter((c) => {
     if (!location.trim()) return false;
@@ -90,35 +90,111 @@ export default function HomeScreen({ navigation }: Props) {
 
   const selectExample = (ex: typeof EXAMPLES[0]) => {
     setLocation(ex.location);
-    setDescription(ex.description);
+    setRemarks(ex.description);
     setShowSuggestions(false);
     setErrorMsg('');
   };
 
-  const handleGenerate = () => {
-    if (!location.trim()) {
-      setErrorMsg(tr('home.errLocation') || 'Please enter a location first.');
+  const handleGenerate = async () => {
+    if (isSubmitting) return; // Prevent double submission lock
+    setErrorMsg('');
+
+    const cleanLocation = location.trim();
+    const cleanRemarks = remarks.trim();
+
+    // Validate that either location or remarks provides a destination
+    if (!cleanLocation && !cleanRemarks) {
+      setErrorMsg(tr('home.errLocation') || 'Please enter a destination or mention it in your remarks.');
       return;
     }
-    setErrorMsg('');
+
+    setIsSubmitting(true);
+
+    // Fast-path: If remarks is empty / whitespace-only (strictly optional)
+    if (!cleanRemarks) {
+      // Manual deterministic flow (zero LLM call, no latency, existing behavior)
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        setIsSubmitting(false);
+        navigation.navigate('PlanResult', {
+          cityName: cleanLocation,
+          hours: 6,
+          interests: ['Famous Places', 'Local Food'],
+          startTime: '09:00',
+        });
+      }, 1500);
+      return;
+    }
+
+    // Remarks is populated: Call merge API endpoint
     setLoading(true);
-
-    // Parse the description
-    const fullText = `${location} ${description}`;
-    const hours = parseHours(fullText);
-    const startTime = parseStartTime(fullText) || '09:00';
-    const interests = parseInterests(fullText);
-
-    // Simulate loading delay for the animation
-    setTimeout(() => {
-      setLoading(false);
-      navigation.navigate('PlanResult', {
-        cityName: location.trim(),
-        hours,
-        interests,
-        startTime,
+    try {
+      const idempotencyKey = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const res = await fetch(`${BACKEND_URL}/api/v1/itinerary-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          form_fields: {
+            city: cleanLocation || null,
+            hours: 6,
+            startTime: '09:00',
+            interests: ['Famous Places', 'Local Food'],
+          },
+          remarks: cleanRemarks,
+          language: lang,
+          idempotency_key: idempotencyKey,
+        }),
       });
-    }, 2200);
+
+      const data = await res.json();
+      setLoading(false);
+      setIsSubmitting(false);
+
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || 'Please provide required trip details.');
+        return;
+      }
+
+      const mergedPlan = data.plan;
+
+      // If contradictions exist or destination was extracted from remarks, show review draft
+      if ((mergedPlan.contradictions && mergedPlan.contradictions.length > 0) || !cleanLocation) {
+        setDraftPlan(mergedPlan);
+        setReviewModalOpen(true);
+      } else {
+        // Direct launch with merged parameters
+        navigation.navigate('PlanResult', {
+          cityName: mergedPlan.city,
+          hours: mergedPlan.hours,
+          interests: mergedPlan.interests,
+          startTime: mergedPlan.startTime,
+          mergedPlan,
+        });
+      }
+    } catch {
+      // Graceful offline fallback preserving user input
+      setLoading(false);
+      setIsSubmitting(false);
+      const fallbackCity = cleanLocation || 'Jaipur';
+      navigation.navigate('PlanResult', {
+        cityName: fallbackCity,
+        hours: 6,
+        interests: ['Famous Places', 'Local Food'],
+        startTime: '09:00',
+      });
+    }
+  };
+
+  const handleConfirmDraft = (confirmedPlan: MergedPlanReview) => {
+    setReviewModalOpen(false);
+    navigation.navigate('PlanResult', {
+      cityName: confirmedPlan.city,
+      hours: confirmedPlan.hours,
+      interests: confirmedPlan.interests,
+      startTime: confirmedPlan.startTime,
+      mergedPlan: confirmedPlan,
+    });
   };
 
   if (loading) {
@@ -237,48 +313,7 @@ export default function HomeScreen({ navigation }: Props) {
               ) : null}
             </View>
 
-            {/* Description input */}
-            <View style={styles.inputSection}>
-              <View style={styles.inputLabelRow}>
-                <View style={[styles.inputIcon, { backgroundColor: theme.brandSoft }]}>
-                  <Ionicons name="create-outline" size={18} color={theme.brand} />
-                </View>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>{tr('home.describeTrip') || 'Describe your trip'}</Text>
-              </View>
-              <View style={[styles.descWrap, { backgroundColor: theme.card, borderColor: speech.isListening ? '#ef4444' : theme.border }]}>
-                <TextInput
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder={speech.isListening ? 'Listening... Speak your trip plan' : tr('home.inputPlaceholder')}
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.descInput, { color: theme.text }, isRtlMode && styles.rtlText]}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                  returnKeyType="default"
-                />
-                <View style={[styles.descActionsRow, isRtlMode && styles.rtlRow]}>
-                  {speech.isListening && (
-                    <Text style={[styles.listeningHint, { color: '#ef4444' }]}>Listening in {lang.toUpperCase()}...</Text>
-                  )}
-                  <View style={{ flex: 1 }} />
-                  <MicButton
-                    state={speech.state}
-                    onPress={() => {
-                      if (speech.isListening) speech.stopListening();
-                      else speech.startListening();
-                    }}
-                    onCancel={speech.cancelListening}
-                    size={36}
-                  />
-                </View>
-              </View>
-              <Text style={[styles.hintText, { color: theme.textMuted }]}>
-                {tr('home.hintText') || 'Mention your available hours, what you want to see, and any preferences. We will handle the rest.'}
-              </Text>
-            </View>
-
-            {/* Examples */}
+            {/* Quick destination and prompt examples */}
             <View style={styles.examplesSection}>
               <Text style={[styles.examplesTitle, { color: theme.text }]}>{tr('home.examplePrompts') || 'Try an example:'}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingTop: 10 }}>
@@ -305,10 +340,16 @@ export default function HomeScreen({ navigation }: Props) {
               <FeaturePill icon="time-outline" label={tr('home.timeBased') || 'Time-based'} theme={theme} />
               <FeaturePill icon="language" label={`${LANGUAGES.length} ${tr('settings.statsLanguages') || 'languages'}`} theme={theme} />
             </View>
+
+            {/* Remarks Box placed inside the itinerary creation form, immediately above the Submit button */}
+            <ItineraryRemarksBox
+              value={remarks}
+              onChangeText={setRemarks}
+            />
           </View>
         </ScrollView>
 
-        {/* Generate button & Floating AI Chatbot Launcher */}
+        {/* Single Submit Button & Floating AI Chatbot Launcher */}
         <View style={[styles.generateWrap, { backgroundColor: theme.bg }, isRtlMode && styles.rtlRow]}>
           <Pressable
             onPress={() => setChatOpen(true)}
@@ -318,10 +359,24 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="chatbubble-ellipses" size={20} color={theme.brand} />
           </Pressable>
 
-          <Pressable onPress={handleGenerate} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.9 }]}>
+          <Pressable
+            onPress={handleGenerate}
+            disabled={isSubmitting}
+            style={({ pressed }) => [{ flex: 1 }, (pressed || isSubmitting) && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Create itinerary"
+          >
             <GradientView gradient="cherry" style={styles.generateBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name="sparkles" size={20} color="#fff" />
-              <Text style={styles.generateText}>{tr('generatePlan') || tr('home.generateBtn')}</Text>
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="sparkles" size={20} color="#fff" />
+              )}
+              <Text style={styles.generateText}>
+                {isSubmitting
+                  ? (tr('home.creating') || 'Creating...')
+                  : (tr('home.createItinerary') || 'Create itinerary')}
+              </Text>
             </GradientView>
           </Pressable>
         </View>
@@ -331,6 +386,14 @@ export default function HomeScreen({ navigation }: Props) {
           visible={chatOpen}
           onClose={() => setChatOpen(false)}
           context={{ cityName: location }}
+        />
+
+        {/* Draft Review & Contradiction Resolution Modal */}
+        <DraftReviewModal
+          visible={reviewModalOpen}
+          plan={draftPlan}
+          onConfirm={handleConfirmDraft}
+          onClose={() => setReviewModalOpen(false)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

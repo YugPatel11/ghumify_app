@@ -297,6 +297,20 @@ function initSchema(db: DatabaseSync) {
     );
   `);
 
+  // Itinerary Requests table for idempotency and form+remarks persistence
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS itinerary_requests (
+      idempotency_key TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      city TEXT NOT NULL,
+      form_fields TEXT NOT NULL,
+      remarks TEXT,
+      merged_plan TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'completed',
+      created_at TEXT NOT NULL
+    );
+  `);
+
   // Nearby Hospitals Cache table
   db.exec(`
     CREATE TABLE IF NOT EXISTS nearby_hospitals_cache (
