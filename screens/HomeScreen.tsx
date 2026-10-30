@@ -8,6 +8,9 @@ import { Category } from '../lib/types';
 import { parseHours, parseStartTime, parseInterests, matchCity } from '../lib/parser';
 import { RADIUS, SPACING, PALETTE } from '../lib/theme';
 import GradientView from '../components/GradientView';
+import MicButton from '../components/MicButton';
+import ChatModal from '../components/ChatModal';
+import { useSpeechToText } from '../lib/useSpeechToText';
 
 const EXAMPLES = [
   { location: 'Indore', description: '6 hours, famous food and local markets' },
@@ -32,15 +35,23 @@ interface Props {
 }
 
 export default function HomeScreen({ navigation }: Props) {
-  const { theme, t: tr } = useApp();
+  const { theme, lang, t: tr, isRtlMode } = useApp();
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [loadMsgIndex, setLoadMsgIndex] = useState(0);
+
+  const speech = useSpeechToText({
+    language: lang,
+    onFinalResult: (text) => {
+      setDescription((prev) => (prev ? `${prev} ${text}` : text));
+    },
+  });
 
   const suggestions = CITIES.filter((c) => {
     if (!location.trim()) return false;
@@ -232,18 +243,33 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
                 <Text style={[styles.inputLabel, { color: theme.text }]}>{tr('home.describeTrip') || 'Describe your trip'}</Text>
               </View>
-              <View style={[styles.descWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={[styles.descWrap, { backgroundColor: theme.card, borderColor: speech.isListening ? '#ef4444' : theme.border }]}>
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder={tr('home.inputPlaceholder')}
+                  placeholder={speech.isListening ? 'Listening... Speak your trip plan' : tr('home.inputPlaceholder')}
                   placeholderTextColor={theme.textMuted}
-                  style={[styles.descInput, { color: theme.text }]}
+                  style={[styles.descInput, { color: theme.text }, isRtlMode && styles.rtlText]}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
                   returnKeyType="default"
                 />
+                <View style={[styles.descActionsRow, isRtlMode && styles.rtlRow]}>
+                  {speech.isListening && (
+                    <Text style={[styles.listeningHint, { color: '#ef4444' }]}>Listening in {lang.toUpperCase()}...</Text>
+                  )}
+                  <View style={{ flex: 1 }} />
+                  <MicButton
+                    state={speech.state}
+                    onPress={() => {
+                      if (speech.isListening) speech.stopListening();
+                      else speech.startListening();
+                    }}
+                    onCancel={speech.cancelListening}
+                    size={36}
+                  />
+                </View>
               </View>
               <Text style={[styles.hintText, { color: theme.textMuted }]}>
                 {tr('home.hintText') || 'Mention your available hours, what you want to see, and any preferences. We will handle the rest.'}
@@ -280,15 +306,30 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </ScrollView>
 
-        {/* Generate button */}
-        <View style={[styles.generateWrap, { backgroundColor: theme.bg }]}>
-          <Pressable onPress={handleGenerate} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
+        {/* Generate button & Floating AI Chatbot Launcher */}
+        <View style={[styles.generateWrap, { backgroundColor: theme.bg }, isRtlMode && styles.rtlRow]}>
+          <Pressable
+            onPress={() => setChatOpen(true)}
+            style={({ pressed }) => [styles.chatLauncherBtn, { backgroundColor: theme.cardAlt, borderColor: theme.brand }, pressed && { opacity: 0.85 }]}
+            accessibilityLabel="Chat with Ghumify AI"
+          >
+            <Ionicons name="chatbubble-ellipses" size={20} color={theme.brand} />
+          </Pressable>
+
+          <Pressable onPress={handleGenerate} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.9 }]}>
             <GradientView gradient="cherry" style={styles.generateBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               <Ionicons name="sparkles" size={20} color="#fff" />
               <Text style={styles.generateText}>{tr('generatePlan') || tr('home.generateBtn')}</Text>
             </GradientView>
           </Pressable>
         </View>
+
+        {/* Ghumify AI Chatbot Modal */}
+        <ChatModal
+          visible={chatOpen}
+          onClose={() => setChatOpen(false)}
+          context={{ cityName: location }}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -342,7 +383,12 @@ const styles = StyleSheet.create({
   featuresRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   featurePill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill, borderWidth: 1.5 },
   featurePillText: { fontSize: 11.5, fontWeight: '700' },
-  generateWrap: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 20, elevation: 8 },
+  generateWrap: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 20, elevation: 8 },
+  chatLauncherBtn: { width: 52, height: 52, borderRadius: 26, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 17, borderRadius: RADIUS.md, shadowColor: PALETTE.cherryDark, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   generateText: { color: '#fff', fontSize: 17, fontWeight: '900' },
+  descActionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  listeningHint: { fontSize: 12, fontWeight: '700', fontStyle: 'italic' },
+  rtlRow: { flexDirection: 'row-reverse' },
+  rtlText: { textAlign: 'right' },
 });

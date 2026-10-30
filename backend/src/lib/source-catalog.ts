@@ -100,6 +100,19 @@ export const SOURCE_CATALOG: CatalogItem[] = [
   { namespace: 'settings', key: 'settings.aboutDesc', text: 'Ghumify is your complete travel companion for exploring India with personalized, time-based travel plans.' },
   { namespace: 'settings', key: 'settings.version', text: 'Ghumify v1.0 · Made in India 🇮🇳' },
 
+  // Speech-to-Text & Mic Keys
+  { namespace: 'speech', key: 'speech.listening', text: 'Listening... Speak clearly into microphone' },
+  { namespace: 'speech', key: 'speech.processing', text: 'Processing speech...' },
+  { namespace: 'speech', key: 'speech.permissionDenied', text: 'Microphone permission was denied. Please allow microphone access.' },
+  { namespace: 'speech', key: 'speech.unsupported', text: 'Speech recognition is not supported on this device/browser.' },
+  { namespace: 'speech', key: 'speech.noSpeech', text: 'No speech detected. Please try speaking again.' },
+
+  // Chatbot Keys
+  { namespace: 'chat', key: 'chat.welcome', text: "Hello! I'm Ghumify AI. Ask me anything about places, local street food, markets, or travel tips!" },
+  { namespace: 'chat', key: 'chat.inputPlaceholder', text: 'Type or speak a message...' },
+  { namespace: 'chat', key: 'chat.autoSend', text: 'Send automatically after speaking' },
+  { namespace: 'chat', key: 'chat.thinking', text: 'Ghumify AI is thinking...' },
+
   // Backend & Error Messages
   { namespace: 'errors', key: 'errors.unsupportedLanguage', text: 'Language {lang} is not supported.' },
   { namespace: 'errors', key: 'errors.rateLimitExceeded', text: 'Too many requests. Please try again later.' },

@@ -137,6 +137,38 @@ async function runAllTests() {
     db.prepare('UPDATE users SET preferred_language = ? WHERE id = ?').run('en', 'user_demo');
   });
 
+  // 6. Speech-to-Text Audio Validation & Locales
+  const { validateAudioData, sanitizeTranscript } = await import('../lib/speech/audio-validator');
+  const { getSpeechLocale } = await import('../lib/speech/locale-map');
+
+  test('Speech locale maps languages to correct regional audio recognition tags', () => {
+    assert.strictEqual(getSpeechLocale('hi'), 'hi-IN');
+    assert.strictEqual(getSpeechLocale('ar'), 'ar-SA');
+    assert.strictEqual(getSpeechLocale('ur'), 'ur-PK');
+    assert.strictEqual(getSpeechLocale('fr'), 'fr-FR');
+    assert.strictEqual(getSpeechLocale('en'), 'en-US');
+  });
+
+  test('Audio validation accepts supported formats and rejects invalid payloads', () => {
+    const validBuffer = Buffer.from('RIFF....WAVEfmt '); // Fake wav header buffer
+    const validRes = validateAudioData(validBuffer, 'audio/wav');
+    assert.strictEqual(validRes.valid, true);
+
+    const emptyRes = validateAudioData(Buffer.alloc(0), 'audio/wav');
+    assert.strictEqual(emptyRes.valid, false);
+    assert.strictEqual(emptyRes.errorCode, 'EMPTY_AUDIO');
+
+    const badMimeRes = validateAudioData(validBuffer, 'video/mp4');
+    assert.strictEqual(badMimeRes.valid, false);
+    assert.strictEqual(badMimeRes.errorCode, 'UNSUPPORTED_MIME_TYPE');
+  });
+
+  test('Transcript sanitization strips dangerous characters and trims text', () => {
+    const malicious = '  <script>alert(1)</script>Hello Indore!  ';
+    const clean = sanitizeTranscript(malicious);
+    assert.strictEqual(clean, 'scriptalert(1)/scriptHello Indore!');
+  });
+
   console.log(`\n========================================`);
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
   console.log(`========================================\n`);

@@ -10,6 +10,7 @@ import { CITIES } from '../lib/data';
 import { Itinerary, ItineraryStop, Category } from '../lib/types';
 import { RADIUS, shadow } from '../lib/theme';
 import GradientView from '../components/GradientView';
+import ChatModal from '../components/ChatModal';
 
 interface Props {
   route: any;
@@ -20,6 +21,7 @@ export default function PlanResultScreen({ route, navigation }: Props) {
   const { theme, t: tr } = useApp();
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [isKnownCity, setIsKnownCity] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
   const params = route.params || {};
 
   useEffect(() => {
@@ -60,9 +62,16 @@ export default function PlanResultScreen({ route, navigation }: Props) {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{tr('yourPlan')}</Text>
-        <View style={{ width: 40 }} />
+        <Pressable onPress={() => setChatOpen(true)} style={{ width: 40, alignItems: 'center' }} accessibilityLabel="Ask Ghumify AI">
+          <Ionicons name="sparkles" size={22} color={theme.brand} />
+        </Pressable>
       </View>
+
+      <ChatModal
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        context={{ cityName: itinerary.cityName, hours: params.hours }}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Summary header */}
