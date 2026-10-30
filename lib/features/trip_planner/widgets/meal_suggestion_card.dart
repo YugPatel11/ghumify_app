@@ -160,12 +160,16 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -380,30 +384,37 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
           // Row 2: Cuisine, Distance, Rough Travel Time
           Row(
             children: [
-              Text(
-                item.cuisine,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
+              Expanded(
+                child: Text(
+                  item.cuisine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
-              const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+              const Text('\u2022', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
               const SizedBox(width: 6),
               const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textSoft),
               const SizedBox(width: 2),
-              Text(
-                '${item.displayDistance} (${item.displayTravelTime})',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
+              Flexible(
+                child: Text(
+                  '${item.displayDistance} (${item.displayTravelTime})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],
           ),
-
           // Row 3: Rating (if real) & Opening Hours
           const SizedBox(height: 3),
           Row(
@@ -521,12 +532,16 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                           color: isSelected ? AppColors.brandDeep : Colors.white,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          isSelected ? 'Added' : 'Add to itinerary',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: isSelected ? AppColors.brandDeep : Colors.white,
+                        Flexible(
+                          child: Text(
+                            isSelected ? 'Added' : 'Add to itinerary',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isSelected ? AppColors.brandDeep : Colors.white,
+                            ),
                           ),
                         ),
                       ],

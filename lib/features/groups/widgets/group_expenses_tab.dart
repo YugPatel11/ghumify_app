@@ -293,6 +293,7 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
                 ),
               ),
               const SizedBox(width: AppTokens.xs),
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: badgeBg,
@@ -781,10 +782,9 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Text(
                       Flexible(
                         child: Text(
-                        style: GoogleFonts.outfit(
+                        isPayer ? 'You paid' : 'Paid by ${expense.paidByName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.outfit(
@@ -793,6 +793,8 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      Text(
                         '· ${_formatShortDate(expense.date)}',
                         style: GoogleFonts.outfit(
                           fontSize: 11,
