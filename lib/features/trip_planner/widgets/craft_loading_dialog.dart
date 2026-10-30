@@ -124,12 +124,12 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: AppColors.accent.withOpacity(0.2),
+                                    color: AppColors.accent.withValues(alpha: 0.2),
                                     width: 2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppColors.accent.withOpacity(0.15),
+                                      color: AppColors.accent.withValues(alpha: 0.15),
                                       blurRadius: 24,
                                       spreadRadius: 4,
                                     ),
@@ -149,7 +149,7 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -172,10 +172,10 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
                           width: 64,
                           height: 64,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.12),
+                            color: Colors.white.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.white.withValues(alpha: 0.4),
                             ),
                           ),
                           child: const Icon(
@@ -243,7 +243,7 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
                         Text(
                           'Step ${_stepIndex + 1} of ${_stages.length}',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
+                            color: Colors.white.withValues(alpha: 0.5),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0.5,
@@ -260,10 +260,10 @@ class _CraftLoadingDialogState extends State<CraftLoadingDialog>
                     margin: const EdgeInsets.only(bottom: AppTokens.lg),
                     padding: const EdgeInsets.all(AppTokens.md),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                       ),
                     ),
                     child: Row(

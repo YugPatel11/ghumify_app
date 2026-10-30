@@ -103,7 +103,7 @@ class CraftStepIndicator extends StatelessWidget {
                       boxShadow: isCurrent
                           ? [
                               BoxShadow(
-                                color: AppColors.accent.withOpacity(0.4),
+                                color: AppColors.accent.withValues(alpha: 0.4),
                                 blurRadius: 4,
                                 offset: const Offset(0, 1),
                               ),

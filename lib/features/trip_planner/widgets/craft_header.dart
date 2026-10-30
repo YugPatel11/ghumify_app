@@ -62,9 +62,9 @@ class CraftHeader extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.55),
-                  Colors.black.withOpacity(0.25),
-                  AppColors.bg.withOpacity(0.85),
+                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0.25),
+                  AppColors.bg.withValues(alpha: 0.85),
                   AppColors.bg,
                 ],
                 stops: const [0.0, 0.4, 0.82, 1.0],
@@ -91,7 +91,7 @@ class CraftHeader extends StatelessWidget {
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                         child: Material(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
@@ -120,11 +120,11 @@ class CraftHeader extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               borderRadius:
                                   BorderRadius.circular(AppTokens.radiusPill),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.25),
+                                color: Colors.white.withValues(alpha: 0.25),
                               ),
                             ),
                             child: Row(

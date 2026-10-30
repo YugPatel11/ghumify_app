@@ -39,7 +39,7 @@ class CraftSelectorCard extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.brand.withOpacity(0.12),
+                    color: AppColors.brand.withValues(alpha: 0.12),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -59,7 +59,7 @@ class CraftSelectorCard extends StatelessWidget {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppColors.brand.withOpacity(0.3),
+                          color: AppColors.brand.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -101,7 +101,7 @@ class CraftSelectorCard extends StatelessWidget {
                             borderRadius:
                                 BorderRadius.circular(AppTokens.radiusPill),
                             border: Border.all(
-                              color: AppColors.accent.withOpacity(0.4),
+                              color: AppColors.accent.withValues(alpha: 0.4),
                             ),
                           ),
                           child: Text(

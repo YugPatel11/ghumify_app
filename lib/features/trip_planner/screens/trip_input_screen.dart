@@ -429,7 +429,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                 boxShadow: isLastStep
                     ? [
                         BoxShadow(
-                          color: AppColors.brandDeep.withOpacity(0.35),
+                          color: AppColors.brandDeep.withValues(alpha: 0.35),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
@@ -729,7 +729,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: AppColors.brand.withOpacity(0.2),
+                                color: AppColors.brand.withValues(alpha: 0.2),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -1525,7 +1525,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                 ),
                 decoration: BoxDecoration(
                   color: _selectedInterests.isEmpty
-                      ? AppColors.error.withOpacity(0.1)
+                      ? AppColors.error.withValues(alpha: 0.1)
                       : AppColors.brandSoft,
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                 ),
@@ -1737,7 +1737,7 @@ class _TripInputScreenState extends State<TripInputScreen>
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: AppColors.brand.withOpacity(0.2),
+                            color: AppColors.brand.withValues(alpha: 0.2),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
