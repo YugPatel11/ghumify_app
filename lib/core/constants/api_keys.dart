@@ -5,6 +5,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class ApiKeys {
   ApiKeys._();
 
+  /// Feature flag for backend AI Router (default: false)
+  static bool get aiRouterEnabled =>
+      (dotenv.env['AI_ROUTER_ENABLED'] ?? 'false').toLowerCase() == 'true';
+
+  /// Backend Base URL for router (default: http://10.0.2.2:3000)
+  static String get backendBaseUrl =>
+      dotenv.env['BACKEND_BASE_URL'] ?? 'http://10.0.2.2:3000';
+
   /// Google Maps & Places API Key
   static String get googleMapsApiKey =>
       dotenv.isInitialized ? (dotenv.env['GOOGLE_MAPS_API_KEY'] ?? 'YOUR_GOOGLE_MAPS_API_KEY') : 'YOUR_GOOGLE_MAPS_API_KEY';

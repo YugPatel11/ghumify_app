@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/refresh-osm",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
+

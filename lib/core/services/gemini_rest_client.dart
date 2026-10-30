@@ -106,12 +106,56 @@ class GeminiRestClient {
     ),
   };
 
+  /// Call backend AI router if enabled
+  Future<String?> _callBackendRouter({
+    required String prompt,
+    required GeminiTaskType taskType,
+    List<Map<String, String>>? conversationHistory,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiKeys.backendBaseUrl}/api/ai/generate');
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'prompt': prompt,
+              'taskType': taskType.name,
+              if (conversationHistory != null)
+                'conversationHistory': conversationHistory,
+            }),
+          )
+          .timeout(const Duration(seconds: 40));
+
+      if (response.statusCode == 200) {
+        return response.body;
+      }
+    } catch (_) {
+      // Backend unreachable or error — falls back to direct Gemini
+    }
+    return null;
+  }
+
   /// Generate content with automatic model fallback and API key rotation.
   Future<String> generateContent({
     required String prompt,
     required GeminiTaskType taskType,
     List<Map<String, String>>? conversationHistory,
   }) async {
+    // 1. Try Backend AI Router if flag is enabled
+    if (ApiKeys.aiRouterEnabled) {
+      final routerResult = await _callBackendRouter(
+        prompt: prompt,
+        taskType: taskType,
+        conversationHistory: conversationHistory,
+      );
+      if (routerResult != null && routerResult.isNotEmpty) {
+        return routerResult;
+      }
+      // If backend was unreachable or failed, seamlessly continue below to direct Gemini
+    }
+
+    // 2. Existing Direct Gemini implementation
     final config = _taskModels[taskType]!;
     final apiKeys = ApiKeys.geminiApiKeys;
 
