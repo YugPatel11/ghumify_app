@@ -57,3 +57,19 @@
 - **Anchor Protection:** Meals, inter-city travel legs, group meeting points, and hand-pinned stops remain strictly fixed at their scheduled position.
 - **Opening Hours:** Closed stops are swapped with the next open unanchored stop.
 - **Manual Preservation:** Hand-ordered stops retain custom ordering; user can tap "Re-order by nearest" with preview and undo.
+
+
+## 4. Responsive Layout & Overflow Prevention Guidelines
+
+### 4.1 Row Content & Dynamic Text Truncation
+- **Constrained Row Children:** Every text widget positioned alongside other siblings in a Row (such as titles, email badges, city names, or status pills) must be wrapped in Expanded or Flexible with explicit maxLines: 1 and TextOverflow.ellipsis.
+- **Button Text Scaling:** Multi-action button text in side-by-side rows must be wrapped in FittedBox(fit: BoxFit.scaleDown) to prevent horizontal overflow on 320px viewports and high accessibility font scale settings.
+
+### 4.2 Multi-Action Button Groups
+- **Wrap over Row:** Any cluster of action buttons (e.g. 'Maps', 'Directions', 'Call', 'Add to itinerary') must use Wrap with spacing: 6 and 
+unSpacing: 6 instead of fixed Row(children: ...). This ensures buttons wrap onto a secondary row automatically on narrow screens without RenderFlex exceptions.
+
+### 4.3 Dialogs, Bottom Sheets & Keyboard Safety
+- **Dynamic Constraints:** Modals and bottom sheets must use dynamic constraints (maxHeight: MediaQuery.of(context).size.height * 0.85) rather than hardcoded pixel heights (e.g. 680px).
+- **Keyboard Resilience:** Centered empty states, reset password dialogs, and forms must wrap their inner column in SingleChildScrollView(physics: BouncingScrollPhysics()) to prevent bottom RenderFlex overflows when the virtual keyboard opens.
+- **Auto-Scrolling in Sheets:** For chat bottom sheets (ItineraryChatSheet), message lists must connect auto-scroll callbacks directly to the active ScrollController driving the draggable sheet view.

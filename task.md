@@ -335,3 +335,33 @@
   * Regression test suites passing across all itinerary screens and group tabs.
 
 
+
+### TASK-004: Comprehensive Layout & Responsive UI Fixes across All Screens
+* **Status:** Completed
+* **Branch:** `ui-fixes`
+* **Description:**
+  Audited all 31+ screens, dialogs, bottom sheets, and widgets across the entire Flutter application for layout overflows, broken scrolling, clipped text, keyboard occlusion, and viewport constraint failures across narrow devices (320px-360px), large fonts, and keyboard display. Applied root-cause architectural fixes with zero regression to business logic.
+* **Key Improvements:**
+  1. **Core Navigation & Home Grid Polish (`a356869`):**
+     * `DestinationCard`: Wrapped featured subtitle in `Expanded` with `TextOverflow.ellipsis`.
+     * `HomeScreen`: Tuned grid `childAspectRatio` from `0.72` to `0.66` to eliminate bottom card overflow on small viewports.
+     * `MainShell`: Replaced fixed `SizedBox(width: 64)` on navigation items with `Expanded`, added `maxLines: 1` and `TextOverflow.ellipsis` on labels.
+     * `WeatherCard` & `SplitExpensesCard`: Protected city name, condition string, and balance title with `Flexible` and truncation.
+  2. **Auth, Onboarding & Discovery Keyboard Resilience (`4ce9372`):**
+     * `LoginScreen`: Wrapped password reset dialog in `SingleChildScrollView`.
+     * `OnboardingScreen`: Wrapped slide content column in `SingleChildScrollView` to prevent vertical overflow on small screens and high font scaling.
+     * `DiscoverScreen`: Wrapped empty and error state placeholders in `SingleChildScrollView`.
+     * `PlaceDetailScreen`: Scaled action buttons with `FittedBox(fit: BoxFit.scaleDown)`.
+     * `SettingsScreen` & `TranslatorScreen`: Added text bounds and truncation on user info and translation history entries.
+  3. **Trip Planner & Group Collaboration Overflow Prevention (`ed4eb54`, `af1c8e8`):**
+     * `TripInputScreen`: Scaled duration presets with `FittedBox` and bounded time-picker labels.
+     * `ItineraryChatSheet`: Connected auto-scroll to the active `sheetScrollController` and bounded header title.
+     * `CraftLoadingDialog`: Added `LayoutBuilder` + `SingleChildScrollView` + `ConstrainedBox` centering to eliminate vertical overflow on short screens.
+     * `MealSuggestionCard`: Converted action button row to `Wrap` (spacing: 6, runSpacing: 6), added `Expanded` on cuisine and card title, and bounded distance text.
+     * `TravelLegCard`: Added `Flexible` with ellipsis on transport mode titles.
+     * `TransportOptionsSheet`: Enabled `scrollable: true` on fare editing dialog.
+     * `GroupDetailScreen`, `CreateGroupScreen`, `AddExpenseScreen`: Protected group title, email chips, and member split count rows against overflow.
+     * `MeetingPointDialog`: Converted rigid `maxHeight: 680` to dynamic `MediaQuery.size.height * 0.85`.
+     * `MarkPaidDialog`, `ExpenseDetailSheet`, `GroupExpensesTab`, `GroupItineraryTab`: Constrained balance headers, payment dialog titles, member share rows, and replaced button rows with `Wrap`.
+  4. **Verification & Automated Testing:**
+     * Created `test/responsive_ui_test.dart` verifying `DestinationCard`, `WeatherCard`, and `MealSuggestionCard` on a strict 320px viewport with zero overflow exceptions.
