@@ -1,0 +1,97 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isGroupMember(groupId) {
+      return isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds);
+    }
+
+    function isGroupAdmin(groupId) {
+      return isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.adminIds);
+    }
+
+    function isGroupOwner(groupId) {
+      return isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId);
+    }
+
+    function canEditGroupItinerary(groupId) {
+      let group = get(/databases/$(database)/documents/groups/$(groupId)).data;
+      return isGroupAdmin(groupId) ||
+             (group.itineraryEditPolicy == 'all_members' && isGroupMember(groupId)) ||
+             (group.itineraryEditPolicy == 'selected_members' && request.auth.uid in group.editableMemberIds);
+    }
+
+    // ── Groups Collection ──
+    match /groups/{groupId} {
+      allow read: if isGroupMember(groupId);
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isGroupAdmin(groupId) ||
+                    // Allow members to update only unreadCounts or lastSeen
+                    (isGroupMember(groupId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unreadCounts', 'updatedAt', 'lastMessageText', 'lastMessageSenderName', 'lastMessageAt']));
+      allow delete: if isGroupOwner(groupId);
+
+      // ── Members Subcollection ──
+      match /members/{memberId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupAdmin(groupId) || (isSignedIn() && request.auth.uid == memberId);
+        allow update: if isGroupAdmin(groupId) || (request.auth.uid == memberId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isMuted', 'lastSeenAt']));
+        allow delete: if isGroupAdmin(groupId) || request.auth.uid == memberId;
+      }
+
+      // ── Messages Subcollection ──
+      match /messages/{messageId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId) && (request.resource.data.senderId == request.auth.uid || request.resource.data.senderId == 'system');
+        allow update: if isGroupMember(groupId) && (
+          // Mark as seen
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy']) ||
+          // Delete for everyone (sender or admin)
+          (resource.data.senderId == request.auth.uid || isGroupAdmin(groupId))
+        );
+        allow delete: if false; // Soft delete via isDeletedForEveryone
+      }
+
+      // ── Group Itineraries Subcollection ──
+      match /group_itineraries/{itineraryId} {
+        allow read: if isGroupMember(groupId);
+        allow create, update: if canEditGroupItinerary(groupId);
+        allow delete: if isGroupAdmin(groupId);
+      }
+
+      // ── Activity Logs Subcollection ──
+      match /activity_logs/{logId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId);
+        allow update, delete: if false; // Append-only audit trail
+      }
+
+      // ── Live Locations Subcollection ──
+      match /live_locations/{userId} {
+        allow read: if isGroupMember(groupId);
+        allow write: if isGroupMember(groupId) && request.auth.uid == userId;
+      }
+    }
+
+    // ── Group Invitations Collection ──
+    match /group_invitations/{invitationId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.inviterId || request.auth.token.email == resource.data.inviteeEmail);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.token.email == resource.data.inviteeEmail || request.auth.uid == resource.data.inviterId);
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.inviterId;
+    }
+
+    // ── Existing App Collections ──
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /itineraries/{itineraryId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

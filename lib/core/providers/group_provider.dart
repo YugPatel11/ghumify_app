@@ -1,20 +1,31 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/group_model.dart';
 import '../models/group_member_model.dart';
 import '../models/group_message_model.dart';
 import '../models/group_invitation_model.dart';
+import '../models/group_location_model.dart';
+import '../models/group_activity_model.dart';
 import '../services/group_service.dart';
+import '../services/location_service.dart';
 
 /// State management for Groups feature
 class GroupProvider extends ChangeNotifier {
   final GroupService _groupService = GroupService();
+  final LocationService _locationService = LocationService();
 
   List<GroupModel> _groups = [];
   List<GroupInvitationModel> _invitations = [];
   GroupModel? _currentGroup;
   List<GroupMemberModel> _currentMembers = [];
   List<GroupMessageModel> _currentMessages = [];
+  Map<String, dynamic>? _currentItinerary;
+  List<GroupLocationModel> _liveLocations = [];
+  List<GroupActivityModel> _activityLogs = [];
+  bool _isSharingLiveLocation = false;
+  Timer? _liveLocationTimer;
+
   bool _isLoading = false;
   String? _error;
 
@@ -23,6 +34,9 @@ class GroupProvider extends ChangeNotifier {
   StreamSubscription? _currentGroupSub;
   StreamSubscription? _membersSub;
   StreamSubscription? _messagesSub;
+  StreamSubscription? _itinerarySub;
+  StreamSubscription? _liveLocationsSub;
+  StreamSubscription? _activityLogsSub;
 
   // Getters
   List<GroupModel> get groups => _groups;
@@ -30,13 +44,17 @@ class GroupProvider extends ChangeNotifier {
   GroupModel? get currentGroup => _currentGroup;
   List<GroupMemberModel> get currentMembers => _currentMembers;
   List<GroupMessageModel> get currentMessages => _currentMessages;
+  Map<String, dynamic>? get currentItinerary => _currentItinerary;
+  List<GroupLocationModel> get liveLocations => _liveLocations;
+  List<GroupActivityModel> get activityLogs => _activityLogs;
+  bool get isSharingLiveLocation => _isSharingLiveLocation;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get totalUnreadCount =>
       _groups.fold(0, (sum, g) => sum + g.getUnreadCount(_getUserId()));
 
   String _getUserId() {
-    return _groupService.toString().isNotEmpty ? '' : '';
+    return FirebaseAuth.instance.currentUser?.uid ?? '';
   }
 
   // ── Lifecycle ──
@@ -75,6 +93,9 @@ class GroupProvider extends ChangeNotifier {
     _currentGroupSub?.cancel();
     _membersSub?.cancel();
     _messagesSub?.cancel();
+    _itinerarySub?.cancel();
+    _liveLocationsSub?.cancel();
+    _activityLogsSub?.cancel();
 
     _currentGroupSub = _groupService.streamGroup(groupId).listen(
       (group) {
@@ -97,6 +118,29 @@ class GroupProvider extends ChangeNotifier {
       },
     );
 
+    _itinerarySub = _groupService.streamGroupItinerary(groupId).listen(
+      (itinerary) {
+        _currentItinerary = itinerary;
+        notifyListeners();
+      },
+    );
+
+    _liveLocationsSub = _groupService.streamLiveLocations(groupId).listen(
+      (locations) {
+        _liveLocations = locations;
+        final myUid = _getUserId();
+        _isSharingLiveLocation = locations.any((l) => l.userId == myUid && l.isLive);
+        notifyListeners();
+      },
+    );
+
+    _activityLogsSub = _groupService.streamActivityLogs(groupId).listen(
+      (logs) {
+        _activityLogs = logs;
+        notifyListeners();
+      },
+    );
+
     // Mark messages as seen when opening
     _groupService.markMessagesAsSeen(groupId);
   }
@@ -106,9 +150,18 @@ class GroupProvider extends ChangeNotifier {
     _currentGroupSub?.cancel();
     _membersSub?.cancel();
     _messagesSub?.cancel();
+    _itinerarySub?.cancel();
+    _liveLocationsSub?.cancel();
+    _activityLogsSub?.cancel();
+    _liveLocationTimer?.cancel();
+
     _currentGroup = null;
     _currentMembers = [];
     _currentMessages = [];
+    _currentItinerary = null;
+    _liveLocations = [];
+    _activityLogs = [];
+    _isSharingLiveLocation = false;
     notifyListeners();
   }
 
@@ -265,6 +318,136 @@ class GroupProvider extends ChangeNotifier {
     }
   }
 
+  // ── Itinerary ──
+
+  Future<void> importItinerary({
+    required String groupId,
+    required Map<String, dynamic> itineraryData,
+    required String city,
+  }) async {
+    try {
+      await _groupService.importItineraryToGroup(
+        groupId: groupId,
+        itineraryData: itineraryData,
+        city: city,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateItinerary({
+    required String groupId,
+    required Map<String, dynamic> itineraryData,
+    required String actionDescription,
+  }) async {
+    try {
+      await _groupService.setGroupItinerary(
+        groupId: groupId,
+        itineraryData: itineraryData,
+        actionDescription: actionDescription,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearItinerary(String groupId) async {
+    try {
+      await _groupService.clearGroupItinerary(groupId);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> shareStopToChat({
+    required String groupId,
+    required Map<String, dynamic> stopData,
+    required String city,
+  }) async {
+    try {
+      await _groupService.shareStopToChat(
+        groupId: groupId,
+        stopData: stopData,
+        city: city,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // ── Location Sharing ──
+
+  Future<void> shareCurrentLocationPin(String groupId) async {
+    try {
+      final position = await _locationService.getCurrentPosition();
+      await _groupService.shareLocationPin(
+        groupId: groupId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+    } catch (e) {
+      _error = 'Location error: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> startLiveLocationSharing(
+    String groupId, {
+    Duration duration = const Duration(hours: 1),
+  }) async {
+    try {
+      final position = await _locationService.getCurrentPosition();
+      await _groupService.startLiveLocationSharing(
+        groupId: groupId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        duration: duration,
+        heading: position.heading,
+        speed: position.speed,
+      );
+      _isSharingLiveLocation = true;
+      notifyListeners();
+
+      // Start periodic updates every 30 seconds
+      _liveLocationTimer?.cancel();
+      _liveLocationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+        try {
+          final pos = await _locationService.getCurrentPosition();
+          await _groupService.updateLiveLocationCoordinates(
+            groupId: groupId,
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            heading: pos.heading,
+            speed: pos.speed,
+          );
+        } catch (_) {
+          // Silently ignore temporary GPS drop
+        }
+      });
+    } catch (e) {
+      _error = 'Failed to start live location: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> stopLiveLocationSharing(String groupId) async {
+    _liveLocationTimer?.cancel();
+    _liveLocationTimer = null;
+    try {
+      await _groupService.stopLiveLocationSharing(groupId);
+      _isSharingLiveLocation = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();
@@ -277,6 +460,11 @@ class GroupProvider extends ChangeNotifier {
     _currentGroupSub?.cancel();
     _membersSub?.cancel();
     _messagesSub?.cancel();
+    _itinerarySub?.cancel();
+    _liveLocationsSub?.cancel();
+    _activityLogsSub?.cancel();
+    _liveLocationTimer?.cancel();
     super.dispose();
   }
 }
+

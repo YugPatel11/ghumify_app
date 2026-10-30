@@ -86,5 +86,40 @@
   * Dedicated test suite in `test/splash_screen_test.dart` passing (2/2 tests).
   * Full test suite passing (20/20 tests).
 
+### TASK-005: Complete Groups Feature (Architecture, Real-Time Sync, Shared Itinerary & Location)
+* **Status:** Completed
+* **Branch:** `redesign/craft-itinerary`
+* **Description:**
+  Engineered and shipped the full-stack Groups feature for Ghumify, enabling users to create and manage travel groups, plan one shared itinerary together with granular admin permissions, communicate via real-time WhatsApp-style chat with rich stop/location cards, and share one-time and live GPS locations with automatic expiration.
+* **Key Improvements:**
+  1. **Data Models & Security Rules (`firestore.rules`):**
+     * Built models: `GroupModel`, `GroupMemberModel`, `GroupMessageModel`, `GroupLocationModel`, `GroupActivityModel`, and `GroupInvitationModel`.
+     * Formal Firestore security rules covering role-based access, permission-gated itinerary edits, append-only activity logs, and live location expiration.
+  2. **Membership & Invitation Management (`GroupService` & `GroupProvider`):**
+     * Normalized email lookups; automatic member addition for registered users and pending invitations for unregistered users resolved upon sign-in.
+     * Admin controls for promotion, demotion, member removal, and group ownership transfer.
+  3. **Shared Itinerary with Real-Time Sync (`GroupItineraryTab`):**
+     * Single shared group itinerary stored at `groups/{groupId}/group_itineraries/active`.
+     * Admin-controlled policies (`admins_only`, `all_members`, `selected_members`).
+     * Direct import of personal saved trips into group itineraries.
+     * Stop reordering, custom stop creation, deletion, and 1-tap "Share to Chat" functionality.
+     * Full audit history sheet (`GroupActivityModel`) logging all itinerary changes.
+  4. **WhatsApp-Style Chat with Rich Cards (`GroupChatTab`):**
+     * Real-time messaging with unread badges, system events, and sender differentiation.
+     * Rich card rendering for location pins (with direct Google Maps intent), live location shares (with antenna radar and countdown timer), and itinerary stops.
+     * Attachment drawer for 1-tap sharing of locations and trip stops.
+  5. **Privacy-First Live Location Sharing (`GroupLiveMapTab`):**
+     * One-time location pins and live location broadcasting (15m, 1h, 8h) with battery-friendly 30s background sync.
+     * Haversine distance calculations displaying proximity of members to each other and to upcoming itinerary stops.
+     * Auto-expiration and instant manual stop controls.
+  6. **Tabbed Shell & Navigation Integration:**
+     * Registered `/groups` in `AppRouter` and embedded Groups tab in `MainShell` bottom navigation with unread badges.
+     * 4-tab container in `GroupDetailScreen` (Chat, Itinerary, Live Map, Info).
+* **Verification:**
+  * `flutter analyze` completed with 0 errors.
+  * Comprehensive test suite in `test/group_feature_test.dart` passing (12/12 tests).
+  * Full project test suite passing (32/32 feature tests).
+
+
 
 

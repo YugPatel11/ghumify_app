@@ -5,6 +5,7 @@ import '../models/group_member_model.dart';
 import '../models/group_message_model.dart';
 import '../models/group_invitation_model.dart';
 import '../models/group_activity_model.dart';
+import '../models/group_location_model.dart';
 import '../constants/app_constants.dart';
 
 /// Service for group CRUD, membership management, chat, and invitations
@@ -736,4 +737,350 @@ class GroupService {
             .map((doc) => GroupActivityModel.fromFirestore(doc))
             .toList());
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SHARED ITINERARY
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Stream active shared itinerary for a group
+  Stream<Map<String, dynamic>?> streamGroupItinerary(String groupId) {
+    return _groupsRef
+        .doc(groupId)
+        .collection('group_itineraries')
+        .doc('active')
+        .snapshots()
+        .map((doc) => doc.exists ? doc.data() : null);
+  }
+
+  /// Set or overwrite the shared group itinerary
+  Future<void> setGroupItinerary({
+    required String groupId,
+    required Map<String, dynamic> itineraryData,
+    required String actionDescription,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final group = await getGroup(groupId);
+    if (group == null) throw Exception('Group not found');
+    if (!group.canEditItinerary(user.uid)) {
+      throw Exception('Permission denied: You cannot edit this group itinerary');
+    }
+
+    final userDoc = await _usersRef.doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final userName = userData?['name'] ?? user.displayName ?? 'A member';
+
+    final batch = _firestore.batch();
+    final itineraryRef =
+        _groupsRef.doc(groupId).collection('group_itineraries').doc('active');
+
+    final payload = Map<String, dynamic>.from(itineraryData);
+    payload['lastModifiedBy'] = user.uid;
+    payload['lastModifiedByName'] = userName;
+    payload['lastModifiedAt'] = Timestamp.fromDate(DateTime.now());
+
+    batch.set(itineraryRef, payload);
+
+    // Update group root document
+    final groupRef = _groupsRef.doc(groupId);
+    batch.update(groupRef, {
+      'sharedItineraryId': 'active',
+      'lastItineraryEditBy': user.uid,
+      'lastItineraryEditByName': userName,
+      'lastItineraryEditAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    // Add activity log
+    final logRef = _groupsRef.doc(groupId).collection('activity_logs').doc();
+    final activity = GroupActivityModel(
+      id: logRef.id,
+      actorId: user.uid,
+      actorName: userName,
+      action: 'itinerary_edit',
+      details: '$userName $actionDescription',
+    );
+    batch.set(logRef, activity.toFirestore());
+
+    // Post system message to chat
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    final sysMsg = GroupMessageModel(
+      id: msgRef.id,
+      senderId: 'system',
+      senderName: 'System',
+      type: 'system',
+      content: '$userName $actionDescription',
+    );
+    batch.set(msgRef, sysMsg.toFirestore());
+
+    await batch.commit();
+  }
+
+  /// Import an existing user itinerary into the group
+  Future<void> importItineraryToGroup({
+    required String groupId,
+    required Map<String, dynamic> itineraryData,
+    required String city,
+  }) async {
+    await setGroupItinerary(
+      groupId: groupId,
+      itineraryData: itineraryData,
+      actionDescription: 'shared a trip for $city with the group',
+    );
+  }
+
+  /// Remove/clear the shared itinerary
+  Future<void> clearGroupItinerary(String groupId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final group = await getGroup(groupId);
+    if (group == null) throw Exception('Group not found');
+    if (!group.isAdmin(user.uid)) {
+      throw Exception('Only admins can remove the group itinerary');
+    }
+
+    final userDoc = await _usersRef.doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final userName = userData?['name'] ?? user.displayName ?? 'An admin';
+
+    final batch = _firestore.batch();
+    final itineraryRef =
+        _groupsRef.doc(groupId).collection('group_itineraries').doc('active');
+    batch.delete(itineraryRef);
+
+    batch.update(_groupsRef.doc(groupId), {
+      'sharedItineraryId': null,
+      'lastItineraryEditBy': user.uid,
+      'lastItineraryEditByName': userName,
+      'lastItineraryEditAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+
+    final logRef = _groupsRef.doc(groupId).collection('activity_logs').doc();
+    batch.set(
+      logRef,
+      GroupActivityModel(
+        id: logRef.id,
+        actorId: user.uid,
+        actorName: userName,
+        action: 'itinerary_edit',
+        details: '$userName removed the group itinerary',
+      ).toFirestore(),
+    );
+
+    await batch.commit();
+  }
+
+  /// Share a specific itinerary stop to group chat
+  Future<void> shareStopToChat({
+    required String groupId,
+    required Map<String, dynamic> stopData,
+    required String city,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final userDoc = await _usersRef.doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final senderName = userData?['name'] ?? user.displayName ?? 'User';
+    final stopName = stopData['name'] ?? 'Stop';
+
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    final message = GroupMessageModel(
+      id: msgRef.id,
+      senderId: user.uid,
+      senderName: senderName,
+      senderPhotoUrl: user.photoURL,
+      type: 'itinerary_card',
+      content: 'Shared itinerary stop: $stopName',
+      metadata: {
+        'stop': stopData,
+        'city': city,
+      },
+    );
+
+    await msgRef.set(message.toFirestore());
+
+    await _groupsRef.doc(groupId).update({
+      'lastMessageText': '📍 Shared stop: $stopName',
+      'lastMessageSenderName': senderName,
+      'lastMessageAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOCATION SHARING
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Share a one-time location pin into the chat
+  Future<void> shareLocationPin({
+    required String groupId,
+    required double latitude,
+    required double longitude,
+    String? address,
+    String? placeName,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final userDoc = await _usersRef.doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final senderName = userData?['name'] ?? user.displayName ?? 'User';
+
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    final message = GroupMessageModel(
+      id: msgRef.id,
+      senderId: user.uid,
+      senderName: senderName,
+      senderPhotoUrl: user.photoURL,
+      type: 'location_pin',
+      content: '📍 Current Location: ${placeName ?? address ?? '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}'}',
+      metadata: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'address': address,
+        'placeName': placeName,
+      },
+    );
+
+    await msgRef.set(message.toFirestore());
+
+    await _groupsRef.doc(groupId).update({
+      'lastMessageText': '📍 Shared location pin',
+      'lastMessageSenderName': senderName,
+      'lastMessageAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Start live location sharing for a given duration
+  Future<void> startLiveLocationSharing({
+    required String groupId,
+    required double latitude,
+    required double longitude,
+    required Duration duration,
+    double? heading,
+    double? speed,
+    int? batteryLevel,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final userDoc = await _usersRef.doc(user.uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final userName = userData?['name'] ?? user.displayName ?? 'User';
+
+    final now = DateTime.now();
+    final expiresAt = now.add(duration);
+
+    final locationModel = GroupLocationModel(
+      userId: user.uid,
+      userName: userName,
+      userPhotoUrl: user.photoURL,
+      latitude: latitude,
+      longitude: longitude,
+      heading: heading,
+      speed: speed,
+      batteryLevel: batteryLevel,
+      startedAt: now,
+      expiresAt: expiresAt,
+      updatedAt: now,
+      isActive: true,
+    );
+
+    final locRef =
+        _groupsRef.doc(groupId).collection('live_locations').doc(user.uid);
+    await locRef.set(locationModel.toFirestore());
+
+    // Send a live location share announcement card into chat
+    final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
+    final message = GroupMessageModel(
+      id: msgRef.id,
+      senderId: user.uid,
+      senderName: userName,
+      senderPhotoUrl: user.photoURL,
+      type: 'live_location_share',
+      content: '📡 Started sharing live location (${duration.inMinutes}m)',
+      metadata: {
+        'durationMinutes': duration.inMinutes,
+        'expiresAt': expiresAt.toIso8601String(),
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+    );
+
+    await msgRef.set(message.toFirestore());
+
+    await _groupsRef.doc(groupId).update({
+      'lastMessageText': '📡 Live location shared (${duration.inMinutes}m)',
+      'lastMessageSenderName': userName,
+      'lastMessageAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Update live location coordinates
+  Future<void> updateLiveLocationCoordinates({
+    required String groupId,
+    required double latitude,
+    required double longitude,
+    double? heading,
+    double? speed,
+    int? batteryLevel,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final locRef =
+        _groupsRef.doc(groupId).collection('live_locations').doc(user.uid);
+    final doc = await locRef.get();
+    if (!doc.exists) return;
+
+    final data = doc.data() as Map<String, dynamic>;
+    final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
+    if (expiresAt != null && DateTime.now().isAfter(expiresAt)) {
+      // Auto-expire
+      await locRef.update({'isActive': false});
+      return;
+    }
+
+    await locRef.update({
+      'latitude': latitude,
+      'longitude': longitude,
+      'heading': heading,
+      'speed': speed,
+      'batteryLevel': batteryLevel,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Stop live location sharing
+  Future<void> stopLiveLocationSharing(String groupId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final locRef =
+        _groupsRef.doc(groupId).collection('live_locations').doc(user.uid);
+    await locRef.update({
+      'isActive': false,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
+  /// Stream all active live locations for a group
+  Stream<List<GroupLocationModel>> streamLiveLocations(String groupId) {
+    return _groupsRef
+        .doc(groupId)
+        .collection('live_locations')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => GroupLocationModel.fromFirestore(doc))
+            .where((loc) => loc.isLive)
+            .toList());
+  }
 }
+
