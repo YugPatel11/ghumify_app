@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'meal_suggestion_model.dart';
 import 'nearby_service_model.dart';
 import 'travelers_model.dart';
 
@@ -175,6 +176,8 @@ class ItineraryModel {
   final int minorsCount;
   final List<String> minorAgeBands;
   final String? travelersSummary;
+  // Meal Suggestions field
+  final DayMealSuggestions? mealSuggestions;
 
   ItineraryModel({
     required this.id,
@@ -195,6 +198,7 @@ class ItineraryModel {
     this.dayNumber = 1,
     this.foodPreference = 'all',
     this.nearbySafetyServices = const [],
+    this.mealSuggestions,
     DateTime? createdAt,
     this.age,
     this.travelers,
@@ -216,6 +220,9 @@ class ItineraryModel {
       );
 
   bool get isFamilyFriendly => minorsCount > 0;
+
+  bool get hasMealSuggestions =>
+      mealSuggestions != null && mealSuggestions!.isNotEmpty;
 
   String get displayTravelersSummary =>
       travelersSummary ?? travelersModel.summary;
@@ -277,6 +284,9 @@ class ItineraryModel {
       minorsCount: parsedMinors,
       minorAgeBands: parsedBands,
       travelersSummary: data['travelersSummary'] ?? data['travelerSummary'],
+      mealSuggestions: data['mealSuggestions'] != null
+          ? DayMealSuggestions.fromMap(Map<String, dynamic>.from(data['mealSuggestions'] as Map))
+          : null,
     );
   }
 
@@ -313,6 +323,7 @@ class ItineraryModel {
       'minorAgeBands': minorAgeBands,
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
+      if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
     };
   }
 
@@ -348,6 +359,7 @@ class ItineraryModel {
       'minorAgeBands': minorAgeBands,
       'travelersSummary': displayTravelersSummary,
       'isFamilyFriendly': isFamilyFriendly,
+      if (mealSuggestions != null) 'mealSuggestions': mealSuggestions!.toMap(),
     };
   }
 
@@ -370,6 +382,7 @@ class ItineraryModel {
     int? minorsCount,
     List<String>? minorAgeBands,
     String? travelersSummary,
+    DayMealSuggestions? mealSuggestions,
   }) {
     return ItineraryModel(
       id: id ?? this.id,
@@ -402,6 +415,7 @@ class ItineraryModel {
       minorsCount: minorsCount ?? this.minorsCount,
       minorAgeBands: minorAgeBands ?? this.minorAgeBands,
       travelersSummary: travelersSummary ?? this.travelersSummary,
+      mealSuggestions: mealSuggestions ?? this.mealSuggestions,
     );
   }
 }

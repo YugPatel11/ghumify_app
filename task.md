@@ -248,3 +248,30 @@
   * All 114 tests passing across the app suite.
   * Code analysis verified with 0 fatal errors.
 
+### TASK-011: Context-Aware Meal Suggestions (Lunch & Dinner)
+* **Status:** Completed
+* **Branch:** `main`
+* **Description:**
+  Engineered and integrated the context-aware "Meal Suggestions" feature into the Ghumify itinerary timeline across single-day, multi-day, and multi-city trips. At Lunch (12:30–14:30) and Dinner (19:00–21:00), the app suggests 2 to 3 real, verified restaurants located near the user's specific route coordinates at that time of day rather than a generic city center point. Restaurant search leverages the OpenStreetMap Overpass API with progressive radius widening, strict 5-tier dietary adherence, minor/family safety rules, and direct keyless external actions.
+* **Key Improvements:**
+  1. **Configurable Meal Engine (`MealConfig` & `RestaurantService`):**
+     * Centralized meal windows (`MealConfig.lunchStart` = 12:30, `MealConfig.lunchEnd` = 14:30, `MealConfig.dinnerStart` = 19:00, `MealConfig.dinnerEnd` = 21:00).
+     * Search anchor determination: searches around the exact stop the user is at or travelling from just before the meal window.
+     * Progressive multi-tier radius expansion (1 km -> 2 km -> 3 km -> 5 km) with explicit distance and estimated travel time calculated.
+     * Overpass query filters `amenity=restaurant`, `amenity=cafe`, and `amenity=fast_food` with dietary tags (`diet:vegetarian`, `diet:vegan`, `diet:jain`, `cuisine`, `opening_hours`, `phone`).
+  2. **Dietary & Family Compliance:**
+     * Adheres to user's 5 Food Preferences (`veg`, `veg_egg`, `jain`, `non_veg`, `all`).
+     * Pure-veg vs veg-options distinction with dual visual indicator (colored dot + text badge).
+     * Mandatory Jain advisory note: *"Please confirm Jain preparation with the restaurant"*.
+     * Family safety: filters bars, pubs, nightclubs, lounges, and late dinner hours when minors are present.
+  3. **Timeline UI & Actions (`MealSuggestionCard`):**
+     * Compact cards with restaurant name, cuisine, distance, travel time, verified ratings, opening hours status, and contextual recommendation reason.
+     * Actions: Google Maps Search (`https://www.google.com/maps/search/?api=1&query=LAT,LNG`), Directions (`https://www.google.com/maps/dir/?api=1&destination=LAT,LNG`), direct phone dialing (`tel:PHONE`), "Show other options" pagination, and manual refresh.
+     * "Add to itinerary": seamlessly inserts an `ItineraryStop` of type `'food'` at target meal times (75 min lunch, 90 min dinner) with undo and replace capabilities.
+  4. **Clean Persistence & Backward Compatibility:**
+     * `MealSuggestionModel` and `DayMealSuggestions` saved in lightweight form with timestamp and coordinates.
+     * Fully backward compatible with legacy itineraries lacking meal suggestions.
+* **Verification:**
+  * 18 unit and regression tests passing in `test/meal_suggestions_test.dart`.
+  * Static analysis verified with 0 fatal errors.
+

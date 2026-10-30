@@ -19,6 +19,10 @@ import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 import '../widgets/nearby_services_section.dart';
 import '../widgets/place_media_gallery.dart';
+import '../widgets/meal_suggestion_card.dart';
+import '../../../core/constants/meal_config.dart';
+import '../../../core/models/meal_suggestion_model.dart';
+import '../../../core/services/restaurant_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 class ItineraryResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -34,6 +38,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   final GeminiService _geminiService = GeminiService();
   final WeatherService _weatherService = WeatherService();
   final PlacesService _placesService = PlacesService();
+  final RestaurantService _restaurantService = RestaurantService();
 
   ItineraryModel? _itinerary;
   bool _isLoading = true;
@@ -42,6 +47,20 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   late AnimationController _animController;
   late String _heroImage;
   late String _cityName;
+
+  // Meal Suggestions State
+  List<MealSuggestionModel> _lunchSuggestions = [];
+  List<MealSuggestionModel> _dinnerSuggestions = [];
+  bool _isLoadingLunch = false;
+  bool _isLoadingDinner = false;
+  String? _lunchError;
+  String? _dinnerError;
+  String? _lunchAnchorName;
+  String? _dinnerAnchorName;
+  DateTime? _lunchLastUpdated;
+  DateTime? _dinnerLastUpdated;
+  String? _addedLunchRestaurantName;
+  String? _addedDinnerRestaurantName;
 
   @override
   void initState() {
@@ -81,6 +100,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         _isLoading = false;
       });
       _animController.forward();
+      _initMealSuggestionsFromItinerary();
       return;
     }
 
@@ -146,12 +166,384 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         _isLoading = false;
       });
       _animController.forward();
+      _initMealSuggestionsFromItinerary();
     } catch (e) {
       setState(() {
         _error = 'Failed to generate itinerary. Please try again.\n\nError: $e';
         _isLoading = false;
       });
     }
+  }
+
+  void _initMealSuggestionsFromItinerary() {
+    if (_itinerary == null) return;
+
+    // Detect if existing stops already match meal windows or food types
+    for (final stop in _itinerary!.stops) {
+      if (stop.type == 'food') {
+        if (MealConfig.isWithinLunchWindow(stop.startTime)) {
+          _addedLunchRestaurantName = stop.name;
+        } else if (MealConfig.isWithinDinnerWindow(stop.startTime)) {
+          _addedDinnerRestaurantName = stop.name;
+        }
+      }
+    }
+
+    if (_itinerary!.mealSuggestions != null && _itinerary!.mealSuggestions!.isNotEmpty) {
+      final ms = _itinerary!.mealSuggestions!;
+      setState(() {
+        _lunchSuggestions = ms.lunchSuggestions;
+        _dinnerSuggestions = ms.dinnerSuggestions;
+        _lunchAnchorName = ms.lunchAnchorName;
+        _dinnerAnchorName = ms.dinnerAnchorName;
+        _lunchLastUpdated = ms.lastUpdated;
+        _dinnerLastUpdated = ms.lastUpdated;
+      });
+    } else {
+      _fetchMealSuggestions();
+    }
+  }
+
+  Future<void> _fetchMealSuggestions({bool force = false, String? mealType}) async {
+    if (_itinerary == null) return;
+
+    final fetchLunch = mealType == null || mealType == MealConfig.lunch;
+    final fetchDinner = mealType == null || mealType == MealConfig.dinner;
+
+    if (fetchLunch) {
+      setState(() {
+        _isLoadingLunch = true;
+        _lunchError = null;
+      });
+    }
+    if (fetchDinner) {
+      setState(() {
+        _isLoadingDinner = true;
+        _dinnerError = null;
+      });
+    }
+
+    // 1. Fetch Lunch Suggestions
+    if (fetchLunch) {
+      try {
+        final lunchAnchor = RestaurantService.findMealAnchorPoint(
+          stops: _itinerary!.stops,
+          mealType: MealConfig.lunch,
+        );
+
+        if (lunchAnchor != null) {
+          _lunchAnchorName = lunchAnchor.name;
+          final results = await _restaurantService.getMealSuggestions(
+            latitude: lunchAnchor.latitude,
+            longitude: lunchAnchor.longitude,
+            mealType: MealConfig.lunch,
+            foodPreference: _itinerary!.foodPreference,
+            travelers: _itinerary!.travelersModel,
+            anchorStopName: lunchAnchor.name,
+            forceRefresh: force,
+          );
+          if (mounted) {
+            setState(() {
+              _lunchSuggestions = results;
+              _isLoadingLunch = false;
+              _lunchLastUpdated = DateTime.now();
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _isLoadingLunch = false;
+              _lunchError = 'No nearby stops with coordinates found.';
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingLunch = false;
+            _lunchError = 'Could not load lunch suggestions: $e';
+          });
+        }
+      }
+    }
+
+    // 2. Fetch Dinner Suggestions
+    if (fetchDinner) {
+      try {
+        final dinnerAnchor = RestaurantService.findMealAnchorPoint(
+          stops: _itinerary!.stops,
+          mealType: MealConfig.dinner,
+        );
+
+        if (dinnerAnchor != null) {
+          _dinnerAnchorName = dinnerAnchor.name;
+          final results = await _restaurantService.getMealSuggestions(
+            latitude: dinnerAnchor.latitude,
+            longitude: dinnerAnchor.longitude,
+            mealType: MealConfig.dinner,
+            foodPreference: _itinerary!.foodPreference,
+            travelers: _itinerary!.travelersModel,
+            anchorStopName: dinnerAnchor.name,
+            forceRefresh: force,
+          );
+          if (mounted) {
+            setState(() {
+              _dinnerSuggestions = results;
+              _isLoadingDinner = false;
+              _dinnerLastUpdated = DateTime.now();
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _isLoadingDinner = false;
+              _dinnerError = 'No nearby stops with coordinates found.';
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _isLoadingDinner = false;
+            _dinnerError = 'Could not load dinner suggestions: $e';
+          });
+        }
+      }
+    }
+
+    // Sync updated suggestions container to model
+    if (mounted && _itinerary != null) {
+      final updatedSuggestions = DayMealSuggestions(
+        lunchSuggestions: _lunchSuggestions,
+        dinnerSuggestions: _dinnerSuggestions,
+        lunchAnchorName: _lunchAnchorName,
+        dinnerAnchorName: _dinnerAnchorName,
+        lastUpdated: DateTime.now(),
+      );
+      setState(() {
+        _itinerary = _itinerary!.copyWith(mealSuggestions: updatedSuggestions);
+      });
+      _syncItineraryIfSaved();
+    }
+  }
+
+  void _onAddMealToItinerary(MealSuggestionModel restaurant, String mealType) {
+    if (_itinerary == null) return;
+    final isLunch = mealType == MealConfig.lunch;
+    final hasMinors = _itinerary!.isFamilyFriendly;
+    final targetStartTime = isLunch
+        ? MealConfig.lunchDefaultTime
+        : (hasMinors ? MealConfig.dinnerEarlyDefaultTime : MealConfig.dinnerDefaultTime);
+    final duration = isLunch
+        ? MealConfig.lunchDefaultDurationMinutes
+        : MealConfig.dinnerDefaultDurationMinutes;
+    final targetEndTime = MealConfig.minutesToTime(
+        MealConfig.timeToMinutes(targetStartTime) + duration);
+
+    final newMealStop = ItineraryStop(
+      name: restaurant.name,
+      type: 'food',
+      startTime: targetStartTime,
+      endTime: targetEndTime,
+      durationMinutes: duration,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      dietaryType: restaurant.dietaryType,
+      description: '${restaurant.cuisine} • ${restaurant.suggestedReason}',
+      tips: [
+        if (restaurant.openingHours != null) 'Hours: ${restaurant.openingHours}',
+        'Please check opening hours and menu before visiting.',
+        if (_itinerary!.foodPreference == FoodPreference.jain)
+          'Please confirm Jain preparation with the restaurant.',
+      ],
+      isKidFriendly: restaurant.isKidFriendly,
+    );
+
+    final currentStops = List<ItineraryStop>.from(_itinerary!.stops);
+    int existingIdx = -1;
+    for (int i = 0; i < currentStops.length; i++) {
+      final s = currentStops[i];
+      final inWindow = isLunch
+          ? MealConfig.isWithinLunchWindow(s.startTime)
+          : MealConfig.isWithinDinnerWindow(s.startTime);
+      if (inWindow &&
+          (s.type == 'food' ||
+              s.name == restaurant.name ||
+              (isLunch && s.name == _addedLunchRestaurantName) ||
+              (!isLunch && s.name == _addedDinnerRestaurantName))) {
+        existingIdx = i;
+        break;
+      }
+    }
+
+    if (existingIdx >= 0) {
+      currentStops[existingIdx] = newMealStop;
+    } else {
+      final targetMins = MealConfig.timeToMinutes(targetStartTime);
+      int insertIdx = currentStops.length;
+      for (int i = 0; i < currentStops.length; i++) {
+        if (MealConfig.timeToMinutes(currentStops[i].startTime) > targetMins) {
+          insertIdx = i;
+          break;
+        }
+      }
+      currentStops.insert(insertIdx, newMealStop);
+    }
+
+    setState(() {
+      if (isLunch) {
+        _addedLunchRestaurantName = restaurant.name;
+      } else {
+        _addedDinnerRestaurantName = restaurant.name;
+      }
+      _itinerary = _itinerary!.copyWith(stops: currentStops);
+    });
+
+    _syncItineraryIfSaved();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "${restaurant.name}" to itinerary!'),
+        backgroundColor: AppColors.brand,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () => _onRemoveMealFromItinerary(mealType),
+        ),
+      ),
+    );
+  }
+
+  void _onRemoveMealFromItinerary(String mealType) {
+    if (_itinerary == null) return;
+    final isLunch = mealType == MealConfig.lunch;
+    final targetName = isLunch ? _addedLunchRestaurantName : _addedDinnerRestaurantName;
+    if (targetName == null) return;
+
+    final currentStops = List<ItineraryStop>.from(_itinerary!.stops);
+    currentStops.removeWhere((s) =>
+        s.name == targetName ||
+        (s.type == 'food' &&
+            (isLunch
+                ? MealConfig.isWithinLunchWindow(s.startTime)
+                : MealConfig.isWithinDinnerWindow(s.startTime))));
+
+    setState(() {
+      if (isLunch) {
+        _addedLunchRestaurantName = null;
+      } else {
+        _addedDinnerRestaurantName = null;
+      }
+      _itinerary = _itinerary!.copyWith(stops: currentStops);
+    });
+
+    _syncItineraryIfSaved();
+  }
+
+  Future<void> _syncItineraryIfSaved() async {
+    if (_itinerary != null && _itinerary!.isSaved) {
+      try {
+        await FirebaseFirestore.instance
+            .collection(AppConstants.itinerariesCollection)
+            .doc(_itinerary!.id)
+            .set(_itinerary!.toFirestore(), SetOptions(merge: true));
+      } catch (_) {}
+    }
+  }
+
+  Widget _buildLunchCard(ItineraryModel itinerary) {
+    return MealSuggestionCard(
+      mealType: MealConfig.lunch,
+      anchorStopName: _lunchAnchorName,
+      suggestions: _lunchSuggestions,
+      isLoading: _isLoadingLunch,
+      errorMessage: _lunchError,
+      foodPreference: itinerary.foodPreference,
+      isSavedMode: itinerary.isSaved,
+      lastUpdated: _lunchLastUpdated,
+      isAddedToItinerary: _addedLunchRestaurantName != null,
+      addedRestaurantName: _addedLunchRestaurantName,
+      onRefresh: () => _fetchMealSuggestions(force: true, mealType: MealConfig.lunch),
+      onAddToItinerary: (restaurant) => _onAddMealToItinerary(restaurant, MealConfig.lunch),
+      onRemoveFromItinerary: () => _onRemoveMealFromItinerary(MealConfig.lunch),
+    );
+  }
+
+  Widget _buildDinnerCard(ItineraryModel itinerary) {
+    return MealSuggestionCard(
+      mealType: MealConfig.dinner,
+      anchorStopName: _dinnerAnchorName,
+      suggestions: _dinnerSuggestions,
+      isLoading: _isLoadingDinner,
+      errorMessage: _dinnerError,
+      foodPreference: itinerary.foodPreference,
+      isSavedMode: itinerary.isSaved,
+      lastUpdated: _dinnerLastUpdated,
+      isAddedToItinerary: _addedDinnerRestaurantName != null,
+      addedRestaurantName: _addedDinnerRestaurantName,
+      onRefresh: () => _fetchMealSuggestions(force: true, mealType: MealConfig.dinner),
+      onAddToItinerary: (restaurant) => _onAddMealToItinerary(restaurant, MealConfig.dinner),
+      onRemoveFromItinerary: () => _onRemoveMealFromItinerary(MealConfig.dinner),
+    );
+  }
+
+  List<Widget> _buildTimelineWidgets(ItineraryModel itinerary) {
+    final widgets = <Widget>[];
+    final stops = itinerary.stops;
+
+    int lunchInsertIndex = -1;
+    int dinnerInsertIndex = -1;
+
+    for (int i = 0; i < stops.length; i++) {
+      final stop = stops[i];
+      final startMins = MealConfig.timeToMinutes(stop.startTime);
+      final isLunchTime = startMins >= MealConfig.timeToMinutes(MealConfig.lunchStartTime);
+      final isDinnerTime = startMins >= MealConfig.timeToMinutes(MealConfig.dinnerStartTime);
+
+      if (lunchInsertIndex == -1 && isLunchTime) {
+        lunchInsertIndex = i;
+      }
+      if (dinnerInsertIndex == -1 && isDinnerTime) {
+        dinnerInsertIndex = i;
+      }
+    }
+
+    if (lunchInsertIndex == -1) {
+      lunchInsertIndex = (stops.length / 2).floor();
+    }
+    if (dinnerInsertIndex == -1) {
+      dinnerInsertIndex = stops.length;
+    }
+
+    bool lunchInserted = false;
+    bool dinnerInserted = false;
+
+    for (int i = 0; i < stops.length; i++) {
+      if (i == lunchInsertIndex && !lunchInserted) {
+        widgets.add(_buildLunchCard(itinerary));
+        lunchInserted = true;
+      }
+      if (i == dinnerInsertIndex && !dinnerInserted) {
+        widgets.add(_buildDinnerCard(itinerary));
+        dinnerInserted = true;
+      }
+
+      final isLast = (i == stops.length - 1) && lunchInserted && dinnerInserted;
+      widgets.add(_buildStopCard(stops[i], isLast, i));
+    }
+
+    if (!lunchInserted) {
+      widgets.add(_buildLunchCard(itinerary));
+      lunchInserted = true;
+    }
+    if (!dinnerInserted) {
+      widgets.add(_buildDinnerCard(itinerary));
+      dinnerInserted = true;
+    }
+
+    return widgets;
   }
 
   void _openChat() {
@@ -720,16 +1112,17 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
           
           const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
 
-          // ── Stops ──
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final stop = itinerary.stops[index];
-                final isLast = index == itinerary.stops.length - 1;
-                return _buildStopCard(stop, isLast, index);
-              },
-              childCount: itinerary.stops.length,
-            ),
+          // ── Timeline with Stops & Meal Suggestions ──
+          Builder(
+            builder: (context) {
+              final timelineWidgets = _buildTimelineWidgets(itinerary);
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => timelineWidgets[index],
+                  childCount: timelineWidgets.length,
+                ),
+              );
+            },
           ),
 
           // ── Essentials ──

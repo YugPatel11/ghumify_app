@@ -20,6 +20,10 @@ import '../../../core/utils/image_resolver.dart';
 import '../widgets/itinerary_chat_sheet.dart';
 import '../widgets/nearby_services_section.dart';
 import '../widgets/place_media_gallery.dart';
+import '../widgets/meal_suggestion_card.dart';
+import '../../../core/constants/meal_config.dart';
+import '../../../core/models/meal_suggestion_model.dart';
+import '../../../core/services/restaurant_service.dart';
 
 class MultiDayResultScreen extends StatefulWidget {
   final Map<String, dynamic>? itineraryData;
@@ -35,6 +39,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
   final GeminiService _geminiService = GeminiService();
   final WeatherService _weatherService = WeatherService();
   final PlacesService _placesService = PlacesService();
+  final RestaurantService _restaurantService = RestaurantService();
 
   MultiDayItineraryModel? _itinerary;
   bool _isLoading = true;
@@ -44,6 +49,20 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
   TabController? _tabController;
   late String _heroImage;
   late String _cityName;
+
+  // Lazy Day Meal Suggestions state (keyed by dayNumber)
+  final Map<int, List<MealSuggestionModel>> _dayLunchSuggestions = {};
+  final Map<int, List<MealSuggestionModel>> _dayDinnerSuggestions = {};
+  final Map<int, bool> _dayIsLoadingLunch = {};
+  final Map<int, bool> _dayIsLoadingDinner = {};
+  final Map<int, String?> _dayLunchError = {};
+  final Map<int, String?> _dayDinnerError = {};
+  final Map<int, String?> _dayLunchAnchor = {};
+  final Map<int, String?> _dayDinnerAnchor = {};
+  final Map<int, DateTime?> _dayLastUpdated = {};
+  final Map<int, String?> _dayAddedLunch = {};
+  final Map<int, String?> _dayAddedDinner = {};
+  final Set<int> _initializedDays = {};
 
   @override
   void initState() {
@@ -183,6 +202,408 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
         },
       ),
     );
+  }
+
+  void _initDayMealSuggestions(ItineraryModel day) {
+    final dayNum = day.dayNumber;
+    if (_initializedDays.contains(dayNum)) return;
+    _initializedDays.add(dayNum);
+
+    for (final stop in day.stops) {
+      if (stop.type == 'food') {
+        if (MealConfig.isWithinLunchWindow(stop.startTime)) {
+          _dayAddedLunch[dayNum] = stop.name;
+        } else if (MealConfig.isWithinDinnerWindow(stop.startTime)) {
+          _dayAddedDinner[dayNum] = stop.name;
+        }
+      }
+    }
+
+    if (day.mealSuggestions != null && day.mealSuggestions!.isNotEmpty) {
+      final ms = day.mealSuggestions!;
+      setState(() {
+        _dayLunchSuggestions[dayNum] = ms.lunchSuggestions;
+        _dayDinnerSuggestions[dayNum] = ms.dinnerSuggestions;
+        _dayLunchAnchor[dayNum] = ms.lunchAnchorName;
+        _dayDinnerAnchor[dayNum] = ms.dinnerAnchorName;
+        _dayLastUpdated[dayNum] = ms.lastUpdated;
+      });
+    } else {
+      _fetchDayMealSuggestions(dayNum, day);
+    }
+  }
+
+  Future<void> _fetchDayMealSuggestions(
+    int dayNumber,
+    ItineraryModel day, {
+    bool force = false,
+    String? mealType,
+  }) async {
+    final fetchLunch = mealType == null || mealType == MealConfig.lunch;
+    final fetchDinner = mealType == null || mealType == MealConfig.dinner;
+
+    if (fetchLunch) {
+      setState(() {
+        _dayIsLoadingLunch[dayNumber] = true;
+        _dayLunchError[dayNumber] = null;
+      });
+    }
+    if (fetchDinner) {
+      setState(() {
+        _dayIsLoadingDinner[dayNumber] = true;
+        _dayDinnerError[dayNumber] = null;
+      });
+    }
+
+    // 1. Fetch Lunch
+    if (fetchLunch) {
+      try {
+        final lunchAnchor = RestaurantService.findMealAnchorPoint(
+          stops: day.stops,
+          mealType: MealConfig.lunch,
+        );
+
+        if (lunchAnchor != null) {
+          _dayLunchAnchor[dayNumber] = lunchAnchor.name;
+          final results = await _restaurantService.getMealSuggestions(
+            latitude: lunchAnchor.latitude,
+            longitude: lunchAnchor.longitude,
+            mealType: MealConfig.lunch,
+            foodPreference: day.foodPreference,
+            travelers: day.travelersModel,
+            anchorStopName: lunchAnchor.name,
+            forceRefresh: force,
+          );
+          if (mounted) {
+            setState(() {
+              _dayLunchSuggestions[dayNumber] = results;
+              _dayIsLoadingLunch[dayNumber] = false;
+              _dayLastUpdated[dayNumber] = DateTime.now();
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _dayIsLoadingLunch[dayNumber] = false;
+              _dayLunchError[dayNumber] = 'No stops with coordinates found for lunch.';
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _dayIsLoadingLunch[dayNumber] = false;
+            _dayLunchError[dayNumber] = 'Could not load lunch suggestions: $e';
+          });
+        }
+      }
+    }
+
+    // 2. Fetch Dinner
+    if (fetchDinner) {
+      try {
+        final dinnerAnchor = RestaurantService.findMealAnchorPoint(
+          stops: day.stops,
+          mealType: MealConfig.dinner,
+        );
+
+        if (dinnerAnchor != null) {
+          _dayDinnerAnchor[dayNumber] = dinnerAnchor.name;
+          final results = await _restaurantService.getMealSuggestions(
+            latitude: dinnerAnchor.latitude,
+            longitude: dinnerAnchor.longitude,
+            mealType: MealConfig.dinner,
+            foodPreference: day.foodPreference,
+            travelers: day.travelersModel,
+            anchorStopName: dinnerAnchor.name,
+            forceRefresh: force,
+          );
+          if (mounted) {
+            setState(() {
+              _dayDinnerSuggestions[dayNumber] = results;
+              _dayIsLoadingDinner[dayNumber] = false;
+              _dayLastUpdated[dayNumber] = DateTime.now();
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _dayIsLoadingDinner[dayNumber] = false;
+              _dayDinnerError[dayNumber] = 'No stops with coordinates found for dinner.';
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _dayIsLoadingDinner[dayNumber] = false;
+            _dayDinnerError[dayNumber] = 'Could not load dinner suggestions: $e';
+          });
+        }
+      }
+    }
+
+    // Update container in day model and overall itinerary
+    if (mounted && _itinerary != null) {
+      final updatedSuggestions = DayMealSuggestions(
+        lunchSuggestions: _dayLunchSuggestions[dayNumber] ?? [],
+        dinnerSuggestions: _dayDinnerSuggestions[dayNumber] ?? [],
+        lunchAnchorName: _dayLunchAnchor[dayNumber],
+        dinnerAnchorName: _dayDinnerAnchor[dayNumber],
+        lastUpdated: DateTime.now(),
+      );
+
+      final updatedDays = _itinerary!.days.map((d) {
+        if (d.dayNumber == dayNumber) {
+          return d.copyWith(mealSuggestions: updatedSuggestions);
+        }
+        return d;
+      }).toList();
+
+      setState(() {
+        _itinerary = _itinerary!.copyWith(days: updatedDays);
+      });
+      _syncMultiDayItineraryIfSaved();
+    }
+  }
+
+  void _onAddMealToDayItinerary(
+    int dayNumber,
+    MealSuggestionModel restaurant,
+    String mealType,
+  ) {
+    if (_itinerary == null) return;
+    final dayIdx = _itinerary!.days.indexWhere((d) => d.dayNumber == dayNumber);
+    if (dayIdx == -1) return;
+
+    final targetDay = _itinerary!.days[dayIdx];
+    final isLunch = mealType == MealConfig.lunch;
+    final hasMinors = targetDay.isFamilyFriendly;
+    final targetStartTime = isLunch
+        ? MealConfig.lunchDefaultTime
+        : (hasMinors ? MealConfig.dinnerEarlyDefaultTime : MealConfig.dinnerDefaultTime);
+    final duration = isLunch
+        ? MealConfig.lunchDefaultDurationMinutes
+        : MealConfig.dinnerDefaultDurationMinutes;
+    final targetEndTime = MealConfig.minutesToTime(
+        MealConfig.timeToMinutes(targetStartTime) + duration);
+
+    final newMealStop = ItineraryStop(
+      name: restaurant.name,
+      type: 'food',
+      startTime: targetStartTime,
+      endTime: targetEndTime,
+      durationMinutes: duration,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      dietaryType: restaurant.dietaryType,
+      description: '${restaurant.cuisine} • ${restaurant.suggestedReason}',
+      tips: [
+        if (restaurant.openingHours != null) 'Hours: ${restaurant.openingHours}',
+        'Please check opening hours and menu before visiting.',
+        if (targetDay.foodPreference == FoodPreference.jain)
+          'Please confirm Jain preparation with the restaurant.',
+      ],
+      isKidFriendly: restaurant.isKidFriendly,
+    );
+
+    final currentStops = List<ItineraryStop>.from(targetDay.stops);
+    int existingIdx = -1;
+    for (int i = 0; i < currentStops.length; i++) {
+      final s = currentStops[i];
+      final inWindow = isLunch
+          ? MealConfig.isWithinLunchWindow(s.startTime)
+          : MealConfig.isWithinDinnerWindow(s.startTime);
+      if (inWindow &&
+          (s.type == 'food' ||
+              s.name == restaurant.name ||
+              (isLunch && s.name == _dayAddedLunch[dayNumber]) ||
+              (!isLunch && s.name == _dayAddedDinner[dayNumber]))) {
+        existingIdx = i;
+        break;
+      }
+    }
+
+    if (existingIdx >= 0) {
+      currentStops[existingIdx] = newMealStop;
+    } else {
+      final targetMins = MealConfig.timeToMinutes(targetStartTime);
+      int insertIdx = currentStops.length;
+      for (int i = 0; i < currentStops.length; i++) {
+        if (MealConfig.timeToMinutes(currentStops[i].startTime) > targetMins) {
+          insertIdx = i;
+          break;
+        }
+      }
+      currentStops.insert(insertIdx, newMealStop);
+    }
+
+    final updatedDays = List<ItineraryModel>.from(_itinerary!.days);
+    updatedDays[dayIdx] = targetDay.copyWith(stops: currentStops);
+
+    setState(() {
+      if (isLunch) {
+        _dayAddedLunch[dayNumber] = restaurant.name;
+      } else {
+        _dayAddedDinner[dayNumber] = restaurant.name;
+      }
+      _itinerary = _itinerary!.copyWith(days: updatedDays);
+    });
+
+    _syncMultiDayItineraryIfSaved();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "${restaurant.name}" to Day $dayNumber!'),
+        backgroundColor: AppColors.brand,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () => _onRemoveMealFromDayItinerary(dayNumber, mealType),
+        ),
+      ),
+    );
+  }
+
+  void _onRemoveMealFromDayItinerary(int dayNumber, String mealType) {
+    if (_itinerary == null) return;
+    final dayIdx = _itinerary!.days.indexWhere((d) => d.dayNumber == dayNumber);
+    if (dayIdx == -1) return;
+
+    final targetDay = _itinerary!.days[dayIdx];
+    final isLunch = mealType == MealConfig.lunch;
+    final targetName = isLunch ? _dayAddedLunch[dayNumber] : _dayAddedDinner[dayNumber];
+    if (targetName == null) return;
+
+    final currentStops = List<ItineraryStop>.from(targetDay.stops);
+    currentStops.removeWhere((s) =>
+        s.name == targetName ||
+        (s.type == 'food' &&
+            (isLunch
+                ? MealConfig.isWithinLunchWindow(s.startTime)
+                : MealConfig.isWithinDinnerWindow(s.startTime))));
+
+    final updatedDays = List<ItineraryModel>.from(_itinerary!.days);
+    updatedDays[dayIdx] = targetDay.copyWith(stops: currentStops);
+
+    setState(() {
+      if (isLunch) {
+        _dayAddedLunch[dayNumber] = null;
+      } else {
+        _dayAddedDinner[dayNumber] = null;
+      }
+      _itinerary = _itinerary!.copyWith(days: updatedDays);
+    });
+
+    _syncMultiDayItineraryIfSaved();
+  }
+
+  Future<void> _syncMultiDayItineraryIfSaved() async {
+    if (_itinerary != null && _itinerary!.isSaved) {
+      try {
+        await FirebaseFirestore.instance
+            .collection(AppConstants.itinerariesCollection)
+            .doc(_itinerary!.id)
+            .set(_itinerary!.toFirestore(), SetOptions(merge: true));
+      } catch (_) {}
+    }
+  }
+
+  Widget _buildDayLunchCard(ItineraryModel day) {
+    final dayNum = day.dayNumber;
+    return MealSuggestionCard(
+      mealType: MealConfig.lunch,
+      anchorStopName: _dayLunchAnchor[dayNum],
+      suggestions: _dayLunchSuggestions[dayNum] ?? [],
+      isLoading: _dayIsLoadingLunch[dayNum] == true,
+      errorMessage: _dayLunchError[dayNum],
+      foodPreference: day.foodPreference,
+      isSavedMode: _itinerary?.isSaved == true,
+      lastUpdated: _dayLastUpdated[dayNum],
+      isAddedToItinerary: _dayAddedLunch[dayNum] != null,
+      addedRestaurantName: _dayAddedLunch[dayNum],
+      onRefresh: () => _fetchDayMealSuggestions(dayNum, day, force: true, mealType: MealConfig.lunch),
+      onAddToItinerary: (restaurant) => _onAddMealToDayItinerary(dayNum, restaurant, MealConfig.lunch),
+      onRemoveFromItinerary: () => _onRemoveMealFromDayItinerary(dayNum, MealConfig.lunch),
+    );
+  }
+
+  Widget _buildDayDinnerCard(ItineraryModel day) {
+    final dayNum = day.dayNumber;
+    return MealSuggestionCard(
+      mealType: MealConfig.dinner,
+      anchorStopName: _dayDinnerAnchor[dayNum],
+      suggestions: _dayDinnerSuggestions[dayNum] ?? [],
+      isLoading: _dayIsLoadingDinner[dayNum] == true,
+      errorMessage: _dayDinnerError[dayNum],
+      foodPreference: day.foodPreference,
+      isSavedMode: _itinerary?.isSaved == true,
+      lastUpdated: _dayLastUpdated[dayNum],
+      isAddedToItinerary: _dayAddedDinner[dayNum] != null,
+      addedRestaurantName: _dayAddedDinner[dayNum],
+      onRefresh: () => _fetchDayMealSuggestions(dayNum, day, force: true, mealType: MealConfig.dinner),
+      onAddToItinerary: (restaurant) => _onAddMealToDayItinerary(dayNum, restaurant, MealConfig.dinner),
+      onRemoveFromItinerary: () => _onRemoveMealFromDayItinerary(dayNum, MealConfig.dinner),
+    );
+  }
+
+  List<Widget> _buildDayTimelineWidgets(ItineraryModel day, MultiDayItineraryModel overall) {
+    final widgets = <Widget>[];
+    final stops = day.stops;
+
+    int lunchInsertIndex = -1;
+    int dinnerInsertIndex = -1;
+
+    for (int i = 0; i < stops.length; i++) {
+      final stop = stops[i];
+      final startMins = MealConfig.timeToMinutes(stop.startTime);
+      final isLunchTime = startMins >= MealConfig.timeToMinutes(MealConfig.lunchStartTime);
+      final isDinnerTime = startMins >= MealConfig.timeToMinutes(MealConfig.dinnerStartTime);
+
+      if (lunchInsertIndex == -1 && isLunchTime) {
+        lunchInsertIndex = i;
+      }
+      if (dinnerInsertIndex == -1 && isDinnerTime) {
+        dinnerInsertIndex = i;
+      }
+    }
+
+    if (lunchInsertIndex == -1) {
+      lunchInsertIndex = (stops.length / 2).floor();
+    }
+    if (dinnerInsertIndex == -1) {
+      dinnerInsertIndex = stops.length;
+    }
+
+    bool lunchInserted = false;
+    bool dinnerInserted = false;
+
+    for (int i = 0; i < stops.length; i++) {
+      if (i == lunchInsertIndex && !lunchInserted) {
+        widgets.add(_buildDayLunchCard(day));
+        lunchInserted = true;
+      }
+      if (i == dinnerInsertIndex && !dinnerInserted) {
+        widgets.add(_buildDayDinnerCard(day));
+        dinnerInserted = true;
+      }
+
+      final isLast = (i == stops.length - 1) && lunchInserted && dinnerInserted;
+      widgets.add(_buildStopCard(stops[i], isLast, i));
+    }
+
+    if (!lunchInserted) {
+      widgets.add(_buildDayLunchCard(day));
+      lunchInserted = true;
+    }
+    if (!dinnerInserted) {
+      widgets.add(_buildDayDinnerCard(day));
+      dinnerInserted = true;
+    }
+
+    return widgets;
   }
 
   @override
@@ -641,6 +1062,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
 
   Widget _buildDayContent(
       ItineraryModel day, MultiDayItineraryModel overall) {
+    _initDayMealSuggestions(day);
     return CustomScrollView(
       slivers: [
         // ── Day Summary ──
@@ -720,16 +1142,17 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
 
         const SliverToBoxAdapter(child: SizedBox(height: AppTokens.lg)),
 
-        // ── Stops ──
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final stop = day.stops[index];
-              final isLast = index == day.stops.length - 1;
-              return _buildStopCard(stop, isLast, index);
-            },
-            childCount: day.stops.length,
-          ),
+        // ── Timeline with Stops & Meal Suggestions ──
+        Builder(
+          builder: (context) {
+            final timelineWidgets = _buildDayTimelineWidgets(day, overall);
+            return SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => timelineWidgets[index],
+                childCount: timelineWidgets.length,
+              ),
+            );
+          },
         ),
 
         // ── Essentials (show on first tab only) ──
