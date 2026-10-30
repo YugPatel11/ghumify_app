@@ -6,6 +6,7 @@ import '../models/nearby_service_model.dart';
 import '../models/place_model.dart';
 import '../models/place_suggestion_model.dart';
 import 'location_service.dart';
+import 'local_chat/candidate_source.dart';
 
 /// Service for Google Places API, OpenStreetMap Nominatim, and Overpass integration
 class PlacesService {
@@ -121,11 +122,6 @@ out center body;
   }
 
   /// Search for places nearby a location using free Overpass API (OpenStreetMap)
-  /// Features:
-  /// - Automatic radius widening (3km -> 5km -> 10km) if results are sparse
-  /// - 24-hour location cache
-  /// - Coordinate rounding (~3 decimal places) for privacy and cache hits
-  /// - Exponential backoff retry for HTTP 429 and 504
   Future<List<NearbyServiceModel>> searchNearbyEmergencyServices({
     required double latitude,
     required double longitude,
@@ -194,10 +190,25 @@ out center body;
       ...police.take(SafetyConstants.maxResultsPerCategory),
     ];
 
-    // Store in cache
+    // Store in memory cache
     _safetyCache[cacheKey] = _SafetyCacheEntry(
       services: cappedResults,
       timestamp: DateTime.now(),
+    );
+
+    // Persist real normalized results in SharedPreferences for offline local chat
+    CandidateSource.persistPlaces(
+      lat: roundedLat,
+      lon: roundedLon,
+      type: 'emergency',
+      placesData: cappedResults.map((s) => {
+        'name': s.name,
+        'type': s.type,
+        'latitude': s.latitude,
+        'longitude': s.longitude,
+        'address': s.address,
+        'phone': s.phone,
+      }).toList(),
     );
 
     return cappedResults;
@@ -381,11 +392,29 @@ out center body;
           if (data['status'] == 'OK' && data['result'] != null) {
             final res = data['result'];
             final geom = res['geometry']?['location'] ?? {};
+            final lat = (geom['lat'] as num?)?.toDouble() ?? 28.6139;
+            final lon = (geom['lng'] as num?)?.toDouble() ?? 77.2090;
+
+            // Persist real place details in offline cache
+            CandidateSource.persistPlaces(
+              lat: lat,
+              lon: lon,
+              type: 'place',
+              placesData: [{
+                'id': placeId,
+                'name': res['name'] ?? '',
+                'formatted_address': res['formatted_address'] ?? '',
+                'latitude': lat,
+                'longitude': lon,
+                'rating': (res['rating'] as num?)?.toDouble() ?? 4.5,
+              }],
+            );
+
             return {
               'name': res['name'] ?? '',
               'formatted_address': res['formatted_address'] ?? '',
-              'latitude': (geom['lat'] as num?)?.toDouble() ?? 28.6139,
-              'longitude': (geom['lng'] as num?)?.toDouble() ?? 77.2090,
+              'latitude': lat,
+              'longitude': lon,
               'rating': (res['rating'] as num?)?.toDouble() ?? 4.5,
               'types': res['types'] ?? ['tourist_attraction'],
             };

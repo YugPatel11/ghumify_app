@@ -11,6 +11,8 @@ import '../models/city_stay_model.dart';
 import '../models/travel_leg_model.dart';
 import '../models/multi_city_trip_model.dart';
 import 'family_travel_service.dart';
+import '../constants/api_keys.dart';
+import 'local_chat/local_chat_assistant.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
 ///
@@ -369,6 +371,15 @@ class GeminiService {
     bool isMultiDay = false,
     String foodPreference = FoodPreference.all,
   }) async {
+    if (ApiKeys.forceLocalChat) {
+      final localAssistant = LocalChatAssistant();
+      return await localAssistant.handleMessage(
+        userMessage: userMessage,
+        currentItinerary: currentItinerary,
+        isMultiDay: isMultiDay,
+      );
+    }
+
     final prompt = _buildChatPrompt(
       userMessage: userMessage,
       currentItinerary: currentItinerary,
@@ -460,6 +471,19 @@ class GeminiService {
         updatedItinerary: updatedItinerary,
       );
     } catch (e) {
+      if (ApiKeys.localChatFallbackEnabled) {
+        try {
+          final localAssistant = LocalChatAssistant();
+          return await localAssistant.handleMessage(
+            userMessage: userMessage,
+            currentItinerary: currentItinerary,
+            isMultiDay: isMultiDay,
+          );
+        } catch (_) {
+          // If local assistant fails, fall back to standard error message
+        }
+      }
+
       String errorMessage;
       if (e is GeminiRestException) {
         errorMessage = 'The AI service is temporarily unavailable. Please try again in a moment.\n\nDetails: ${e.message}';
