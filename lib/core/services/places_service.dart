@@ -13,7 +13,6 @@ class PlacesService {
   static String get _baseUrl => 'https://maps.googleapis.com/maps/api/place';
   static String get _apiKey => ApiKeys.googleMapsApiKey;
   static const String _nominatimUrl = 'https://nominatim.openstreetmap.org/search';
-  static const String _overpassUrl = 'https://overpass-api.de/api/interpreter';
 
 
   // In-memory query cache for rapid responsive autocomplete
@@ -120,7 +119,13 @@ out center body;
     return results;
   }
 
-  /// Search for places nearby a location using free Overpass API (OpenStreetMap)
+  static const List<String> _overpassUrls = [
+    'https://overpass-api.de/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ];
+
+  /// Search for places nearby a location using Google Places API (or Overpass API fallback)
   Future<List<NearbyServiceModel>> searchNearbyEmergencyServices({
     required double latitude,
     required double longitude,
@@ -151,37 +156,76 @@ out center body;
 
     List<NearbyServiceModel> lastResults = [];
 
-    for (final radius in radiusTiers) {
-      try {
-        final results = await _executeOverpassQueryWithRetry(
-          latitude: roundedLat,
-          longitude: roundedLon,
-          radiusMeters: radius,
-        );
+    // Attempt 1: Try Google Places Nearby Search if configured
+    if (_apiKey.isNotEmpty && !_apiKey.contains('YOUR_GOOGLE_MAPS')) {
+      for (final radius in radiusTiers) {
+        try {
+          final googleResults = await _searchGooglePlacesEmergencyServices(
+            latitude: roundedLat,
+            longitude: roundedLon,
+            radiusMeters: radius,
+          );
 
-        lastResults = results;
+          if (googleResults.isNotEmpty) {
+            lastResults = googleResults;
+            final hospitalsCount =
+                googleResults.where((s) => s.type == 'hospital').length;
+            final policeCount =
+                googleResults.where((s) => s.type == 'police').length;
 
-        final hospitalsCount =
-            results.where((s) => s.type == 'hospital').length;
-        final policeCount = results.where((s) => s.type == 'police').length;
-
-        // If we found at least 2 hospitals and 2 police stations, or we reached max radius, finish
-        if (hospitalsCount >= 2 && policeCount >= 2) {
-          break;
-        }
-      } catch (e) {
-        if (lastResults.isNotEmpty) break;
-        if (_safetyCache.containsKey(cacheKey)) {
-          return _safetyCache[cacheKey]!.services;
-        }
-        rethrow;
+            if (hospitalsCount >= 2 && policeCount >= 2) {
+              break;
+            }
+          }
+        } catch (_) {}
       }
     }
 
-    // 4. Sort and cap to top 5 of each category
-    final hospitals = lastResults.where((s) => s.type == 'hospital').toList()
+    // Attempt 2: If Google Places returned no results, fall back to Overpass API
+    if (lastResults.isEmpty) {
+      for (final radius in radiusTiers) {
+        try {
+          final results = await _executeOverpassQueryWithRetry(
+            latitude: roundedLat,
+            longitude: roundedLon,
+            radiusMeters: radius,
+          );
+
+          lastResults = results;
+
+          final hospitalsCount =
+              results.where((s) => s.type == 'hospital').length;
+          final policeCount = results.where((s) => s.type == 'police').length;
+
+          // If we found at least 2 hospitals and 2 police stations, or we reached max radius, finish
+          if (hospitalsCount >= 2 && policeCount >= 2) {
+            break;
+          }
+        } catch (e) {
+          if (lastResults.isNotEmpty) break;
+          if (_safetyCache.containsKey(cacheKey)) {
+            return _safetyCache[cacheKey]!.services;
+          }
+          if (radius == radiusTiers.last && lastResults.isEmpty) {
+            rethrow;
+          }
+        }
+      }
+    }
+
+    // 4. Deduplicate, sort and cap to top 5 of each category
+    final seen = <String>{};
+    final deduped = <NearbyServiceModel>[];
+    for (final s in lastResults) {
+      final key = '${s.type}_${s.name.toLowerCase()}';
+      if (seen.add(key)) {
+        deduped.add(s);
+      }
+    }
+
+    final hospitals = deduped.where((s) => s.type == 'hospital').toList()
       ..sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
-    final police = lastResults.where((s) => s.type == 'police').toList()
+    final police = deduped.where((s) => s.type == 'police').toList()
       ..sort((a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999));
 
     final cappedResults = [
@@ -213,6 +257,62 @@ out center body;
     return cappedResults;
   }
 
+  /// Search emergency services (hospitals, police) using Google Places Nearby Search API
+  Future<List<NearbyServiceModel>> _searchGooglePlacesEmergencyServices({
+    required double latitude,
+    required double longitude,
+    required int radiusMeters,
+  }) async {
+    if (_apiKey.isEmpty || _apiKey.contains('YOUR_GOOGLE_MAPS')) {
+      return [];
+    }
+
+    final List<NearbyServiceModel> results = [];
+    final locationService = LocationService();
+    final categories = ['hospital', 'police'];
+
+    for (final category in categories) {
+      try {
+        final uri = Uri.parse(
+          '$_baseUrl/nearbysearch/json?location=$latitude,$longitude&radius=$radiusMeters&type=$category&key=$_apiKey',
+        );
+
+        final response = await http.get(uri).timeout(const Duration(seconds: 8));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final status = data['status'] as String?;
+          if ((status == 'OK' || status == 'ZERO_RESULTS') && data['results'] is List) {
+            final placeResults = data['results'] as List;
+            for (final p in placeResults) {
+              if (p is Map<String, dynamic>) {
+                final loc = p['geometry']?['location'] as Map<String, dynamic>?;
+                final lat = (loc?['lat'] as num?)?.toDouble() ?? 0.0;
+                final lon = (loc?['lng'] as num?)?.toDouble() ?? 0.0;
+                final distance = (lat != 0.0 && lon != 0.0)
+                    ? locationService.calculateDistance(latitude, longitude, lat, lon)
+                    : null;
+
+                results.add(
+                  NearbyServiceModel.fromGooglePlace(
+                    p,
+                    type: category,
+                    originLat: latitude,
+                    originLon: longitude,
+                    distanceKm: distance,
+                  ),
+                );
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // Silently continue to next type
+      }
+    }
+
+    return results;
+  }
+
   Future<List<NearbyServiceModel>> _executeOverpassQueryWithRetry({
     required double latitude,
     required double longitude,
@@ -228,39 +328,31 @@ out center body;
     int attempt = 0;
     while (attempt < maxRetries) {
       attempt++;
-      try {
-        final response = await http.post(
-          Uri.parse(_overpassUrl),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': SafetyConstants.overpassUserAgent,
-          },
-          body: 'data=${Uri.encodeComponent(query)}',
-        ).timeout(const Duration(seconds: 15));
+      for (final endpoint in _overpassUrls) {
+        try {
+          final response = await http.post(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent': SafetyConstants.overpassUserAgent,
+            },
+            body: 'data=${Uri.encodeComponent(query)}',
+          ).timeout(const Duration(seconds: 8));
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          return parseOverpassElements(
-            data['elements'] as List? ?? [],
-            originLat: latitude,
-            originLon: longitude,
-          );
-        } else if (response.statusCode == 429 || response.statusCode == 504) {
-          if (attempt < maxRetries) {
-            await Future.delayed(Duration(milliseconds: 1000 * attempt));
-            continue;
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return parseOverpassElements(
+              data['elements'] as List? ?? [],
+              originLat: latitude,
+              originLon: longitude,
+            );
           }
-          throw PlacesException(
-              'Overpass API server busy or rate limited (HTTP ${response.statusCode})');
-        } else {
-          throw PlacesException('Overpass API error: ${response.statusCode}');
+        } catch (_) {
+          continue;
         }
-      } catch (e) {
-        if (attempt >= maxRetries) {
-          if (e is PlacesException) rethrow;
-          throw PlacesException('Failed to fetch nearby services: $e');
-        }
-        await Future.delayed(Duration(milliseconds: 1000 * attempt));
+      }
+      if (attempt < maxRetries) {
+        await Future.delayed(Duration(milliseconds: 500 * attempt));
       }
     }
 

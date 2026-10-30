@@ -13,6 +13,8 @@ import '../../../core/models/nearby_service_model.dart';
 import '../../../core/models/personal_itinerary_model.dart';
 import '../../../core/constants/food_preferences.dart';
 import '../../trip_planner/widgets/nearby_services_section.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'group_place_detail_sheet.dart';
 import 'meeting_point_dialog.dart';
 import 'personal_plan_summary_card.dart';
 import '../../../core/utils/route_proximity_optimizer.dart';
@@ -177,6 +179,7 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                 userName,
                 userFoodPref,
                 personalItinerary,
+                itinerary['date'] as String?,
               )
             else
               _buildGroupModeContent(
@@ -581,6 +584,11 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
               totalStops: stops.length,
               canEdit: canEditGroup,
               city: city,
+              onTap: () => _openPlaceDetailSheet(
+                stop: stop,
+                city: city,
+                itineraryDate: itinerary['date'] as String?,
+              ),
               onShareToChat: () {
                 groupProvider.shareStopToChat(
                   groupId: widget.groupId,
@@ -659,8 +667,9 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
     String userId,
     String userName,
     String userFoodPref,
-    PersonalItineraryModel? personalItinerary,
-  ) {
+    PersonalItineraryModel? personalItinerary, [
+    String? itineraryDate,
+  ]) {
     final hasDiverged = _checkHasDiverged(groupStops);
 
     return Column(
@@ -887,6 +896,11 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
               canEdit: true,
               city: city,
               statusTag: statusTag,
+              onTap: () => _openPlaceDetailSheet(
+                stop: stop,
+                city: city,
+                itineraryDate: itineraryDate,
+              ),
               onShareToChat: () {
                 groupProvider.shareStopToChat(
                   groupId: widget.groupId,
@@ -1048,6 +1062,43 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openPlaceDetailSheet({
+    required Map<String, dynamic> stop,
+    required String city,
+    String? itineraryDate,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => GroupPlaceDetailSheet(
+        stop: stop,
+        city: city,
+        itineraryDate: itineraryDate,
+        groupId: widget.groupId,
+        onShareToChat: () {
+          final groupProvider = context.read<GroupProvider>();
+          groupProvider.shareStopToChat(
+            groupId: widget.groupId,
+            stopData: stop,
+            city: city,
+          );
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Shared "${stop['name']}" to group chat!',
+                style: GoogleFonts.outfit(),
+              ),
+              backgroundColor: AppColors.brand,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
       ),
     );
   }
@@ -2125,6 +2176,7 @@ class _StopCard extends StatelessWidget {
   final VoidCallback? onMoveDown;
   final VoidCallback? onDelete;
   final VoidCallback? onRestore;
+  final VoidCallback? onTap;
 
   const _StopCard({
     required this.index,
@@ -2139,6 +2191,7 @@ class _StopCard extends StatelessWidget {
     this.onMoveDown,
     this.onDelete,
     this.onRestore,
+    this.onTap,
   });
 
   @override
@@ -2150,149 +2203,188 @@ class _StopCard extends StatelessWidget {
     final isAdded = statusTag == 'added';
     final isModified = statusTag == 'modified';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTokens.md),
-      padding: const EdgeInsets.all(AppTokens.md),
-      decoration: BoxDecoration(
-        color: isRemoved ? AppColors.cardAlt : AppColors.card,
+    final photoUrl = stop['photoUrl'] as String? ??
+        (stop['galleryPhotos'] is List && (stop['galleryPhotos'] as List).isNotEmpty
+            ? (stop['galleryPhotos'] as List).first as String?
+            : null);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isRemoved ? null : onTap,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(
-          color: isAdded
-              ? AppColors.success.withOpacity(0.4)
-              : isModified
-                  ? AppColors.warning.withOpacity(0.4)
-                  : isRemoved
-                      ? AppColors.error.withOpacity(0.3)
-                      : AppColors.border,
-          width: isAdded || isModified || isRemoved ? 1.0 : 0.5,
-        ),
-        boxShadow: isRemoved ? null : AppTokens.shadow(level: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppTokens.md),
+          padding: const EdgeInsets.all(AppTokens.md),
+          decoration: BoxDecoration(
+            color: isRemoved ? AppColors.cardAlt : AppColors.card,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            border: Border.all(
+              color: isAdded
+                  ? AppColors.success.withOpacity(0.4)
+                  : isModified
+                      ? AppColors.warning.withOpacity(0.4)
+                      : isRemoved
+                          ? AppColors.error.withOpacity(0.3)
+                          : AppColors.border,
+              width: isAdded || isModified || isRemoved ? 1.0 : 0.5,
+            ),
+            boxShadow: isRemoved ? null : AppTokens.shadow(level: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  gradient: isRemoved ? null : AppColors.brandGradient,
-                  color: isRemoved ? AppColors.textMuted : null,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${index + 1}',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      gradient: isRemoved ? null : AppColors.brandGradient,
+                      color: isRemoved ? AppColors.textMuted : null,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${index + 1}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: AppTokens.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            name,
-                            style: GoogleFonts.outfit(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: isRemoved ? AppColors.textMuted : AppColors.text,
-                              decoration: isRemoved ? TextDecoration.lineThrough : null,
-                            ),
+                  const SizedBox(width: AppTokens.sm),
+                  if (photoUrl != null && photoUrl.isNotEmpty && !isRemoved) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CachedNetworkImage(
+                          imageUrl: photoUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (c, u) => Container(color: AppColors.cardAlt),
+                          errorWidget: (c, u, e) => Container(
+                            color: AppColors.cardAlt,
+                            child: const Icon(Icons.place_rounded, size: 16, color: AppColors.textMuted),
                           ),
                         ),
-                        if (isAdded) ...[
-                          const SizedBox(width: 8),
-                          _buildTagChip('Added', AppColors.success, Icons.add_circle_outline),
-                        ],
-                        if (isModified) ...[
-                          const SizedBox(width: 8),
-                          _buildTagChip('Changed', AppColors.warning, Icons.edit_note_outlined),
-                        ],
-                        if (isRemoved) ...[
-                          const SizedBox(width: 8),
-                          _buildTagChip('Removed', AppColors.error, Icons.remove_circle_outline),
-                        ],
-                        if (stop['isKidFriendly'] == true || stop['is_kid_friendly'] == true) ...[
-                          const SizedBox(width: 8),
-                          _buildTagChip('Kid-Friendly', const Color(0xFF2E7D32), Icons.child_care_rounded),
-                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTokens.sm),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: isRemoved ? AppColors.textMuted : AppColors.text,
+                                  decoration: isRemoved ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                            ),
+                            if (isAdded) ...[
+                              const SizedBox(width: 8),
+                              _buildTagChip('Added', AppColors.success, Icons.add_circle_outline),
+                            ],
+                            if (isModified) ...[
+                              const SizedBox(width: 8),
+                              _buildTagChip('Changed', AppColors.warning, Icons.edit_note_outlined),
+                            ],
+                            if (isRemoved) ...[
+                              const SizedBox(width: 8),
+                              _buildTagChip('Removed', AppColors.error, Icons.remove_circle_outline),
+                            ],
+                            if (stop['isKidFriendly'] == true || stop['is_kid_friendly'] == true) ...[
+                              const SizedBox(width: 8),
+                              _buildTagChip('Kid-Friendly', const Color(0xFF2E7D32), Icons.child_care_rounded),
+                            ],
+                          ],
+                        ),
+                        if (startTime.isNotEmpty)
+                          Text(
+                            startTime,
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: isRemoved ? AppColors.textMuted : AppColors.brand,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                       ],
                     ),
-                    if (startTime.isNotEmpty)
-                      Text(
-                        startTime,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: isRemoved ? AppColors.textMuted : AppColors.brand,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  ),
+                  if (!isRemoved)
+                    IconButton(
+                      icon: const Icon(Icons.share_rounded, size: 18, color: AppColors.brand),
+                      tooltip: 'Share stop to chat',
+                      onPressed: onShareToChat,
+                    ),
+                  if (canEdit) ...[
+                    if (onEdit != null && !isRemoved)
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSoft),
+                        tooltip: 'Edit stop',
+                        onPressed: onEdit,
+                      ),
+                    if (onMoveUp != null && !isRemoved)
+                      IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: AppColors.textMuted),
+                        onPressed: onMoveUp,
+                      ),
+                    if (onMoveDown != null && !isRemoved)
+                      IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textMuted),
+                        onPressed: onMoveDown,
+                      ),
+                    if (isRemoved && onRestore != null)
+                      TextButton.icon(
+                        icon: const Icon(Icons.undo_rounded, size: 16, color: AppColors.brand),
+                        label: Text('Restore', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand)),
+                        onPressed: onRestore,
+                      )
+                    else if (onDelete != null)
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.error),
+                        tooltip: 'Remove stop',
+                        onPressed: onDelete,
                       ),
                   ],
-                ),
+                  if (!isRemoved)
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: AppColors.textMuted,
+                    ),
+                ],
               ),
-              if (!isRemoved)
-                IconButton(
-                  icon: const Icon(Icons.share_rounded, size: 18, color: AppColors.brand),
-                  tooltip: 'Share stop to chat',
-                  onPressed: onShareToChat,
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 36),
+                  child: Text(
+                    description,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                      height: 1.3,
+                      decoration: isRemoved ? TextDecoration.lineThrough : null,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              if (canEdit) ...[
-                if (onEdit != null && !isRemoved)
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSoft),
-                    tooltip: 'Edit stop',
-                    onPressed: onEdit,
-                  ),
-                if (onMoveUp != null && !isRemoved)
-                  IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: AppColors.textMuted),
-                    onPressed: onMoveUp,
-                  ),
-                if (onMoveDown != null && !isRemoved)
-                  IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textMuted),
-                    onPressed: onMoveDown,
-                  ),
-                if (isRemoved && onRestore != null)
-                  TextButton.icon(
-                    icon: const Icon(Icons.undo_rounded, size: 16, color: AppColors.brand),
-                    label: Text('Restore', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand)),
-                    onPressed: onRestore,
-                  )
-                else if (onDelete != null)
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.error),
-                    tooltip: 'Remove stop',
-                    onPressed: onDelete,
-                  ),
               ],
             ],
           ),
-          if (description.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(left: 36),
-              child: Text(
-                description,
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: AppColors.textMuted,
-                  height: 1.3,
-                  decoration: isRemoved ? TextDecoration.lineThrough : null,
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

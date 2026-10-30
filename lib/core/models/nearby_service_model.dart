@@ -124,6 +124,52 @@ class NearbyServiceModel {
     );
   }
 
+  /// Parse a place from Google Places API (Nearby Search)
+  factory NearbyServiceModel.fromGooglePlace(
+    Map<String, dynamic> place, {
+    required String type,
+    double? originLat,
+    double? originLon,
+    double? distanceKm,
+  }) {
+    final location = place['geometry']?['location'] as Map<String, dynamic>?;
+    final lat = (location?['lat'] as num?)?.toDouble() ?? 0.0;
+    final lon = (location?['lng'] as num?)?.toDouble() ?? 0.0;
+
+    final String name = (place['name'] as String?)?.trim() ??
+        (type == 'police' ? 'Police Station' : 'Hospital');
+
+    final String? address = (place['vicinity'] as String?)?.trim() ??
+        (place['formatted_address'] as String?)?.trim();
+
+    final String? phone = (place['international_phone_number'] as String?)?.trim() ??
+        (place['formatted_phone_number'] as String?)?.trim();
+
+    final openingHoursMap = place['opening_hours'] as Map<String, dynamic>?;
+    final bool? openNow = openingHoursMap?['open_now'] as bool?;
+    final String? openingHours = openNow != null ? (openNow ? 'Open now' : 'Closed') : null;
+
+    final types = (place['types'] as List? ?? []).map((t) => t.toString().toLowerCase()).toList();
+    final bool isClinic = types.contains('health') && !types.contains('hospital');
+    final String subtype = type == 'police'
+        ? 'police'
+        : (isClinic ? 'clinic' : 'hospital');
+
+    return NearbyServiceModel(
+      name: name,
+      type: type,
+      subtype: subtype,
+      latitude: lat,
+      longitude: lon,
+      address: address,
+      distanceKm: distanceKm,
+      phone: phone,
+      openingHours: openingHours,
+      isEmergency: type == 'hospital',
+      fetchedAt: DateTime.now(),
+    );
+  }
+
   /// Convert to a clean Map for Firestore and local persistence
   Map<String, dynamic> toMap() {
     return {

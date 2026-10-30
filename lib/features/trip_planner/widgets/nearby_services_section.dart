@@ -114,15 +114,25 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
       double targetLon;
       String originDesc;
 
-      if (_useGpsLocation) {
+      final hasValidItineraryCoords = widget.latitude != null &&
+          widget.longitude != null &&
+          !(widget.latitude == 0.0 && widget.longitude == 0.0);
+
+      if (!_useGpsLocation && hasValidItineraryCoords) {
+        targetLat = widget.latitude!;
+        targetLon = widget.longitude!;
+        originDesc = widget.locationName != null
+            ? 'Near ${widget.locationName}'
+            : 'Itinerary destination';
+      } else {
+        // Attempt GPS location, or fallback to itinerary coordinates if GPS is unavailable
         try {
           final position = await _locationService.getCurrentPosition();
           targetLat = position.latitude;
           targetLon = position.longitude;
           originDesc = 'Current GPS location';
-        } on LocationException catch (e) {
-          // Fall back gracefully to itinerary coordinates
-          if (widget.latitude != null && widget.longitude != null) {
+        } on LocationException {
+          if (hasValidItineraryCoords) {
             targetLat = widget.latitude!;
             targetLon = widget.longitude!;
             originDesc = widget.locationName != null
@@ -133,18 +143,6 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
             rethrow;
           }
         }
-      } else if (widget.latitude != null && widget.longitude != null) {
-        targetLat = widget.latitude!;
-        targetLon = widget.longitude!;
-        originDesc = widget.locationName != null
-            ? 'Near ${widget.locationName}'
-            : 'Itinerary destination';
-      } else {
-        // No coordinates provided, attempt GPS
-        final position = await _locationService.getCurrentPosition();
-        targetLat = position.latitude;
-        targetLon = position.longitude;
-        originDesc = 'Current GPS location';
       }
 
       final results = await _placesService.searchNearbyEmergencyServices(
@@ -179,7 +177,7 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not load nearby safety services from OpenStreetMap. Please check your connection.';
+        _error = 'Could not load nearby safety services. Please check your network connection.';
         _isLoading = false;
         _isRefreshing = false;
       });
@@ -270,7 +268,21 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
                 ],
               ),
             ),
-            if (widget.canRefresh && !_isLoading)
+            if (widget.canRefresh && !_isLoading) ...[
+              IconButton(
+                onPressed: _isRefreshing
+                    ? null
+                    : () {
+                        setState(() => _useGpsLocation = true);
+                        _fetchNearbyServices(forceRefresh: true);
+                      },
+                tooltip: 'Find near current GPS location',
+                icon: const Icon(
+                  Icons.my_location_rounded,
+                  color: AppColors.brand,
+                  size: 20,
+                ),
+              ),
               IconButton(
                 onPressed: _isRefreshing
                     ? null
@@ -291,6 +303,7 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
                         size: 20,
                       ),
               ),
+            ],
           ],
         ),
 
