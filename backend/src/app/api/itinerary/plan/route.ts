@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { resolveLanguage } from '@/lib/language-resolution';
 
 interface Location {
   id: string;
@@ -9,11 +10,18 @@ interface Location {
 
 export async function POST(request: Request) {
   try {
+    const requestUrl = new URL(request.url);
+    const lang = resolveLanguage({
+      headerLang: request.headers.get('x-language'),
+      acceptLanguageHeader: request.headers.get('accept-language'),
+      queryLang: requestUrl.searchParams.get('lang'),
+    });
+
     const { origin, destinations, mode = 'driving' } = await request.json();
 
     if (!origin || !destinations || destinations.length === 0) {
       return NextResponse.json(
-        { error: 'Origin and at least one destination are required.' },
+        { code: 'ORIGIN_AND_DESTINATION_REQUIRED', error: 'Origin and at least one destination are required.', lang },
         { status: 400 }
       );
     }
@@ -21,7 +29,7 @@ export async function POST(request: Request) {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Google Maps API key is not configured.' },
+        { code: 'MAPS_API_KEY_MISSING', error: 'Google Maps API key is not configured.', lang },
         { status: 500 }
       );
     }

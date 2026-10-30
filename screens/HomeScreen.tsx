@@ -47,6 +47,15 @@ export default function HomeScreen({ navigation }: Props) {
     return c.name.toLowerCase().includes(location.toLowerCase().trim());
   }).slice(0, 6);
 
+  const loadingMessages = [
+    tr('home.loadingSpots') || 'Finding the best spots...',
+    tr('home.loadingHours') || 'Checking opening hours...',
+    tr('home.loadingWeather') || 'Looking at the weather...',
+    tr('home.loadingRoute') || 'Planning your route...',
+    tr('home.loadingFood') || 'Adding food stops...',
+    tr('home.loadingReady') || 'Almost ready...',
+  ];
+
   useEffect(() => {
     if (loading) {
       fadeAnim.setValue(0);
@@ -56,14 +65,14 @@ export default function HomeScreen({ navigation }: Props) {
       );
       spinLoop.start();
       const msgTimer = setInterval(() => {
-        setLoadMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length);
+        setLoadMsgIndex((i) => (i + 1) % loadingMessages.length);
       }, 700);
       return () => {
         spinLoop.stop();
         clearInterval(msgTimer);
       };
     }
-  }, [loading]);
+  }, [loading, loadingMessages.length]);
 
   const spinInterpolate = spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
@@ -76,7 +85,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const handleGenerate = () => {
     if (!location.trim()) {
-      setErrorMsg('Please enter a location first.');
+      setErrorMsg(tr('home.errLocation') || 'Please enter a location first.');
       return;
     }
     setErrorMsg('');
@@ -109,8 +118,10 @@ export default function HomeScreen({ navigation }: Props) {
               <Ionicons name="airplane" size={44} color={theme.accent} />
             </View>
           </Animated.View>
-          <Text style={[styles.loadingTitle, { color: theme.text }]}>Crafting your plan for {location}</Text>
-          <Text style={[styles.loadingMsg, { color: theme.textMuted }]}>{LOADING_MESSAGES[loadMsgIndex]}</Text>
+          <Text style={[styles.loadingTitle, { color: theme.text }]}>
+            {tr('home.craftingPlan', { location }) || `Crafting your plan for ${location}`}
+          </Text>
+          <Text style={[styles.loadingMsg, { color: theme.textMuted }]}>{loadingMessages[loadMsgIndex]}</Text>
           <View style={styles.loadingDots}>
             {[0, 1, 2].map((i) => (
               <View
@@ -147,7 +158,9 @@ export default function HomeScreen({ navigation }: Props) {
                   <Text style={styles.brandTag}>{tr('tagline')}</Text>
                 </View>
               </View>
-              <Text style={styles.heroPrompt}>Tell us where you want to go and how much time you have. We will craft the perfect plan.</Text>
+              <Text style={styles.heroPrompt}>
+                {tr('home.heroPrompt') || 'Tell us where you want to go and how much time you have. We will craft the perfect plan.'}
+              </Text>
             </View>
           </GradientView>
 
@@ -167,7 +180,7 @@ export default function HomeScreen({ navigation }: Props) {
                   onChangeText={(t) => { setLocation(t); setShowSuggestions(true); setErrorMsg(''); }}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  placeholder="e.g. Indore, Paris, Tokyo..."
+                  placeholder={tr('home.locationPlaceholder') || 'e.g. Indore, Paris, Tokyo...'}
                   placeholderTextColor={theme.textMuted}
                   style={[styles.input, { color: theme.text }]}
                   returnKeyType="next"
@@ -217,13 +230,13 @@ export default function HomeScreen({ navigation }: Props) {
                 <View style={[styles.inputIcon, { backgroundColor: theme.brandSoft }]}>
                   <Ionicons name="create-outline" size={18} color={theme.brand} />
                 </View>
-                <Text style={[styles.inputLabel, { color: theme.text }]}>Describe your trip</Text>
+                <Text style={[styles.inputLabel, { color: theme.text }]}>{tr('home.describeTrip') || 'Describe your trip'}</Text>
               </View>
               <View style={[styles.descWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="e.g. I have 6 hours and want to visit famous places, eat local food, and explore markets"
+                  placeholder={tr('home.inputPlaceholder')}
                   placeholderTextColor={theme.textMuted}
                   style={[styles.descInput, { color: theme.text }]}
                   multiline
@@ -232,12 +245,14 @@ export default function HomeScreen({ navigation }: Props) {
                   returnKeyType="default"
                 />
               </View>
-              <Text style={[styles.hintText, { color: theme.textMuted }]}>Mention your available hours, what you want to see, and any preferences. We will handle the rest.</Text>
+              <Text style={[styles.hintText, { color: theme.textMuted }]}>
+                {tr('home.hintText') || 'Mention your available hours, what you want to see, and any preferences. We will handle the rest.'}
+              </Text>
             </View>
 
             {/* Examples */}
             <View style={styles.examplesSection}>
-              <Text style={[styles.examplesTitle, { color: theme.text }]}>Try an example:</Text>
+              <Text style={[styles.examplesTitle, { color: theme.text }]}>{tr('home.examplePrompts') || 'Try an example:'}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingTop: 10 }}>
                 {EXAMPLES.map((ex, i) => (
                   <Pressable
@@ -258,9 +273,9 @@ export default function HomeScreen({ navigation }: Props) {
 
             {/* Feature highlights */}
             <View style={styles.featuresRow}>
-              <FeaturePill icon="sunny-outline" label="Weather-aware" theme={theme} />
-              <FeaturePill icon="time-outline" label="Time-based" theme={theme} />
-              <FeaturePill icon="language" label="10 languages" theme={theme} />
+              <FeaturePill icon="sunny-outline" label={tr('home.weatherAware') || 'Weather-aware'} theme={theme} />
+              <FeaturePill icon="time-outline" label={tr('home.timeBased') || 'Time-based'} theme={theme} />
+              <FeaturePill icon="language" label={`${LANGUAGES.length} ${tr('settings.statsLanguages') || 'languages'}`} theme={theme} />
             </View>
           </View>
         </ScrollView>
@@ -270,7 +285,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Pressable onPress={handleGenerate} style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}>
             <GradientView gradient="cherry" style={styles.generateBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               <Ionicons name="sparkles" size={20} color="#fff" />
-              <Text style={styles.generateText}>{tr('generatePlan')}</Text>
+              <Text style={styles.generateText}>{tr('generatePlan') || tr('home.generateBtn')}</Text>
             </GradientView>
           </Pressable>
         </View>

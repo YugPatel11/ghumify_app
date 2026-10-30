@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
+import { resolveLanguage } from '@/lib/language-resolution';
 
 export async function POST(request: Request) {
   try {
+    const requestUrl = new URL(request.url);
+    const lang = resolveLanguage({
+      headerLang: request.headers.get('x-language'),
+      acceptLanguageHeader: request.headers.get('accept-language'),
+      queryLang: requestUrl.searchParams.get('lang'),
+    });
+
     const { origins, destinations, mode = 'driving' } = await request.json();
 
     if (!origins || !destinations) {
       return NextResponse.json(
-        { error: 'Origins and destinations are required.' },
+        { code: 'ORIGINS_AND_DESTINATIONS_REQUIRED', error: 'Origins and destinations are required.', lang },
         { status: 400 }
       );
     }
@@ -14,7 +22,7 @@ export async function POST(request: Request) {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Google Maps API key is not configured.' },
+        { code: 'MAPS_API_KEY_MISSING', error: 'Google Maps API key is not configured.', lang },
         { status: 500 }
       );
     }

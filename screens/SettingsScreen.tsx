@@ -1,5 +1,13 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useApp } from '../lib/AppContext';
@@ -13,24 +21,52 @@ interface Props {
 }
 
 export default function SettingsScreen({ navigation }: Props) {
-  const { theme, lang, setLanguage, t: tr } = useApp();
+  const { theme, lang, setLanguage, t: tr, syncing, syncError, isRtlMode } = useApp();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
-  const current = LANGUAGES.find((l) => l.code === lang)!;
+  const current = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
+
+  const filteredLanguages = useMemo(() => {
+    if (!searchQuery.trim()) return LANGUAGES;
+    const q = searchQuery.toLowerCase().trim();
+    return LANGUAGES.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.nativeName.toLowerCase().includes(q) ||
+        l.code.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const handleSelectLanguage = async (code: LangCode) => {
+    setFeedbackMsg(null);
+    const success = await setLanguage(code);
+    if (success) {
+      setFeedbackMsg(tr('settings.savedSuccess', { lang: code }));
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <View style={styles.headerBar}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
+      {/* Header Bar */}
+      <View style={[styles.headerBar, isRtlMode && styles.rtlRow]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityLabel="Back">
+          <Ionicons name={isRtlMode ? 'chevron-forward' : 'chevron-back'} size={24} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{tr('settings')}</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 40 }}>
+          {syncing && <ActivityIndicator size="small" color={theme.brand} />}
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 10 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, paddingTop: 10 }}
+      >
         {/* Brand card */}
         <GradientView gradient="indigo" style={styles.brandCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.brandLogoRow}>
+          <View style={[styles.brandLogoRow, isRtlMode && styles.rtlRow]}>
             <View style={styles.brandLogo}>
               <Ionicons name="airplane" size={28} color="#fff" />
             </View>
@@ -39,52 +75,108 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.brandTag}>{tr('tagline')}</Text>
             </View>
           </View>
-          <View style={styles.brandStats}>
+          <View style={[styles.brandStats, isRtlMode && styles.rtlRow]}>
             <View style={styles.brandStat}>
-              <Text style={styles.brandStatVal}>10</Text>
-              <Text style={styles.brandStatLabel}>Languages</Text>
+              <Text style={styles.brandStatVal}>{LANGUAGES.length}</Text>
+              <Text style={styles.brandStatLabel}>{tr('settings.statsLanguages') || 'Languages'}</Text>
             </View>
             <View style={styles.brandDivider} />
             <View style={styles.brandStat}>
               <Text style={styles.brandStatVal}>6</Text>
-              <Text style={styles.brandStatLabel}>Cities</Text>
+              <Text style={styles.brandStatLabel}>{tr('settings.statsCities') || 'Cities'}</Text>
             </View>
             <View style={styles.brandDivider} />
             <View style={styles.brandStat}>
               <Text style={styles.brandStatVal}>40+</Text>
-              <Text style={styles.brandStatLabel}>Places</Text>
+              <Text style={styles.brandStatLabel}>{tr('settings.statsPlaces') || 'Places'}</Text>
             </View>
           </View>
         </GradientView>
 
-        {/* Language section */}
-        <View style={styles.langSection}>
-          <View style={styles.langHeader}>
-            <Ionicons name="language" size={20} color={theme.brand} />
-            <Text style={[styles.langTitle, { color: theme.text }]}>{tr('changeLanguage')}</Text>
+        {/* Feedback Alert Messages */}
+        {feedbackMsg && (
+          <View style={[styles.alertBanner, { backgroundColor: '#10b98120', borderColor: '#10b981' }]}>
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+            <Text style={[styles.alertText, { color: '#10b981' }]}>{feedbackMsg}</Text>
           </View>
-          <Text style={[styles.currentLang, { color: theme.textMuted }]}>
-            Currently: {current.flag} {current.nativeName} ({current.name})
+        )}
+        {syncError && (
+          <View style={[styles.alertBanner, { backgroundColor: '#f59e0b20', borderColor: '#f59e0b' }]}>
+            <Ionicons name="alert-circle" size={18} color="#f59e0b" />
+            <Text style={[styles.alertText, { color: '#f59e0b' }]}>{syncError}</Text>
+          </View>
+        )}
+
+        {/* Default Language Section */}
+        <View style={styles.langSection}>
+          <View style={[styles.langHeader, isRtlMode && styles.rtlRow]}>
+            <Ionicons name="language" size={20} color={theme.brand} />
+            <Text style={[styles.langTitle, { color: theme.text }]}>
+              {tr('settings.defaultLanguage') || tr('changeLanguage')}
+            </Text>
+          </View>
+
+          <Text style={[styles.currentLang, { color: theme.textMuted }, isRtlMode && styles.rtlText]}>
+            {tr('settings.currently', { lang: `${current.nativeName} (${current.name})` }) ||
+              `Currently: ${current.flag} ${current.nativeName} (${current.name})`}
           </Text>
 
+          {/* Search bar */}
+          <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.border }, isRtlMode && styles.rtlRow]}>
+            <Ionicons name="search" size={18} color={theme.textMuted} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={tr('settings.searchLang') || 'Search language...'}
+              placeholderTextColor={theme.textMuted}
+              style={[styles.searchInput, { color: theme.text }, isRtlMode && styles.rtlText]}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Languages List */}
           <View style={styles.langGrid}>
-            {LANGUAGES.map((l) => {
+            {filteredLanguages.map((l) => {
               const active = l.code === lang;
               return (
                 <Pressable
                   key={l.code}
-                  onPress={() => setLanguage(l.code as LangCode)}
+                  onPress={() => handleSelectLanguage(l.code as LangCode)}
                   style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`${l.nativeName} (${l.name})`}
                 >
-                  <View style={[
-                    styles.langItem,
-                    { backgroundColor: active ? theme.brand : theme.card, borderColor: active ? theme.brand : theme.border },
-                    shadow(theme, 1),
-                  ]}>
+                  <View
+                    style={[
+                      styles.langItem,
+                      isRtlMode && styles.rtlRow,
+                      {
+                        backgroundColor: active ? theme.brand : theme.card,
+                        borderColor: active ? theme.brand : theme.border,
+                      },
+                      shadow(theme, 1),
+                    ]}
+                  >
                     <Text style={styles.langItemFlag}>{l.flag}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.langItemNative, { color: active ? '#fff' : theme.text }]}>{l.nativeName}</Text>
-                      <Text style={[styles.langItemEn, { color: active ? 'rgba(255,255,255,0.7)' : theme.textMuted }]}>{l.name}</Text>
+                    <View style={[{ flex: 1 }, isRtlMode && { alignItems: 'flex-end' }]}>
+                      <View style={{ flexDirection: isRtlMode ? 'row-reverse' : 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.langItemNative, { color: active ? '#fff' : theme.text }]}>
+                          {l.nativeName}
+                        </Text>
+                        {l.direction === 'rtl' && (
+                          <View style={styles.rtlBadge}>
+                            <Text style={styles.rtlBadgeText}>RTL</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.langItemEn, { color: active ? 'rgba(255,255,255,0.7)' : theme.textMuted }]}>
+                        {l.name}
+                      </Text>
                     </View>
                     {active ? (
                       <Ionicons name="checkmark-circle" size={22} color="#fff" />
@@ -100,76 +192,204 @@ export default function SettingsScreen({ navigation }: Props) {
 
         {/* About section */}
         <View style={styles.aboutSection}>
-          <View style={styles.langHeader}>
+          <View style={[styles.langHeader, isRtlMode && styles.rtlRow]}>
             <Ionicons name="information-circle-outline" size={20} color={theme.brand} />
-            <Text style={[styles.langTitle, { color: theme.text }]}>About Ghumify</Text>
+            <Text style={[styles.langTitle, { color: theme.text }]}>
+              {tr('settings.aboutTitle') || 'About Ghumify'}
+            </Text>
           </View>
           <View style={[styles.aboutBox, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
-            <Text style={[styles.aboutText, { color: theme.textSoft }]}>
-              Ghumify is your complete travel companion for exploring India. Create smart, time-based travel plans tailored to your location, available time, and interests. Discover famous places, local food, hidden markets, cultural experiences, and more — all in your own language.
+            <Text style={[styles.aboutText, { color: theme.textSoft }, isRtlMode && styles.rtlText]}>
+              {tr('settings.aboutDesc') ||
+                'Ghumify is your complete travel companion for exploring India with personalized, time-based travel plans tailored to your needs.'}
             </Text>
           </View>
         </View>
 
-        {/* Features list */}
-        <View style={styles.featuresSection}>
-          {[
-            { icon: 'sparkles', title: 'Smart Itinerary Planner', desc: 'AI-based time-aware travel plans' },
-            { icon: 'language', title: '10-Language Translator', desc: 'Break the language barrier' },
-            { icon: 'headset', title: 'Audio Guides', desc: 'Listen to history as you walk' },
-            { icon: 'cloudy-outline', title: 'Weather-Aware', desc: 'Plans adapt to the weather' },
-            { icon: 'bed', title: 'Budget Stays', desc: 'Hotels, hostels & dharamshalas' },
-          ].map((f, i) => (
-            <View key={i} style={[styles.featureRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <View style={[styles.featureIcon, { backgroundColor: theme.brandSoft }]}>
-                <Ionicons name={f.icon as any} size={18} color={theme.brand} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.featureTitle, { color: theme.text }]}>{f.title}</Text>
-                <Text style={[styles.featureDesc, { color: theme.textMuted }]}>{f.desc}</Text>
-              </View>
-              <Ionicons name="checkmark-circle" size={20} color={theme.teal} />
-            </View>
-          ))}
-        </View>
-
-        <Text style={[styles.versionText, { color: theme.textMuted }]}>Ghumify v1.0 · Made in India 🇮🇳</Text>
+        <Text style={[styles.versionText, { color: theme.textMuted }]}>
+          {tr('settings.version') || 'Ghumify v1.0 · Made in India 🇮🇳'}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
-  backBtn: { width: 40, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' },
-  brandCard: { borderRadius: RADIUS.xl, padding: 22, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 8 },
-  brandLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
-  brandLogo: { width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  brandName: { color: '#fff', fontSize: 24, fontWeight: '900' },
-  brandTag: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: '600', marginTop: 2 },
-  brandStats: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: RADIUS.lg, paddingVertical: 16 },
-  brandStat: { flex: 1, alignItems: 'center' },
-  brandStatVal: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  brandStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '700', marginTop: 3 },
-  brandDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 4 },
-  langSection: { marginBottom: 26 },
-  langHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  langTitle: { fontSize: 17, fontWeight: '900' },
-  currentLang: { fontSize: 13, fontWeight: '600', marginBottom: 16 },
-  langGrid: { gap: 10 },
-  langItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14, borderRadius: RADIUS.md, borderWidth: 1.5 },
-  langItemFlag: { fontSize: 24 },
-  langItemNative: { fontSize: 16, fontWeight: '800' },
-  langItemEn: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  langRadio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
-  aboutSection: { marginBottom: 26 },
-  aboutBox: { padding: 16, borderRadius: RADIUS.md, borderWidth: 1.5 },
-  aboutText: { fontSize: 13.5, lineHeight: 21 },
-  featuresSection: { gap: 10, marginBottom: 26 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: RADIUS.md, borderWidth: 1.5 },
-  featureIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  featureTitle: { fontSize: 14.5, fontWeight: '800' },
-  featureDesc: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  versionText: { fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 8 },
+  headerBar: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  backBtn: {
+    padding: 6,
+  },
+  brandCard: {
+    borderRadius: RADIUS.lg,
+    padding: 20,
+    marginBottom: SPACING.md,
+  },
+  brandLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  brandLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  brandTag: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  brandStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+  },
+  brandStat: {
+    alignItems: 'center',
+  },
+  brandStatVal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  brandStatLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+  },
+  brandDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginBottom: SPACING.md,
+  },
+  alertText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  langSection: {
+    marginBottom: SPACING.lg,
+  },
+  langHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  langTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  currentLang: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 12,
+    height: 42,
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  langGrid: {
+    gap: 8,
+  },
+  langItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    gap: 12,
+  },
+  langItemFlag: {
+    fontSize: 22,
+  },
+  langItemNative: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  langItemEn: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  langRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+  },
+  rtlBadge: {
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  rtlBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#666',
+  },
+  aboutSection: {
+    marginBottom: SPACING.lg,
+  },
+  aboutBox: {
+    padding: 14,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginTop: 6,
+  },
+  aboutText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  versionText: {
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
 });

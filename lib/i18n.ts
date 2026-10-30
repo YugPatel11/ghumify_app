@@ -4,20 +4,30 @@ export interface LanguageInfo {
   code: LangCode;
   name: string;
   nativeName: string;
+  direction: 'ltr' | 'rtl';
   flag: string;
 }
 
 export const LANGUAGES: LanguageInfo[] = [
-  { code: 'en', name: 'English', nativeName: 'English', flag: '🌐' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', flag: '🦁' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', flag: '🏵️' },
-  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', flag: '🐅' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', flag: '🛕' },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', flag: '🪔' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', flag: '🦚' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', flag: '🌴' },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', flag: '🌾' },
+  { code: 'en', name: 'English', nativeName: 'English', direction: 'ltr', flag: '🌐' },
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr', flag: '🇮🇳' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español', direction: 'ltr', flag: '🇪🇸' },
+  { code: 'fr', name: 'French', nativeName: 'Français', direction: 'ltr', flag: '🇫🇷' },
+  { code: 'de', name: 'German', nativeName: 'Deutsch', direction: 'ltr', flag: '🇩🇪' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Português', direction: 'ltr', flag: '🇵🇹' },
+  { code: 'ar', name: 'Arabic', nativeName: 'العربية', direction: 'rtl', flag: '🇦🇪' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', direction: 'ltr', flag: '🐅' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', direction: 'ltr', flag: '🛕' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', direction: 'ltr', flag: '🪔' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', direction: 'ltr', flag: '🏵️' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', direction: 'rtl', flag: '🇵🇰' },
+  { code: 'zh', name: 'Chinese', nativeName: '简体中文', direction: 'ltr', flag: '🇨🇳' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', direction: 'ltr', flag: '🇯🇵' },
+  { code: 'ru', name: 'Russian', nativeName: 'Русский', direction: 'ltr', flag: '🇷🇺' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', direction: 'ltr', flag: '🦁' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', direction: 'ltr', flag: '🦚' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', direction: 'ltr', flag: '🌴' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', direction: 'ltr', flag: '🌾' },
 ];
 
 export const LANG_CODES = LANGUAGES.map((l) => l.code);
@@ -616,19 +626,108 @@ const STRINGS: Dict = {
 };
 
 let currentLang: LangCode = 'en';
+const dynamicBundles: Record<string, Record<string, string>> = {};
 
 export function setLang(l: LangCode) {
   currentLang = l;
 }
 
-export function t(key: string): string {
-  const entry = STRINGS[key];
-  if (!entry) return key;
-  return entry[currentLang] || entry.en || key;
+export function getCurrentLang(): LangCode {
+  return currentLang;
 }
 
-export function tIn(key: string, lang: LangCode): string {
-  const entry = STRINGS[key];
-  if (!entry) return key;
-  return entry[lang] || entry.en || key;
+export function isRTL(lang: LangCode = currentLang): boolean {
+  const meta = LANGUAGES.find((l) => l.code === lang);
+  return meta?.direction === 'rtl';
+}
+
+export function mergeDynamicTranslations(lang: string, bundle: Record<string, string>) {
+  if (!dynamicBundles[lang]) {
+    dynamicBundles[lang] = {};
+  }
+  Object.assign(dynamicBundles[lang], bundle);
+}
+
+export function t(key: string, params?: Record<string, string | number>): string {
+  // 1. Check dynamic bundle first
+  let text = dynamicBundles[currentLang]?.[key];
+
+  // 2. Fall back to static STRINGS
+  if (!text) {
+    const entry = STRINGS[key];
+    if (entry) {
+      text = (entry as any)[currentLang] || entry.en;
+    }
+  }
+
+  // 3. Fall back to dynamic English bundle
+  if (!text) {
+    text = dynamicBundles['en']?.[key];
+  }
+
+  // 4. Fall back to key itself
+  if (!text) {
+    text = key;
+  }
+
+  // 5. Interpolate placeholders {name}, {count}, etc.
+  if (params && typeof text === 'string') {
+    for (const [pKey, pVal] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${pKey}\\}`, 'g'), String(pVal));
+    }
+  }
+
+  return text;
+}
+
+export function tIn(key: string, lang: LangCode, params?: Record<string, string | number>): string {
+  let text = dynamicBundles[lang]?.[key];
+  if (!text) {
+    const entry = STRINGS[key];
+    if (entry) {
+      text = (entry as any)[lang] || entry.en;
+    }
+  }
+  if (!text) {
+    text = dynamicBundles['en']?.[key] || key;
+  }
+  if (params && typeof text === 'string') {
+    for (const [pKey, pVal] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${pKey}\\}`, 'g'), String(pVal));
+    }
+  }
+  return text;
+}
+
+// Locale-aware formatting utilities using standard Intl API
+export function formatNumber(num: number, lang: string = currentLang): string {
+  try {
+    return new Intl.NumberFormat(lang).format(num);
+  } catch {
+    return String(num);
+  }
+}
+
+export function formatDate(date: Date, lang: string = currentLang, options?: Intl.DateTimeFormatOptions): string {
+  try {
+    return new Intl.DateTimeFormat(lang, options || { dateStyle: 'medium' }).format(date);
+  } catch {
+    return date.toLocaleDateString();
+  }
+}
+
+export function formatTime(date: Date, lang: string = currentLang): string {
+  try {
+    return new Intl.DateTimeFormat(lang, { timeStyle: 'short' }).format(date);
+  } catch {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+export function formatCurrency(amount: number, lang: string = currentLang, currency: string = 'INR'): string {
+  try {
+    return new Intl.NumberFormat(lang, { style: 'currency', currency }).format(amount);
+  } catch {
+    return `₹${amount}`;
+  }
 }
