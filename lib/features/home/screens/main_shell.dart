@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../core/widgets/translated_text.dart';
 
 /// Main shell with Figma-matching bottom navigation: Home, Explore, Trips, Profile
 class MainShell extends StatelessWidget {
@@ -131,7 +132,7 @@ class _NavItem extends StatelessWidget {
               size: 24,
             ),
             const SizedBox(height: 4),
-            Text(
+            Tr(
               label,
               style: TextStyle(
                 color: isSelected ? AppColors.brand : AppColors.textMuted,

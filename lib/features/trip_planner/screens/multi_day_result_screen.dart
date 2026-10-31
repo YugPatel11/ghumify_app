@@ -108,6 +108,9 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
         _isLoading = false;
       });
       _tabController = TabController(length: _itinerary!.numberOfDays, vsync: this);
+      _tabController!.addListener(() {
+        if (mounted) setState(() {});
+      });
       _animController.forward();
       return;
     }
@@ -224,6 +227,9 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
         length: optimizedItinerary.days.length,
         vsync: this,
       );
+      _tabController!.addListener(() {
+        if (mounted) setState(() {});
+      });
 
       setState(() {
         _itinerary = optimizedItinerary;
@@ -635,21 +641,23 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
   }
 
   Widget _buildErrorState() {
+    final isOfflineUnavailable = _error?.toLowerCase().contains('offline data is not available') == true;
+
     return Center(
       child: Container(
         margin: const EdgeInsets.all(AppTokens.lg),
         padding: const EdgeInsets.all(AppTokens.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.9),
+          color: isOfflineUnavailable ? const Color(0xFF334155).withOpacity(0.95) : AppColors.error.withOpacity(0.9),
           borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.white),
+            Icon(isOfflineUnavailable ? Icons.cloud_off_rounded : Icons.error_outline, size: 48, color: Colors.white),
             const SizedBox(height: AppTokens.md),
             Text(
-              'Failed to Curate Trip',
+              isOfflineUnavailable ? 'Offline Data Not Available' : 'Failed to Curate Trip',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
             ),
             const SizedBox(height: AppTokens.sm),
@@ -671,7 +679,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.error,
+                  foregroundColor: isOfflineUnavailable ? const Color(0xFF334155) : AppColors.error,
                 ),
                 child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
@@ -684,15 +692,22 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
 
   Widget _buildItinerary() {
     final itinerary = _itinerary!;
+    final selectedDayIndex = (_tabController != null &&
+            _tabController!.index < itinerary.days.length)
+        ? _tabController!.index
+        : 0;
+    final currentDay = itinerary.days[selectedDayIndex];
+    _initDayMealSuggestions(currentDay);
 
     return FadeTransition(
       opacity: _animController,
-      child: Column(
-        children: [
+      child: CustomScrollView(
+        slivers: [
           // ── Title Header ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.md),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppTokens.lg, AppTokens.xl, AppTokens.lg, AppTokens.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -725,6 +740,31 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
                         ),
                       ),
                     ),
+                    if (itinerary.isOfflineMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cloud_off_rounded, size: 12, color: Color(0xFF64748B)),
+                            SizedBox(width: 4),
+                            Text(
+                              'OFFLINE MODE: SAVED PLACES',
+                              style: TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (itinerary.age != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -832,11 +872,13 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
               ],
             ),
           ),
+        ),
 
           // ── Trip Estimate Summary ──
           if (itinerary.budget != null || itinerary.estimatedTotalCost != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, AppTokens.md),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(AppTokens.lg, 0, AppTokens.lg, AppTokens.md),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppTokens.radiusLg),
                 child: BackdropFilter(
@@ -935,57 +977,52 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
                 ),
               ),
             ),
+          ),
 
           // ── Day Tabs ──
           if (_tabController != null)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.sm),
-              decoration: BoxDecoration(
-                color: AppColors.cardAlt,
-                borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-                boxShadow: AppTokens.shadow(level: 1),
-              ),
-              child: TabBar(
-                isScrollable: true,
-                controller: _tabController,
-                labelColor: AppColors.brandDeep,
-                unselectedLabelColor: AppColors.textSoft,
-                indicatorPadding: const EdgeInsets.all(4),
-                indicator: BoxDecoration(
-                  color: AppColors.brandSoft,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: AppTokens.lg, vertical: AppTokens.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.cardAlt,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                  boxShadow: AppTokens.shadow(level: 1),
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerHeight: 0,
-                tabs: List.generate(itinerary.days.length, (i) {
-                  return Tab(text: 'Day ${i + 1}');
-                }),
+                child: TabBar(
+                  isScrollable: true,
+                  controller: _tabController,
+                  onTap: (index) {
+                    setState(() {});
+                  },
+                  labelColor: AppColors.brandDeep,
+                  unselectedLabelColor: AppColors.textSoft,
+                  indicatorPadding: const EdgeInsets.all(4),
+                  indicator: BoxDecoration(
+                    color: AppColors.brandSoft,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerHeight: 0,
+                  tabs: List.generate(itinerary.days.length, (i) {
+                    return Tab(text: 'Day ${i + 1}');
+                  }),
+                ),
               ),
             ),
 
-          const SizedBox(height: AppTokens.sm),
+          const SliverToBoxAdapter(child: SizedBox(height: AppTokens.sm)),
 
-          // ── Tab Content ──
-          Expanded(
-            child: _tabController != null
-                ? TabBarView(
-                    controller: _tabController,
-                    children: itinerary.days.map((day) {
-                      return _buildDayContent(day, itinerary);
-                    }).toList(),
-                  )
-                : const SizedBox.shrink(),
-          ),
+          // ── Day Content Slivers ──
+          ..._buildDaySlivers(currentDay, itinerary),
         ],
       ),
     );
   }
 
-  Widget _buildDayContent(
+  List<Widget> _buildDaySlivers(
       ItineraryModel day, MultiDayItineraryModel overall) {
-    _initDayMealSuggestions(day);
-    return CustomScrollView(
-      slivers: [
+    return [
         // ── Day Summary ──
         if (day.aiSummary != null)
           SliverToBoxAdapter(
@@ -1198,8 +1235,7 @@ class _MultiDayResultScreenState extends State<MultiDayResultScreen>
           ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
-      ],
-    );
+    ];
   }
 
   Widget _buildStopCard(ItineraryStop stop, bool isLast, int index, [ItineraryModel? day]) {

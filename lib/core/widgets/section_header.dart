@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_tokens.dart';
 
+import 'translated_text.dart';
+
 /// Section header with title and optional "See all" action — Figma pattern
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -22,7 +24,7 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          Tr(
             title,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
@@ -32,7 +34,7 @@ class SectionHeader extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  Tr(
                     actionText!,
                     style: const TextStyle(
                       color: AppColors.brand,

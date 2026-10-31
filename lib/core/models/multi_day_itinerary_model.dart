@@ -85,6 +85,8 @@ class MultiDayItineraryModel {
 
   bool get isFamilyFriendly => minorsCount > 0;
 
+  bool get isOfflineMode => crowdModelVersion?.contains('offline') ?? false;
+
   String get displayTravelersSummary =>
       travelersSummary ?? travelersModel.summary;
 

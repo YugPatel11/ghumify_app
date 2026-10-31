@@ -7,6 +7,7 @@ import '../models/itinerary_model.dart';
 import '../models/meal_suggestion_model.dart';
 import '../models/travelers_model.dart';
 import 'location_service.dart';
+import 'bharat_poi_service.dart';
 
 /// Cache entry for storing restaurant suggestions
 class _RestaurantCacheEntry {
@@ -194,8 +195,37 @@ out center body;
       return _cache[cacheKey]!.suggestions;
     }
 
+    // 3d. Check if offline BharatPOI has food / restaurant entries
     if (candidateResults.isEmpty) {
-      throw Exception('Could not find nearby restaurant suggestions.');
+      try {
+        final offlineFood = await BharatPoiService.instance.getPlacesForCity(anchorStopName ?? '', category: 'food');
+        if (offlineFood.isNotEmpty) {
+          final mapped = offlineFood.map<MealSuggestionModel>((p) {
+            final distKm = _locationService.calculateDistance(latitude, longitude, p.latitude, p.longitude);
+            final distMeters = (distKm * 1000).round();
+            return MealSuggestionModel(
+              id: p.id,
+              name: p.name,
+              mealType: mealType,
+              latitude: p.latitude,
+              longitude: p.longitude,
+              cuisine: 'Local Dining',
+              dietaryType: normPref,
+              dietaryBadge: FoodPreference.getLabel(normPref),
+              suggestedReason: p.description.isNotEmpty ? p.description : 'Curated local dining highlight',
+              distanceMeters: distMeters,
+              drivingMinutes: (distKm / 25.0 * 60).clamp(2, 60).round(),
+              walkingMinutes: (distMeters / 80).clamp(1, 120).round(),
+              isKidFriendly: (travelers?.minors ?? 0) > 0,
+            );
+          }).toList();
+          candidateResults = mapped;
+        }
+      } catch (_) {}
+    }
+
+    if (candidateResults.isEmpty) {
+      throw Exception('Restaurant suggestions need an internet connection.');
     }
 
     // 4. Rank and curate the best 2 to 3 options, excluding previously suggested names (e.g. lunch options)

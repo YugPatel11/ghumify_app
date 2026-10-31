@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/food_preferences.dart';
 import '../../../core/providers/app_settings_provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/widgets/language_selector_sheet.dart';
+import '../../../core/widgets/translated_text.dart';
 import '../../trip_planner/widgets/food_preference_selector.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -26,7 +29,7 @@ class SettingsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppTokens.sm),
-              Text('Profile', style: Theme.of(context).textTheme.displayMedium),
+              Tr('Profile', style: Theme.of(context).textTheme.displayMedium),
               const SizedBox(height: AppTokens.xl),
 
               // ── Profile Card ──
@@ -93,7 +96,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: AppTokens.xl),
 
               // ── Quick Actions ──
-              _buildSectionLabel('QUICK ACTIONS'),
+              _buildSectionLabel(context.tr('QUICK ACTIONS')),
               const SizedBox(height: AppTokens.md),
               _buildSettingsGroup(
                 context,
@@ -101,27 +104,27 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsTile(
                     icon: Icons.auto_awesome,
                     iconColor: AppColors.brand,
-                    title: 'Plan a Trip',
+                    title: context.tr('Plan a Trip'),
                     onTap: () => context.push('/plan-trip'),
                   ),
                   _SettingsTile(
                     icon: Icons.translate_rounded,
                     iconColor: AppColors.accentDeep,
-                    title: 'Translator',
+                    title: context.tr('Translator'),
                     onTap: () => context.push('/translator'),
                     showDivider: true,
                   ),
                   _SettingsTile(
                     icon: Icons.bookmark_outline_rounded,
                     iconColor: AppColors.info,
-                    title: 'Saved Trips',
+                    title: context.tr('Saved Trips'),
                     onTap: () => context.push('/saved-itineraries'),
                     showDivider: true,
                   ),
                   _SettingsTile(
                     icon: Icons.explore_outlined,
                     iconColor: AppColors.success,
-                    title: 'Discover Places',
+                    title: context.tr('Discover Places'),
                     onTap: () => context.go('/discover'),
                     showDivider: true,
                   ),
@@ -131,7 +134,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: AppTokens.xl),
 
               // ── Preferences ──
-              _buildSectionLabel('PREFERENCES'),
+              _buildSectionLabel(context.tr('PREFERENCES')),
               const SizedBox(height: AppTokens.md),
               _buildSettingsGroup(
                 context,
@@ -139,14 +142,14 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsTile(
                     icon: Icons.language_outlined,
                     iconColor: AppColors.brand,
-                    title: 'Language',
-                    subtitle: 'English',
-                    onTap: () {},
+                    title: context.tr('Language'),
+                    subtitle: AppConstants.supportedLanguages[settingsProvider.language] ?? 'English',
+                    onTap: () => showLanguageSelectorSheet(context),
                   ),
                   _SettingsTile(
                     icon: Icons.restaurant_rounded,
                     iconColor: FoodPreference.getIndicatorColor(settingsProvider.foodPreference),
-                    title: 'Food Preference',
+                    title: context.tr('Food Preference'),
                     subtitle: FoodPreference.getLabel(settingsProvider.foodPreference),
                     showDivider: true,
                     onTap: () => _showFoodPreferenceSheet(context),
@@ -157,7 +160,7 @@ class SettingsScreen extends StatelessWidget {
               const SizedBox(height: AppTokens.xl),
 
               // ── About ──
-              _buildSectionLabel('ABOUT GHUMIFY'),
+              _buildSectionLabel(context.tr('ABOUT GHUMIFY')),
               const SizedBox(height: AppTokens.md),
               _buildSettingsGroup(
                 context,
@@ -165,20 +168,20 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsTile(
                     icon: Icons.info_outline,
                     iconColor: AppColors.textSoft,
-                    title: 'Version',
+                    title: context.tr('Version'),
                     subtitle: '1.0.0',
                   ),
                   _SettingsTile(
                     icon: Icons.description_outlined,
                     iconColor: AppColors.textSoft,
-                    title: 'Terms of Service',
+                    title: context.tr('Terms of Service'),
                     onTap: () {},
                     showDivider: true,
                   ),
                   _SettingsTile(
                     icon: Icons.privacy_tip_outlined,
                     iconColor: AppColors.textSoft,
-                    title: 'Privacy Policy',
+                    title: context.tr('Privacy Policy'),
                     onTap: () {},
                     showDivider: true,
                   ),
@@ -197,7 +200,7 @@ class SettingsScreen extends StatelessWidget {
                       }
                     },
                     icon: const Icon(Icons.logout, color: AppColors.error),
-                    label: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
+                    label: Tr('Sign Out', style: const TextStyle(color: AppColors.error)),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.error, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 16),

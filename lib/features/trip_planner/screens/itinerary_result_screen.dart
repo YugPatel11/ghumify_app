@@ -659,21 +659,23 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   }
 
   Widget _buildErrorState() {
+    final isOfflineUnavailable = _error?.toLowerCase().contains('offline data is not available') == true;
+
     return Center(
       child: Container(
         margin: const EdgeInsets.all(AppTokens.lg),
         padding: const EdgeInsets.all(AppTokens.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.9),
+          color: isOfflineUnavailable ? const Color(0xFF334155).withOpacity(0.95) : AppColors.error.withOpacity(0.9),
           borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.white),
+            Icon(isOfflineUnavailable ? Icons.cloud_off_rounded : Icons.error_outline, size: 48, color: Colors.white),
             const SizedBox(height: AppTokens.md),
             Text(
-              'Failed to Curate Trip',
+              isOfflineUnavailable ? 'Offline Data Not Available' : 'Failed to Curate Trip',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
             ),
             const SizedBox(height: AppTokens.sm),
@@ -695,7 +697,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: AppColors.error,
+                  foregroundColor: isOfflineUnavailable ? const Color(0xFF334155) : AppColors.error,
                 ),
                 child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
@@ -749,6 +751,31 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
                           ),
                         ),
                       ),
+                      if (itinerary.isOfflineMode)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.cloud_off_rounded, size: 12, color: Color(0xFF64748B)),
+                              SizedBox(width: 4),
+                              Text(
+                                'OFFLINE MODE: SAVED PLACES',
+                                style: TextStyle(
+                                  color: Color(0xFF475569),
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       if (itinerary.age != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

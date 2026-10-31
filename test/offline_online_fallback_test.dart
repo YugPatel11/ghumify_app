@@ -31,6 +31,7 @@ void main() {
       expect(itinerary.whatToCarry.length, equals(5));
       expect(itinerary.estimatedTotalCost, isNotNull);
       expect(itinerary.crowdModelVersion, equals('v1.0-offline'));
+      expect(itinerary.isOfflineMode, isTrue);
     });
 
     test('Offline multi-day itinerary generates fully valid MultiDayItineraryModel', () async {
@@ -55,6 +56,26 @@ void main() {
       expect(multiDay.days.first.stops.isNotEmpty, isTrue);
       expect(multiDay.overallSummary, isNotNull);
       expect(multiDay.crowdModelVersion, equals('v1.0-offline'));
+      expect(multiDay.isOfflineMode, isTrue);
+    });
+
+    test('Unsupported offline city throws friendly unavailable error', () async {
+      expect(
+        () => geminiService.generateItinerary(
+          userId: 'test_user',
+          city: 'NonExistentCity123',
+          date: '2026-11-01',
+          startTime: '09:00',
+          endTime: '18:00',
+          interests: ['heritage'],
+          travelMode: 'driving',
+          pace: 'moderate',
+        ),
+        throwsA(
+          predicate((e) =>
+              e.toString().contains('Offline data is not available for NonExistentCity123')),
+        ),
+      );
     });
 
     test('Local chat assistant answers photo spots and what to carry offline', () async {

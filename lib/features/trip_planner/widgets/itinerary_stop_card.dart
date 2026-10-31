@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/models/itinerary_model.dart';
 import '../../../core/services/place_media_service.dart';
+import '../../../core/widgets/translated_text.dart';
 import '../../groups/widgets/group_place_detail_sheet.dart';
 
 /// Compact, editorial itinerary stop card matching the reference design.
@@ -238,19 +239,14 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               // ── Collapsed Core Row (Always Visible) ──
                               _buildCollapsedHeader(context),
 
-                              // ── Expanded Content (Smoothly Cross-Faded) ──
-                              AnimatedCrossFade(
-                                firstChild: const SizedBox.shrink(),
-                                secondChild: _buildExpandedContent(context),
-                                crossFadeState: isExpanded
-                                    ? CrossFadeState.showSecond
-                                    : CrossFadeState.showFirst,
-                                duration: const Duration(milliseconds: 240),
-                              ),
+                              // ── Expanded Content ──
+                              if (isExpanded)
+                                _buildExpandedContent(context),
                             ],
                           ),
                         ),
@@ -346,7 +342,7 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
                         color: categoryStyle.backgroundColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
+                      child: Tr(
                         categoryLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -364,7 +360,7 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
               const SizedBox(height: 3),
 
               // Title (Place Name)
-              Text(
+              Tr(
                 stop.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -390,7 +386,7 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
                       const SizedBox(width: 3),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 85),
-                        child: Text(
+                        child: Tr(
                           stop.displayShortLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -502,7 +498,7 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
 
           // 1. Brief Description (2-3 sentences)
           if (stop.displayBriefDescription.isNotEmpty)
-            Text(
+            Tr(
               stop.displayBriefDescription,
               style: GoogleFonts.outfit(
                 fontSize: 13,
@@ -577,7 +573,7 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
                       const Icon(Icons.lightbulb_outline_rounded, size: 14, color: Color(0xFFF59E0B)),
                       const SizedBox(width: 6),
                       Expanded(
-                        child: Text(
+                        child: Tr(
                           tip,
                           style: GoogleFonts.outfit(
                             fontSize: 12,

@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_settings_provider.dart';
+import '../../../core/widgets/language_selector_sheet.dart';
+import '../../../core/widgets/translated_text.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -78,27 +81,56 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentLang = context.watch<AppSettingsProvider>().language;
+    final langDisplay = AppConstants.supportedLanguages[currentLang]?.split(' ').first ?? 'English';
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: AppTokens.sm, top: AppTokens.sm),
-                child: TextButton(
-                  onPressed: _completeOnboarding,
-                  child: Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+            // Header: Language selector + Skip button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.md, vertical: AppTokens.xs),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  InkWell(
+                    onTap: () => showLanguageSelectorSheet(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoft.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.brand.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.language_rounded, size: 16, color: AppColors.brand),
+                          const SizedBox(width: 6),
+                          Text(
+                            langDisplay,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand),
+                          ),
+                          const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.brand),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  TextButton(
+                    onPressed: _completeOnboarding,
+                    child: Tr(
+                      'Skip',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -141,7 +173,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         const SizedBox(height: 48),
 
                         // Title
-                        Text(
+                        Tr(
                           page.title,
                           style: Theme.of(context).textTheme.headlineLarge,
                           textAlign: TextAlign.center,
@@ -149,7 +181,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         const SizedBox(height: 16),
 
                         // Description
-                        Text(
+                        Tr(
                           page.description,
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -210,7 +242,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
+                          Tr(
                             _currentPage == _pages.length - 1
                                 ? 'Get Started'
                                 : 'Next',

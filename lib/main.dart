@@ -42,11 +42,15 @@ class GhumifyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<AppSettingsProvider>();
+    final langCode = settings.language.split('-').first;
+
     return MaterialApp.router(
       title: 'Ghumify',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
+      locale: Locale(langCode),
       routerConfig: AppRouter.router(context),
     );
   }

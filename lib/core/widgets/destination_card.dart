@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_tokens.dart';
+import 'translated_text.dart';
 
 /// Figma-matching destination card — supports featured (full-width) and compact (grid) modes
 class DestinationCard extends StatelessWidget {
@@ -104,7 +105,7 @@ class DestinationCard extends StatelessWidget {
                         color: badgeColor ?? AppColors.brand,
                         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
                       ),
-                      child: Text(
+                      child: Tr(
                         badge!,
                         style: const TextStyle(
                           color: Colors.white,
@@ -172,7 +173,7 @@ class DestinationCard extends StatelessWidget {
                               const Icon(Icons.location_on, size: 14, color: Colors.white70),
                               const SizedBox(width: 4),
                               Expanded(
-                                child: Text(
+                                child: Tr(
                                   subtitle!,
                                   style: const TextStyle(
                                     color: Colors.white70,
@@ -186,7 +187,7 @@ class DestinationCard extends StatelessWidget {
                             ],
                           ),
                         const SizedBox(height: 4),
-                        Text(
+                        Tr(
                           title,
                           style: const TextStyle(
                             color: Colors.white,
@@ -233,7 +234,7 @@ class DestinationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    Tr(
                       title,
                       style: const TextStyle(
                         fontSize: 15,
@@ -245,7 +246,7 @@ class DestinationCard extends StatelessWidget {
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(
+                      Tr(
                         subtitle!,
                         style: const TextStyle(
                           fontSize: 12,

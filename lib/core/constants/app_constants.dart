@@ -16,15 +16,17 @@ class AppConstants {
   // Supported Languages
   static const Map<String, String> supportedLanguages = {
     'en': 'English',
-    'hi': 'हिन्दी',
-    'gu': 'ગુજરાતી',
-    'mr': 'मराठी',
-    'bn': 'বাংলা',
-    'ta': 'தமிழ்',
-    'te': 'తెలుగు',
-    'kn': 'ಕನ್ನಡ',
-    'ml': 'മലയാളം',
-    'pa': 'ਪੰਜਾਬੀ',
+    'hi': 'हिन्दी (Hindi)',
+    'gu': 'ગુજરાતી (Gujarati)',
+    'mr': 'मराठी (Marathi)',
+    'bn': 'বাংলা (Bengali)',
+    'ta': 'தமிழ் (Tamil)',
+    'te': 'తెలుగు (Telugu)',
+    'kn': 'ಕನ್ನಡ (Kannada)',
+    'ml': 'മലയാളം (Malayalam)',
+    'pa': 'ਪੰਜਾਬੀ (Punjabi)',
+    'od': 'ଓଡ଼ିଆ (Odia)',
+    'as': 'অসমীয়া (Assamese)',
   };
 
   // Place Categories

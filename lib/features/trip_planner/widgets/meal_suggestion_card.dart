@@ -6,6 +6,7 @@ import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/food_preferences.dart';
 import '../../../core/constants/meal_config.dart';
 import '../../../core/models/meal_suggestion_model.dart';
+import '../../../core/widgets/translated_text.dart';
 
 /// Card displaying 2 to 3 restaurant suggestions for Lunch or Dinner in the timeline
 class MealSuggestionCard extends StatefulWidget {
@@ -161,7 +162,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
+                      child: Tr(
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -192,7 +193,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(
+                Tr(
                   widget.anchorStopName != null && widget.anchorStopName!.isNotEmpty
                       ? 'Suggestions near ${widget.anchorStopName}'
                       : 'Popular nearby dining options',
@@ -238,12 +239,12 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                 border: Border.all(color: const Color(0xFF059669).withValues(alpha: 0.3)),
               ),
-              child: const Row(
-                children: [
+              child: Row(
+                children: const [
                   Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF059669)),
                   SizedBox(width: 6),
                   Expanded(
-                    child: Text(
+                    child: Tr(
                       'Please confirm Jain preparation with the restaurant before ordering.',
                       style: TextStyle(
                         fontSize: 11,
@@ -315,7 +316,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                   TextButton.icon(
                     onPressed: _nextPage,
                     icon: const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.brand),
-                    label: const Text(
+                    label: const Tr(
                       'Show other options',
                       style: TextStyle(
                         fontSize: 12,
@@ -369,7 +370,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
+                child: Tr(
                   item.name,
                   style: const TextStyle(
                     fontSize: 13,
@@ -389,7 +390,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
           Row(
             children: [
               Expanded(
-                child: Text(
+                child: Tr(
                   item.cuisine,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -469,7 +470,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
           // Row 4: Reason text
           if (item.suggestedReason.isNotEmpty) ...[
             const SizedBox(height: 3),
-            Text(
+            Tr(
               item.suggestedReason,
               style: const TextStyle(
                 fontSize: 10.5,
@@ -576,7 +577,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
             children: [
               Icon(icon, size: 12, color: AppColors.textSoft),
               const SizedBox(width: 3),
-              Text(
+              Tr(
                 label,
                 style: const TextStyle(
                   fontSize: 10.5,
@@ -606,7 +607,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
             ),
           ),
           const SizedBox(width: AppTokens.md),
-          Text(
+          Tr(
             'Finding best nearby $title...',
             style: const TextStyle(fontSize: 12, color: AppColors.textSoft),
           ),
@@ -622,13 +623,13 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
         children: [
           const Icon(Icons.restaurant_outlined, size: 28, color: AppColors.textMuted),
           const SizedBox(height: 6),
-          const Text(
+          const Tr(
             'No restaurants found nearby within 5 km.',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
-          const Text(
+          const Tr(
             'Try refreshing or searching around a different stop.',
             style: TextStyle(fontSize: 11, color: AppColors.textSoft),
             textAlign: TextAlign.center,
@@ -638,7 +639,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
             OutlinedButton.icon(
               onPressed: widget.onRefresh,
               icon: const Icon(Icons.refresh_rounded, size: 14),
-              label: const Text('Retry Search', style: TextStyle(fontSize: 12)),
+              label: const Tr('Retry Search', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
                 foregroundColor: accentColor,
@@ -653,35 +654,43 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
   Widget _buildErrorState() {
     String displayMsg = widget.errorMessage ?? 'Unable to load restaurant suggestions right now.';
     final lower = displayMsg.toLowerCase();
-    if (lower.contains('socketexception') ||
+    final isNetworkIssue = lower.contains('socketexception') ||
         lower.contains('clientexception') ||
         lower.contains('connection failed') ||
         lower.contains('network is unreachable') ||
         lower.contains('errno') ||
         lower.contains('overpass') ||
-        lower.contains('timed out')) {
-      displayMsg = 'Could not load ${isLunch ? "lunch" : "dinner"} suggestions due to a network connection issue.';
+        lower.contains('timed out') ||
+        lower.contains('need an internet connection') ||
+        lower.contains('internet');
+
+    if (isNetworkIssue) {
+      displayMsg = 'Restaurant suggestions need an internet connection';
     }
+
+    final boxColor = isNetworkIssue ? AppColors.cardAlt : AppColors.error.withValues(alpha: 0.05);
+    final borderColor = isNetworkIssue ? AppColors.borderLight : AppColors.error.withValues(alpha: 0.2);
+    final iconColor = isNetworkIssue ? AppColors.brand : AppColors.error;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.md, vertical: AppTokens.lg),
       child: Container(
         padding: const EdgeInsets.all(AppTokens.md),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.05),
+          color: boxColor,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 22, color: AppColors.error),
+            Icon(isNetworkIssue ? Icons.wifi_off_rounded : Icons.info_outline_rounded, size: 22, color: iconColor),
             const SizedBox(width: AppTokens.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  Tr(
                     displayMsg,
                     style: const TextStyle(
                       fontSize: 12,
@@ -690,9 +699,11 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
-                    'Please check your internet connection and tap Retry.',
-                    style: TextStyle(
+                  Tr(
+                    isNetworkIssue
+                        ? 'Tap Retry once your internet connection is restored.'
+                        : 'Please check your connection and tap Retry.',
+                    style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSoft,
                     ),
@@ -705,7 +716,7 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
               FilledButton.icon(
                 onPressed: widget.onRefresh,
                 icon: const Icon(Icons.refresh_rounded, size: 14),
-                label: const Text('Retry', style: TextStyle(fontSize: 12)),
+                label: const Tr('Retry', style: TextStyle(fontSize: 12)),
                 style: FilledButton.styleFrom(
                   backgroundColor: accentColor,
                   foregroundColor: Colors.white,

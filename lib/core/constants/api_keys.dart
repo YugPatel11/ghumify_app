@@ -35,6 +35,9 @@ class ApiKeys {
   /// Google Cloud Translation API Key
   static String get googleTranslateApiKey => dotenv.env['GOOGLE_TRANSLATE_API_KEY'] ?? 'YOUR_GOOGLE_TRANSLATE_API_KEY';
 
+  /// Sarvam AI API Key
+  static String get sarvamApiKey => dotenv.env['SARVAM_API_KEY'] ?? '';
+
   /// Google Gemini AI API Keys (8 keys for failover rotation)
   static List<String> get geminiApiKeys => [
     dotenv.env['GEMINI_API_KEY_1'] ?? '',

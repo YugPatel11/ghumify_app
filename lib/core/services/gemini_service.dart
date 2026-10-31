@@ -17,6 +17,8 @@ import '../constants/api_keys.dart';
 import 'local_chat/local_chat_assistant.dart';
 import 'local_chat/itinerary_editor.dart';
 import 'places_service.dart';
+import 'bharat_poi_service.dart';
+import '../utils/route_proximity_optimizer.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
 ///
@@ -111,7 +113,7 @@ class GeminiService {
       );
     } catch (e) {
 
-      return _generateOfflineSingleDayItinerary(
+      return await _generateOfflineSingleDayItinerary(
         userId: userId,
         city: city,
         date: date,
@@ -205,7 +207,7 @@ class GeminiService {
       );
     } catch (e) {
 
-      return _generateOfflineMultiDayItinerary(
+      return await _generateOfflineMultiDayItinerary(
         userId: userId,
         city: city,
         startDate: startDate,
@@ -1453,15 +1455,20 @@ CRITICAL INSTRUCTIONS:
   }
 
   DateTime _parseTime(String time) {
-    final parts = time.split(':');
-    final now = DateTime.now();
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-    );
+    try {
+      final totalMinutes = RouteProximityOptimizer.timeToMinutes(time);
+      final now = DateTime.now();
+      return DateTime(
+        now.year,
+        now.month,
+        now.day,
+        totalMinutes ~/ 60,
+        totalMinutes % 60,
+      );
+    } catch (_) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, 9, 0);
+    }
   }
   Future<ChatMessageModel?> _routeToModifyEndpoint({
     required String userMessage,
@@ -1518,7 +1525,7 @@ CRITICAL INSTRUCTIONS:
     return '$h:$m';
   }
 
-  ItineraryModel _generateOfflineSingleDayItinerary({
+  Future<ItineraryModel> _generateOfflineSingleDayItinerary({
     required String userId,
     required String city,
     required String date,
@@ -1534,29 +1541,57 @@ CRITICAL INSTRUCTIONS:
     String foodPreference = FoodPreference.all,
     TravelersModel? travelersData,
     List<PlaceModel>? knownPlaces,
-  }) {
+    List<Map<String, dynamic>>? overrideCandidates,
+  }) async {
     final effectiveTravelers = travelersData ??
         (travelers != null
             ? TravelersModel(adults: travelers, minors: 0)
             : const TravelersModel(adults: 1, minors: 0));
 
-    final startMin = _timeStringToMinutes(startTime);
-    final endMin = _timeStringToMinutes(endTime);
-    final totalWindow = (endMin > startMin) ? (endMin - startMin) : 540;
-
-    int visitDuration;
-    if (pace == 'relaxed') {
-      visitDuration = 120;
-    } else if (pace == 'fast') {
-      visitDuration = 60;
-    } else {
-      visitDuration = 90;
-    }
-    const travelGap = 20;
-
+    final rawCityPois = overrideCandidates ?? await BharatPoiService.instance.getRawPlacesForCity(city);
     final candidates = <Map<String, dynamic>>[];
-    if (knownPlaces != null && knownPlaces.isNotEmpty) {
+
+    for (final p in rawCityPois) {
+      final cat = (p['category'] as String? ?? '').toLowerCase().trim();
+      final name = (p['name'] as String? ?? '').toLowerCase().trim();
+      if (cat == 'food' ||
+          cat == 'restaurant' ||
+          name.contains('restaurant') ||
+          name.contains('bhojanalaya') ||
+          name.contains('bhojnalaya') ||
+          name.contains('dhaba') ||
+          name.contains('misthan bhandar')) {
+        continue;
+      }
+
+      final photo = p['photoUrl'] as String?;
+      final foodImg = p['foodImageUrl'] as String?;
+      final photos = <String>[];
+      if (photo != null && photo.isNotEmpty) photos.add(photo);
+      if (foodImg != null && foodImg.isNotEmpty) photos.add(foodImg);
+
+      candidates.add({
+        'id': p['id'] as String? ?? 'offline_${p['name']}',
+        'name': p['name'] as String? ?? 'Attraction',
+        'category': p['category'] as String? ?? 'sightseeing',
+        'desc': p['description'] as String? ?? '',
+        'lat': (p['latitude'] as num?)?.toDouble(),
+        'lng': (p['longitude'] as num?)?.toDouble(),
+        'fee': (p['entryFee'] as num?)?.toInt() ?? 50,
+        'duration': (p['durationMinutes'] as num?)?.toInt() ?? (pace == 'relaxed' ? 120 : (pace == 'fast' ? 60 : 90)),
+        'photoUrl': photo,
+        'galleryPhotos': photos,
+        'openingHours': p['openingHours'] as String? ?? '09:00 - 18:00',
+        'tips': (p['tips'] as List?)?.map((e) => e.toString()).toList() ?? [
+          'Wear comfortable footwear for walking',
+          'Keep your camera and phone charged for photos',
+        ],
+      });
+    }
+
+    if (candidates.isEmpty && knownPlaces != null && knownPlaces.isNotEmpty) {
       for (final p in knownPlaces) {
+        if (p.category.toLowerCase() == 'food' || p.category.toLowerCase() == 'restaurant') continue;
         candidates.add({
           'id': p.id,
           'name': p.name,
@@ -1565,77 +1600,48 @@ CRITICAL INSTRUCTIONS:
           'lat': p.latitude,
           'lng': p.longitude,
           'fee': p.entryFee?.toInt() ?? 50,
+          'duration': pace == 'relaxed' ? 120 : (pace == 'fast' ? 60 : 90),
+          'photoUrl': p.thumbnailUrl,
+          'galleryPhotos': p.photoUrls,
+          'openingHours': '09:00 - 18:00',
+          'tips': const [
+            'Wear comfortable footwear for walking',
+            'Keep your camera and phone charged for photos',
+          ],
         });
       }
     }
 
-    if (candidates.length < 4) {
-      final curated = PlacesService.getCuratedPlacesForCity(city);
-      for (final c in curated) {
-        if (!candidates.any((x) => x['name'].toString().toLowerCase() == c.name.toLowerCase())) {
-          candidates.add({
-            'id': c.placeId,
-            'name': c.name,
-            'category': c.type,
-            'desc': c.fullDescription,
-            'lat': c.latitude,
-            'lng': c.longitude,
-            'fee': 50,
-          });
-        }
-      }
+    if (candidates.isEmpty) {
+      throw Exception('Offline data is not available for $city. Please connect to the internet to plan an itinerary.');
     }
 
-    if (candidates.length < 4) {
-      candidates.addAll([
-        {
-          'id': 'offline_${city.toLowerCase()}_monument',
-          'name': '$city Historical Landmark',
-          'category': 'monument',
-          'desc': 'Prominent historic landmark showcasing the architecture and heritage of $city.',
-          'lat': 26.9124,
-          'lng': 75.7873,
-          'fee': 100,
-        },
-        {
-          'id': 'offline_${city.toLowerCase()}_palace',
-          'name': '$city City Heritage Complex',
-          'category': 'monument',
-          'desc': 'Royal museum and cultural complex in $city with historical galleries.',
-          'lat': 26.9258,
-          'lng': 75.8237,
-          'fee': 150,
-        },
-        {
-          'id': 'offline_${city.toLowerCase()}_bazaar',
-          'name': '$city Traditional Artisan Bazaar',
-          'category': 'market',
-          'desc': 'Famous local market known for traditional handicrafts, textiles, and street delicacies.',
-          'lat': 26.9239,
-          'lng': 75.8267,
-          'fee': 0,
-        },
-        {
-          'id': 'offline_${city.toLowerCase()}_garden',
-          'name': '$city Royal Gardens & Sunset Point',
-          'category': 'nature',
-          'desc': 'Tranquil garden landscape providing panoramic sunset vistas.',
-          'lat': 26.9855,
-          'lng': 75.8513,
-          'fee': 30,
-        },
-      ]);
+    final startMin = _timeStringToMinutes(startTime);
+    final endMin = _timeStringToMinutes(endTime);
+    final totalWindow = (endMin > startMin) ? (endMin - startMin) : 540;
+    const travelGap = 20;
+
+    int defaultVisitDur;
+    if (pace == 'relaxed') {
+      defaultVisitDur = 120;
+    } else if (pace == 'fast') {
+      defaultVisitDur = 60;
+    } else {
+      defaultVisitDur = 90;
     }
 
     final rawStops = <ItineraryStop>[];
     int currentMin = startMin;
     int candidateIdx = 0;
 
-    while (currentMin + 60 <= endMin && candidateIdx < candidates.length) {
-
+    while (currentMin + 45 <= endMin && candidateIdx < candidates.length) {
       final c = candidates[candidateIdx++];
-      final stopEnd = currentMin + visitDuration;
-      if (stopEnd > endMin) break;
+      int visitDur = (c['duration'] as int?) ?? defaultVisitDur;
+      if (currentMin + visitDur > endMin) {
+        visitDur = endMin - currentMin;
+        if (visitDur < 30) break;
+      }
+      final stopEnd = currentMin + visitDur;
 
       final crowdLevelStr = currentMin < 11 * 60
           ? 'low'
@@ -1647,13 +1653,19 @@ CRITICAL INSTRUCTIONS:
         type: c['category'] as String? ?? 'sightseeing',
         startTime: _minutesToTimeString(currentMin),
         endTime: _minutesToTimeString(stopEnd),
-        durationMinutes: visitDuration,
+        durationMinutes: visitDur,
         latitude: c['lat'] as double?,
         longitude: c['lng'] as double?,
         description: c['desc'] as String? ?? 'A must-visit spot in $city.',
+        photoUrl: c['photoUrl'] as String?,
+        galleryPhotos: (c['galleryPhotos'] as List<String>?) ?? const [],
+        openingHours: c['openingHours'] as String?,
+        ticketPrice: (c['fee'] as int? ?? 0) > 0 ? '₹${c['fee']} per person' : 'Free entry',
+        shortLabel: clampTextAtWordBoundary(c['desc'] as String? ?? c['name'] as String, 80),
+        briefDescription: clampTextAtWordBoundary(c['desc'] as String? ?? '', 300),
         isKidFriendly: true,
         estimatedCost: (c['fee'] as int? ?? 50) * effectiveTravelers.adults,
-        tips: const [
+        tips: (c['tips'] as List<String>?) ?? const [
           'Wear comfortable footwear for walking',
           'Keep your camera and phone charged for photos',
         ],
@@ -1663,24 +1675,50 @@ CRITICAL INSTRUCTIONS:
       ));
 
       currentMin = stopEnd + travelGap;
+      // Reserve lunch gap around 13:00
+      if (currentMin >= 12 * 60 + 30 && currentMin < 13 * 60 + 30) {
+        currentMin = 13 * 60 + 30;
+      }
     }
 
-    final stops = FamilyTravelService.validateAndEnrichStops(
-      rawStops,
+    // Optimize proximity locally (nearest neighbor with Haversine distance)
+    List<ItineraryStop> orderedStops = rawStops;
+    String routeStartMsg = 'Route starts from $city center';
+
+    if (rawStops.isNotEmpty) {
+      final firstLat = rawStops.first.latitude ?? 26.9124;
+      final firstLng = rawStops.first.longitude ?? 75.7873;
+      final opt = RouteProximityOptimizer.optimizeStopsProximity(
+        stops: rawStops,
+        startLat: firstLat,
+        startLng: firstLng,
+        startPointLabel: '$city center',
+        travelMode: travelMode,
+        pace: pace,
+        travelers: effectiveTravelers,
+        dayStartTime: startTime,
+        dayEndTime: endTime,
+      );
+      orderedStops = opt.orderedStops;
+      routeStartMsg = opt.startPointMessage;
+    }
+
+    final enrichedStops = FamilyTravelService.validateAndEnrichStops(
+      orderedStops,
       effectiveTravelers,
     );
 
     int totalMinutes = 0;
-    if (stops.isNotEmpty) {
-      final first = _parseTime(stops.first.startTime);
-      final last = _parseTime(stops.last.endTime);
+    if (enrichedStops.isNotEmpty) {
+      final first = _parseTime(enrichedStops.first.startTime);
+      final last = _parseTime(enrichedStops.last.endTime);
       totalMinutes = last.difference(first).inMinutes;
     }
 
-    final totalCost = stops.fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0));
+    final totalCost = enrichedStops.fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0));
     final expenseMap = {
-      'attractions': stops.where((s) => s.type != 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
-      'food': stops.where((s) => s.type == 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
+      'attractions': enrichedStops.where((s) => s.type != 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
+      'food': enrichedStops.where((s) => s.type == 'food').fold<int>(0, (sum, s) => sum + (s.estimatedCost ?? 0)),
       'travel': 200,
       'total': totalCost + 200,
     };
@@ -1701,7 +1739,8 @@ CRITICAL INSTRUCTIONS:
       interests: interests,
       travelMode: travelMode,
       pace: pace,
-      stops: stops,
+      stops: enrichedStops,
+      routeStartPointInfo: routeStartMsg,
       weatherSummary: weather?.conditionDescription ?? 'Favorable travel conditions',
       whatToCarry: const [
         '💧 Water bottle',
@@ -1727,7 +1766,7 @@ CRITICAL INSTRUCTIONS:
     );
   }
 
-  MultiDayItineraryModel _generateOfflineMultiDayItinerary({
+  Future<MultiDayItineraryModel> _generateOfflineMultiDayItinerary({
     required String userId,
     required String city,
     required String startDate,
@@ -1745,18 +1784,38 @@ CRITICAL INSTRUCTIONS:
     String foodPreference = FoodPreference.all,
     TravelersModel? travelersData,
     List<PlaceModel>? knownPlaces,
-  }) {
+  }) async {
     final effectiveTravelers = travelersData ??
         (travelers != null
             ? TravelersModel(adults: travelers, minors: 0)
             : const TravelersModel(adults: 1, minors: 0));
 
+    final rawCityPois = await BharatPoiService.instance.getRawPlacesForCity(city);
+    if (rawCityPois.isEmpty && (knownPlaces == null || knownPlaces.isEmpty)) {
+      throw Exception('Offline data is not available for $city. Please connect to the internet to plan a multi-day trip for this destination.');
+    }
+
     final parsedStart = DateTime.tryParse(startDate) ?? DateTime.now();
     final allDays = <ItineraryModel>[];
 
+    final totalPois = rawCityPois.isNotEmpty ? rawCityPois : <Map<String, dynamic>>[];
+    final poisPerDay = totalPois.isNotEmpty
+        ? (totalPois.length / numberOfDays).ceil().clamp(2, 5)
+        : 3;
+
     for (int dayIdx = 1; dayIdx <= numberOfDays; dayIdx++) {
       final dayDate = parsedStart.add(Duration(days: dayIdx - 1)).toIso8601String().split('T').first;
-      final singleDay = _generateOfflineSingleDayItinerary(
+
+      List<Map<String, dynamic>> dayCandidates = [];
+      if (totalPois.isNotEmpty) {
+        final startIdx = ((dayIdx - 1) * poisPerDay) % totalPois.length;
+        for (int i = 0; i < poisPerDay; i++) {
+          final idx = (startIdx + i) % totalPois.length;
+          dayCandidates.add(totalPois[idx]);
+        }
+      }
+
+      final singleDay = await _generateOfflineSingleDayItinerary(
         userId: userId,
         city: city,
         date: dayDate,
@@ -1772,6 +1831,7 @@ CRITICAL INSTRUCTIONS:
         foodPreference: foodPreference,
         travelersData: effectiveTravelers,
         knownPlaces: knownPlaces,
+        overrideCandidates: dayCandidates.isNotEmpty ? dayCandidates : null,
       );
 
       allDays.add(singleDay.copyWith(

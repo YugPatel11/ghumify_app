@@ -353,6 +353,8 @@ class ItineraryModel {
 
   bool get isFamilyFriendly => minorsCount > 0;
 
+  bool get isOfflineMode => crowdModelVersion?.contains('offline') ?? false;
+
   bool get hasMealSuggestions =>
       mealSuggestions != null && mealSuggestions!.isNotEmpty;
 

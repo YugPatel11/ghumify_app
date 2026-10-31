@@ -9,6 +9,7 @@ import '../../../core/models/group_model.dart';
 import '../../../core/models/group_invitation_model.dart';
 import 'create_group_screen.dart';
 import 'group_detail_screen.dart';
+import '../../../core/widgets/translated_text.dart';
 
 /// Groups list screen showing all groups and pending invitations
 class GroupsListScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: Text(
+        title: Tr(
           'Groups',
           style: GoogleFonts.outfit(
             fontSize: 22,
@@ -49,7 +50,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.group_add_rounded),
-        label: Text(
+        label: Tr(
           'New Group',
           style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
@@ -102,7 +103,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
   Widget _buildSectionHeader(String title, int count) {
     return Row(
       children: [
-        Text(
+        Tr(
           title,
           style: GoogleFonts.outfit(
             fontSize: 15,
@@ -151,7 +152,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
               ),
             ),
             const SizedBox(height: AppTokens.lg),
-            Text(
+            Tr(
               'No Groups Yet',
               style: GoogleFonts.outfit(
                 fontSize: 20,
@@ -160,7 +161,7 @@ class _GroupsListScreenState extends State<GroupsListScreen> {
               ),
             ),
             const SizedBox(height: AppTokens.sm),
-            Text(
+            Tr(
               'Create a group to plan trips together\nwith friends and family',
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(

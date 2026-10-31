@@ -34,13 +34,32 @@ class BharatPoiService {
     return _cachedPoiData!;
   }
 
-  /// Get places for a specific city matching optional category
-  Future<List<PlaceModel>> getPlacesForCity(String city, {String? category}) async {
+  /// Get raw JSON POI entries for a specific city matching optional category
+  Future<List<Map<String, dynamic>>> getRawPlacesForCity(String city, {String? category}) async {
     final allPois = await loadPoiDataset();
-    final cleanCity = city.toLowerCase().trim();
+    var cleanCity = city.toLowerCase().trim();
+    const aliases = {
+      'pink city': 'jaipur',
+      'blue city': 'jodhpur',
+      'sun city': 'jodhpur',
+      'golden city': 'jaisalmer',
+      'city of lakes': 'udaipur',
+      'bengaluru': 'bangalore',
+      'bangalore': 'bengaluru',
+      'bombay': 'mumbai',
+      'mumbai': 'bombay',
+      'calcutta': 'kolkata',
+      'kolkata': 'calcutta',
+      'madras': 'chennai',
+      'chennai': 'madras',
+    };
+    if (aliases.containsKey(cleanCity)) {
+      cleanCity = aliases[cleanCity]!;
+    }
+
     final cleanCategory = category?.toLowerCase().trim();
 
-    final matches = allPois.where((poi) {
+    return allPois.where((poi) {
       final poiCity = (poi['city'] as String? ?? '').toLowerCase();
       final poiCategory = (poi['category'] as String? ?? '').toLowerCase();
 
@@ -52,7 +71,17 @@ class BharatPoiService {
       }
       return true;
     }).toList();
+  }
 
+  /// Check whether offline POI data exists for the given city
+  Future<bool> hasCity(String city) async {
+    final matches = await getRawPlacesForCity(city);
+    return matches.isNotEmpty;
+  }
+
+  /// Get places for a specific city matching optional category
+  Future<List<PlaceModel>> getPlacesForCity(String city, {String? category}) async {
+    final matches = await getRawPlacesForCity(city, category: category);
     return matches.map((p) => _toPlaceModel(p)).toList();
   }
 
