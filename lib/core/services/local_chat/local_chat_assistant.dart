@@ -455,13 +455,32 @@ class LocalChatAssistant {
       return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
     }
 
-    // 5. Look up place in BharatPOI dataset
+    // 5. Famous local foods & culinary specialties
+    if (norm.contains('food') || norm.contains('dish') || norm.contains('eat') || norm.contains('cuisine') || norm.contains('specialty') || norm.contains('khana')) {
+      final cityName = currentItinerary['city'] as String? ?? '';
+      final foods = await BharatPoiService.instance.getFamousFoodsForCity(cityName);
+      if (foods.isNotEmpty) {
+        final buffer = StringBuffer('[Offline Mode] Famous local delicacies in $cityName:\n\n');
+        for (final f in foods) {
+          buffer.writeln('🍽️ **${f['dish']}** at ${f['placeName']}');
+          if (f['description'] != null && f['description']!.isNotEmpty) {
+            buffer.writeln('   _${f['description']}_\n');
+          }
+        }
+        return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+      }
+    }
+
+    // 6. Look up place in BharatPOI dataset
     final bharatMatch = await BharatPoiService.instance.findPlaceByName(userMessage);
     if (bharatMatch != null) {
       final buffer = StringBuffer('[Offline Mode] **${bharatMatch.name}** (${bharatMatch.city})\n\n');
       buffer.writeln('• **Category:** ${bharatMatch.category.toUpperCase()}');
       buffer.writeln('• **Estimated Fee:** ₹${bharatMatch.entryFee?.toInt() ?? 50}');
       buffer.writeln('• **About:** ${bharatMatch.description}');
+      if (bharatMatch.specialNote != null && bharatMatch.specialNote!.isNotEmpty) {
+        buffer.writeln('• **${bharatMatch.specialNote}**');
+      }
       if (bharatMatch.address != null && bharatMatch.address!.isNotEmpty) {
         buffer.writeln('• **Address:** ${bharatMatch.address}');
       }

@@ -107,8 +107,50 @@ class BharatPoiService {
     return null;
   }
 
+  /// Get famous food details for a specific city
+  Future<List<Map<String, String>>> getFamousFoodsForCity(String city) async {
+    final allPois = await loadPoiDataset();
+    final cleanCity = city.toLowerCase().trim();
+    final results = <Map<String, String>>[];
+    final seen = <String>{};
+
+    for (final p in allPois) {
+      final poiCity = (p['city'] as String? ?? '').toLowerCase();
+      if (poiCity.contains(cleanCity) || cleanCity.contains(poiCity)) {
+        final food = p['famousFood'] as String?;
+        if (food != null && food.isNotEmpty && !seen.contains(food)) {
+          seen.add(food);
+          results.add({
+            'dish': food,
+            'description': p['famousFoodDescription'] as String? ?? '',
+            'placeName': p['name'] as String? ?? '',
+            'imageUrl': p['foodImageUrl'] as String? ?? '',
+          });
+        }
+      }
+    }
+    return results;
+  }
+
   /// Convert raw map entry to PlaceModel
   PlaceModel _toPlaceModel(Map<String, dynamic> raw) {
+    final photo = raw['photoUrl'] as String?;
+    final food = raw['famousFood'] as String?;
+    final foodDesc = raw['famousFoodDescription'] as String?;
+    final foodImg = raw['foodImageUrl'] as String?;
+
+    final noteBuffer = StringBuffer();
+    if (food != null && food.isNotEmpty) {
+      noteBuffer.write('Famous Food: $food.');
+      if (foodDesc != null && foodDesc.isNotEmpty) {
+        noteBuffer.write(' $foodDesc');
+      }
+    }
+
+    final photos = <String>[];
+    if (photo != null && photo.isNotEmpty) photos.add(photo);
+    if (foodImg != null && foodImg.isNotEmpty) photos.add(foodImg);
+
     return PlaceModel(
       id: raw['id'] as String? ?? 'poi_${DateTime.now().millisecondsSinceEpoch}',
       name: raw['name'] as String? ?? 'Attraction',
@@ -121,6 +163,13 @@ class BharatPoiService {
       address: raw['address'] as String?,
       rating: (raw['rating'] as num?)?.toDouble() ?? 4.7,
       entryFee: (raw['entryFee'] as num?)?.toDouble() ?? 50.0,
+      photoUrls: photos,
+      thumbnailUrl: photo ?? foodImg,
+      specialNote: noteBuffer.isNotEmpty ? noteBuffer.toString() : null,
+      tags: [
+        if (food != null) 'famous_food: $food',
+        'offline_verified',
+      ],
     );
   }
 
