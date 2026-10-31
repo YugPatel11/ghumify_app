@@ -3,6 +3,7 @@ import '../translation_service.dart';
 import 'candidate_source.dart';
 import 'intent_parser.dart';
 import 'itinerary_editor.dart';
+import '../bharat_poi_service.dart';
 
 class LocalChatAssistant {
   final CandidateSource _candidateSource = CandidateSource();
@@ -156,7 +157,7 @@ class LocalChatAssistant {
         );
 
       case LocalChatIntentType.queryInfo:
-        return _handleQueryInfo(
+        return await _handleQueryInfo(
           messageId: messageId,
           userMessage: userMessage,
           currentItinerary: currentItinerary,
@@ -356,13 +357,13 @@ class LocalChatAssistant {
     }
   }
 
-  ChatMessageModel _handleQueryInfo({
+  Future<ChatMessageModel> _handleQueryInfo({
     required String messageId,
     required String userMessage,
     required Map<String, dynamic> currentItinerary,
     required bool isMultiDay,
     required ParsedIntent intent,
-  }) {
+  }) async {
     final norm = IntentParser.normalize(userMessage);
 
     // Extract all stops
@@ -450,6 +451,19 @@ class LocalChatAssistant {
         final start = s['startTime'] ?? '';
         final end = s['endTime'] ?? '';
         buffer.writeln('${i + 1}. **$name** ($start - $end)');
+      }
+      return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
+    }
+
+    // 5. Look up place in BharatPOI dataset
+    final bharatMatch = await BharatPoiService.instance.findPlaceByName(userMessage);
+    if (bharatMatch != null) {
+      final buffer = StringBuffer('[Offline Mode] **${bharatMatch.name}** (${bharatMatch.city})\n\n');
+      buffer.writeln('• **Category:** ${bharatMatch.category.toUpperCase()}');
+      buffer.writeln('• **Estimated Fee:** ₹${bharatMatch.entryFee?.toInt() ?? 50}');
+      buffer.writeln('• **About:** ${bharatMatch.description}');
+      if (bharatMatch.address != null && bharatMatch.address!.isNotEmpty) {
+        buffer.writeln('• **Address:** ${bharatMatch.address}');
       }
       return ChatMessageModel(id: messageId, role: 'assistant', content: buffer.toString().trim());
     }

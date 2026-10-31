@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ghumify_app/core/models/travelers_model.dart';
+import 'package:ghumify_app/core/services/bharat_poi_service.dart';
 import 'package:ghumify_app/core/services/gemini_service.dart';
 import 'package:ghumify_app/core/services/local_chat/local_chat_assistant.dart';
 
@@ -128,6 +129,16 @@ void main() {
         currentItinerary: sampleItinerary,
       );
       expect(relaxedRes.updatedItinerary, isNotNull);
+    });
+
+    test('BharatPoiService retrieves curated Indian POIs offline', () async {
+      final places = await BharatPoiService.instance.getPlacesForCity('Jaipur');
+      expect(places.isNotEmpty, isTrue);
+      expect(places.any((p) => p.name.contains('Amber') || p.name.contains('Hawa')), isTrue);
+
+      final monument = await BharatPoiService.instance.findPlaceByName('Hawa Mahal');
+      expect(monument, isNotNull);
+      expect(monument!.city, equals('Jaipur'));
     });
   });
 }

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/nearby_service_model.dart';
 import '../../models/place_model.dart';
 import '../places_service.dart';
+import '../bharat_poi_service.dart';
 import 'intent_parser.dart';
 
 class CandidateSource {
@@ -186,6 +187,10 @@ class CandidateSource {
       // Network failed or offline
     }
 
+    final bharatFoods = await BharatPoiService.instance.getPlacesForCity(city, category: 'food');
+    final validBharatFoods = bharatFoods.where((f) => !excludedLower.contains(f.name.toLowerCase().trim())).toList();
+    if (validBharatFoods.isNotEmpty) return validBharatFoods;
+
     return _getBundledFoodSpots(
       city: city,
       latitude: latitude,
@@ -222,6 +227,10 @@ class CandidateSource {
     } catch (_) {
       // Network failed or offline
     }
+
+    final bharatPlaces = await BharatPoiService.instance.getPlacesForCity(city, category: category);
+    final validBharatPlaces = bharatPlaces.where((p) => !excludedLower.contains(p.name.toLowerCase().trim())).toList();
+    if (validBharatPlaces.isNotEmpty) return validBharatPlaces;
 
     return _getBundledReplacementSpots(
       city: city,

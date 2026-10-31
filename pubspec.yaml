@@ -59,4 +59,5 @@ flutter:
     - assets/images/kerela.jpeg
     - assets/images/agra.jpeg
     - .env
+    - assets/data/bharat_poi.json
 
