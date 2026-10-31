@@ -484,9 +484,12 @@ class GroupProvider extends ChangeNotifier {
         latitude: position.latitude,
         longitude: position.longitude,
       );
-    } catch (e) {
-      _error = 'Location error: $e';
+      _error = null;
       notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '').replaceAll('LocationException: ', '');
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -505,6 +508,7 @@ class GroupProvider extends ChangeNotifier {
         speed: position.speed,
       );
       _isSharingLiveLocation = true;
+      _error = null;
       notifyListeners();
 
       // Start periodic updates every 30 seconds
@@ -524,8 +528,9 @@ class GroupProvider extends ChangeNotifier {
         }
       });
     } catch (e) {
-      _error = 'Failed to start live location: $e';
+      _error = e.toString().replaceAll('Exception: ', '').replaceAll('LocationException: ', '');
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -535,10 +540,12 @@ class GroupProvider extends ChangeNotifier {
     try {
       await _groupService.stopLiveLocationSharing(groupId);
       _isSharingLiveLocation = false;
+      _error = null;
       notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      _error = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
+      rethrow;
     }
   }
 

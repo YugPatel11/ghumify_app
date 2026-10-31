@@ -205,12 +205,15 @@ class ExpenseService {
     return _groupsRef
         .doc(groupId)
         .collection('expenses')
-        .where('isDeleted', isEqualTo: false)
-        .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ExpenseModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => ExpenseModel.fromFirestore(doc))
+              .where((expense) => !expense.isDeleted)
+              .toList();
+          list.sort((a, b) => b.date.compareTo(a.date));
+          return list;
+        });
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -389,26 +392,32 @@ class ExpenseService {
     return _groupsRef
         .doc(groupId)
         .collection('settlements')
-        .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => SettlementModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => SettlementModel.fromFirestore(doc))
+              .toList();
+          list.sort((a, b) => b.date.compareTo(a.date));
+          return list;
+        });
   }
 
   /// Fetch active expenses once (for batch calculations and previews)
   Future<List<ExpenseModel>> getExpensesOnce(String groupId) async {
-    final snapshot = await _groupsRef
-        .doc(groupId)
-        .collection('expenses')
-        .where('isDeleted', isEqualTo: false)
-        .get();
-    return snapshot.docs.map((d) => ExpenseModel.fromFirestore(d)).toList();
+    final snapshot = await _groupsRef.doc(groupId).collection('expenses').get();
+    final list = snapshot.docs
+        .map((d) => ExpenseModel.fromFirestore(d))
+        .where((e) => !e.isDeleted)
+        .toList();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
   }
 
   /// Fetch settlements once
   Future<List<SettlementModel>> getSettlementsOnce(String groupId) async {
     final snapshot = await _groupsRef.doc(groupId).collection('settlements').get();
-    return snapshot.docs.map((d) => SettlementModel.fromFirestore(d)).toList();
+    final list = snapshot.docs.map((d) => SettlementModel.fromFirestore(d)).toList();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
   }
 }

@@ -7,19 +7,22 @@ class LocationService {
   Future<bool> checkAndRequestPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return false;
+      throw LocationException(
+          'Location services (GPS) are turned off. Please turn on GPS on your device.');
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        return false;
+        throw LocationException(
+            'Location permission denied. Please allow location access to share your position.');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      return false;
+      throw LocationException(
+          'Location permission permanently denied. Please enable it in App Settings.');
     }
 
     return true;
@@ -27,11 +30,7 @@ class LocationService {
 
   /// Get current position (lat/lng)
   Future<Position> getCurrentPosition() async {
-    final hasPermission = await checkAndRequestPermission();
-    if (!hasPermission) {
-      throw LocationException(
-          'Location permission denied. Please enable location access in your settings.');
-    }
+    await checkAndRequestPermission();
 
     try {
       return await Geolocator.getCurrentPosition(
@@ -41,7 +40,8 @@ class LocationService {
         ),
       );
     } catch (e) {
-      throw LocationException('Could not determine your location. Please try again.');
+      if (e is LocationException) rethrow;
+      throw LocationException('Could not determine your GPS location. Please ensure you are outdoors or have a clear signal.');
     }
   }
 
@@ -94,7 +94,10 @@ class LocationService {
     double? cityCenterLat,
     double? cityCenterLng,
   }) async {
-    // 1. Try GPS location (permission checked, coordinates rounded to 4 decimals for privacy)
+    final targetCityLat = cityCenterLat ?? _getKnownCityCenterLat(city);
+    final targetCityLng = cityCenterLng ?? _getKnownCityCenterLng(city);
+
+    // 1. Try GPS location (ONLY if user is actually in or near the destination city < 60 km)
     try {
       final hasPerm = await checkAndRequestPermission();
       if (hasPerm) {
@@ -107,12 +110,24 @@ class LocationService {
         // Privacy: round coordinates to 4 decimal places (~11m precision)
         final roundedLat = double.parse(pos.latitude.toStringAsFixed(4));
         final roundedLng = double.parse(pos.longitude.toStringAsFixed(4));
-        return RouteStartPoint(
-          latitude: roundedLat,
-          longitude: roundedLng,
-          label: 'your current location',
-          source: RouteStartPointSource.gps,
-        );
+
+        bool isWithinCityArea = true;
+        if (targetCityLat != null && targetCityLng != null) {
+          final distFromCity = calculateDistance(roundedLat, roundedLng, targetCityLat, targetCityLng);
+          // If distance > 60 km, user is in another city/state (e.g. Delhi planning Rajkot)
+          if (distFromCity > 60.0) {
+            isWithinCityArea = false;
+          }
+        }
+
+        if (isWithinCityArea) {
+          return RouteStartPoint(
+            latitude: roundedLat,
+            longitude: roundedLng,
+            label: 'your current location',
+            source: RouteStartPointSource.gps,
+          );
+        }
       }
     } catch (_) {
       // Graceful fallback on permission denied, timeout, or location disabled
@@ -139,8 +154,8 @@ class LocationService {
     }
 
     // 4. City Center fallback
-    final defaultLat = cityCenterLat ?? _getKnownCityCenterLat(city);
-    final defaultLng = cityCenterLng ?? _getKnownCityCenterLng(city);
+    final defaultLat = targetCityLat ?? _getKnownCityCenterLat(city);
+    final defaultLng = targetCityLng ?? _getKnownCityCenterLng(city);
 
     return RouteStartPoint(
       latitude: defaultLat,
@@ -153,6 +168,9 @@ class LocationService {
   /// Known city center latitude fallbacks
   static double _getKnownCityCenterLat(String city) {
     final lower = city.toLowerCase().trim();
+    if (lower.contains('rajkot')) return 22.3039;
+    if (lower.contains('surat')) return 21.1702;
+    if (lower.contains('vadodara')) return 22.3072;
     if (lower.contains('delhi')) return 28.6139;
     if (lower.contains('mumbai')) return 18.9220;
     if (lower.contains('jaipur')) return 26.9124;
@@ -167,12 +185,17 @@ class LocationService {
     if (lower.contains('ahmedabad')) return 23.0225;
     if (lower.contains('pune')) return 18.5204;
     if (lower.contains('amritsar')) return 31.6340;
+    if (lower.contains('kochi') || lower.contains('cochin')) return 9.9312;
+    if (lower.contains('chandigarh')) return 30.7333;
     return 26.9124; // General default
   }
 
   /// Known city center longitude fallbacks
   static double _getKnownCityCenterLng(String city) {
     final lower = city.toLowerCase().trim();
+    if (lower.contains('rajkot')) return 70.8022;
+    if (lower.contains('surat')) return 72.8311;
+    if (lower.contains('vadodara')) return 73.1812;
     if (lower.contains('delhi')) return 77.2090;
     if (lower.contains('mumbai')) return 72.8347;
     if (lower.contains('jaipur')) return 75.7873;
@@ -187,6 +210,8 @@ class LocationService {
     if (lower.contains('ahmedabad')) return 72.5714;
     if (lower.contains('pune')) return 73.8567;
     if (lower.contains('amritsar')) return 74.8723;
+    if (lower.contains('kochi') || lower.contains('cochin')) return 76.2673;
+    if (lower.contains('chandigarh')) return 76.7794;
     return 75.7873; // General default
   }
 }

@@ -374,6 +374,8 @@ class _InvitationCard extends StatelessWidget {
               children: [
                 Text(
                   invitation.groupName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -383,6 +385,8 @@ class _InvitationCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Invited by ${invitation.inviterName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
                     fontSize: 12,
                     color: AppColors.textSoft,

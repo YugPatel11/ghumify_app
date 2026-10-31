@@ -20,6 +20,7 @@ import 'personal_plan_summary_card.dart';
 import '../../../core/utils/route_proximity_optimizer.dart';
 import '../../../core/models/itinerary_model.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/services/place_media_service.dart';
 
 
 /// Group itinerary tab supporting two distinct editing modes:
@@ -454,12 +455,16 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                           color: isFamily ? const Color(0xFF2E7D32) : AppColors.brand,
                         ),
                         const SizedBox(width: 5),
-                        Text(
-                          summary,
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isFamily ? const Color(0xFF2E7D32) : AppColors.brand,
+                        Flexible(
+                          child: Text(
+                            summary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isFamily ? const Color(0xFF2E7D32) : AppColors.brand,
+                            ),
                           ),
                         ),
                       ],
@@ -518,8 +523,11 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
         const SizedBox(height: AppTokens.lg),
 
         // Stops Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             Text(
               'Planned Stops (${stops.length})',
@@ -530,8 +538,9 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
               ),
             ),
             if (canEditGroup)
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   if (stops.length > 1)
                     TextButton.icon(
@@ -764,19 +773,25 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.meeting_room_rounded, color: AppColors.brand, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Meeting Point (Required)',
-                        style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.meeting_room_rounded, color: AppColors.brand, size: 20),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Meeting Point (Required)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   TextButton.icon(
                     icon: const Icon(Icons.add_location_alt_outlined, size: 16, color: AppColors.brand),
@@ -835,27 +850,33 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your Personal Stops (${_personalDraftStops.length})',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
-                ),
-                if (userFoodPref != FoodPreference.all)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    'Honoring food preference: ${FoodPreference.getLabel(userFoodPref)}',
+                    'Your Personal Stops (${_personalDraftStops.length})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      color: FoodPreference.getIndicatorColor(userFoodPref),
-                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
                     ),
                   ),
-              ],
+                  if (userFoodPref != FoodPreference.all)
+                    Text(
+                      'Honoring food preference: ${FoodPreference.getLabel(userFoodPref)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        color: FoodPreference.getIndicatorColor(userFoodPref),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
             ),
             TextButton.icon(
               icon: const Icon(Icons.add_rounded, size: 18, color: AppColors.brand),
@@ -1027,11 +1048,14 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                   ),
                 ],
                 const SizedBox(height: 6),
-                Row(
+                Wrap(
+                  spacing: AppTokens.md,
+                  runSpacing: 4,
                   children: [
                     InkWell(
                       onTap: () => _launchUrl(mp.googleMapsUrl),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.map_rounded, size: 14, color: AppColors.brand),
                           const SizedBox(width: 4),
@@ -1042,10 +1066,10 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: AppTokens.md),
                     InkWell(
                       onTap: () => _launchUrl(mp.directionsUrl),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.directions_rounded, size: 14, color: AppColors.brand),
                           const SizedBox(width: 4),
@@ -1710,7 +1734,20 @@ class _GroupItineraryTabState extends State<GroupItineraryTab> {
 
     if (startLat == null || startLng == null) {
       final city = itinerary['city'] ?? 'Trip';
-      final resolved = await LocationService().resolveStartPoint(city: city);
+      double? refLat;
+      double? refLng;
+      for (final s in stops) {
+        if (s['latitude'] != null && s['longitude'] != null) {
+          refLat = (s['latitude'] as num).toDouble();
+          refLng = (s['longitude'] as num).toDouble();
+          break;
+        }
+      }
+      final resolved = await LocationService().resolveStartPoint(
+        city: city,
+        cityCenterLat: refLat,
+        cityCenterLng: refLng,
+      );
       startLat = resolved.latitude;
       startLng = resolved.longitude;
       startLabel = 'City center ($city)';
@@ -2163,7 +2200,7 @@ class _ModeSegmentButton extends StatelessWidget {
 // STOP CARD WIDGET WITH ACCESSIBLE STATUS TAGS
 // ═══════════════════════════════════════════════════════════════════
 
-class _StopCard extends StatelessWidget {
+class _StopCard extends StatefulWidget {
   final int index;
   final Map<String, dynamic> stop;
   final int totalStops;
@@ -2195,23 +2232,79 @@ class _StopCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final name = stop['name'] ?? 'Stop';
-    final startTime = stop['startTime'] ?? '';
-    final description = stop['description'] ?? '';
-    final isRemoved = statusTag == 'removed';
-    final isAdded = statusTag == 'added';
-    final isModified = statusTag == 'modified';
+  State<_StopCard> createState() => _StopCardState();
+}
 
-    final photoUrl = stop['photoUrl'] as String? ??
-        (stop['galleryPhotos'] is List && (stop['galleryPhotos'] as List).isNotEmpty
-            ? (stop['galleryPhotos'] as List).first as String?
-            : null);
+class _StopCardState extends State<_StopCard> {
+  String? _loadedPhotoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveImage();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StopCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.stop['name'] != oldWidget.stop['name'] ||
+        widget.stop['photoUrl'] != oldWidget.stop['photoUrl']) {
+      _resolveImage();
+    }
+  }
+
+  void _resolveImage() async {
+    final direct = widget.stop['photoUrl'] as String?;
+    if (direct != null && direct.trim().isNotEmpty) {
+      if (mounted) setState(() => _loadedPhotoUrl = direct.trim());
+      return;
+    }
+    final gallery = widget.stop['galleryPhotos'];
+    if (gallery is List && gallery.isNotEmpty && gallery.first is String) {
+      if (mounted) setState(() => _loadedPhotoUrl = (gallery.first as String).trim());
+      return;
+    }
+
+    final name = widget.stop['name'] as String?;
+    if (name != null && name.trim().isNotEmpty) {
+      final media = await PlaceMediaService().fetchMediaForPlace(name, city: widget.city);
+      if (mounted && media.images.isNotEmpty) {
+        setState(() => _loadedPhotoUrl = media.images.first);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = widget.stop['name'] ?? 'Stop';
+    final startTime = (widget.stop['startTime'] as String?)?.trim() ?? '';
+    final durationMins = (widget.stop['durationMinutes'] as num?)?.toInt() ?? 0;
+    final description = (widget.stop['description'] as String?)?.trim() ??
+        (widget.stop['briefDescription'] as String?)?.trim() ??
+        '';
+    final isRemoved = widget.statusTag == 'removed';
+    final isAdded = widget.statusTag == 'added';
+    final isModified = widget.statusTag == 'modified';
+    final category = (widget.stop['type'] as String?)?.toUpperCase() ?? 'PLACE';
+
+    final ratingRaw = widget.stop['rating'];
+    final double? rating = ratingRaw is num
+        ? ratingRaw.toDouble()
+        : (ratingRaw is String ? double.tryParse(ratingRaw) : null);
+
+    final cost = widget.stop['ticketPrice'] ?? widget.stop['estimatedCost'];
+    final costStr = cost != null && cost.toString().trim().isNotEmpty
+        ? (cost.toString().startsWith('₹') ? cost.toString() : '₹$cost')
+        : null;
+
+    final address = widget.stop['address'] as String? ??
+        (widget.stop['shortLabel'] as String?) ??
+        '${widget.city}, India';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: isRemoved ? null : onTap,
+        onTap: isRemoved ? null : widget.onTap,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         child: Container(
           margin: const EdgeInsets.only(bottom: AppTokens.md),
@@ -2221,11 +2314,11 @@ class _StopCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             border: Border.all(
               color: isAdded
-                  ? AppColors.success.withOpacity(0.4)
+                  ? AppColors.success.withValues(alpha: 0.4)
                   : isModified
-                      ? AppColors.warning.withOpacity(0.4)
+                      ? AppColors.warning.withValues(alpha: 0.4)
                       : isRemoved
-                          ? AppColors.error.withOpacity(0.3)
+                          ? AppColors.error.withValues(alpha: 0.3)
                           : AppColors.border,
               width: isAdded || isModified || isRemoved ? 1.0 : 0.5,
             ),
@@ -2235,10 +2328,12 @@ class _StopCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Number node
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
                       gradient: isRemoved ? null : AppColors.brandGradient,
                       color: isRemoved ? AppColors.textMuted : null,
@@ -2246,140 +2341,273 @@ class _StopCard extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      '${index + 1}',
+                      '${widget.index + 1}',
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
                   ),
                   const SizedBox(width: AppTokens.sm),
-                  if (photoUrl != null && photoUrl.isNotEmpty && !isRemoved) ...[
+
+                  // Place Image (Dynamic Wikimedia fetch with error fallback)
+                  if (!isRemoved) ...[
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(8),
                       child: SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: CachedNetworkImage(
-                          imageUrl: photoUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (c, u) => Container(color: AppColors.cardAlt),
-                          errorWidget: (c, u, e) => Container(
-                            color: AppColors.cardAlt,
-                            child: const Icon(Icons.place_rounded, size: 16, color: AppColors.textMuted),
-                          ),
-                        ),
+                        width: 64,
+                        height: 64,
+                        child: _loadedPhotoUrl != null && _loadedPhotoUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: _loadedPhotoUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (c, u) => Container(
+                                  color: AppColors.cardAlt,
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppColors.brand,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (c, u, e) => Container(
+                                  color: AppColors.brand.withValues(alpha: 0.1),
+                                  child: const Icon(
+                                    Icons.place_rounded,
+                                    size: 24,
+                                    color: AppColors.brand,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.brand.withValues(alpha: 0.1),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.place_rounded,
+                                    size: 24,
+                                    color: AppColors.brand,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: AppTokens.sm),
                   ],
+
+                  // Place Details
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        // Tags row: Category & Rating & status chips
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Flexible(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                               child: Text(
-                                name,
+                                category,
                                 style: GoogleFonts.outfit(
-                                  fontSize: 15,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w700,
-                                  color: isRemoved ? AppColors.textMuted : AppColors.text,
-                                  decoration: isRemoved ? TextDecoration.lineThrough : null,
+                                  color: AppColors.brand,
                                 ),
                               ),
                             ),
-                            if (isAdded) ...[
-                              const SizedBox(width: 8),
+                            if (rating != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 10, color: Color(0xFFD97706)),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      rating.toStringAsFixed(1),
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF92400E),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (isAdded)
                               _buildTagChip('Added', AppColors.success, Icons.add_circle_outline),
-                            ],
-                            if (isModified) ...[
-                              const SizedBox(width: 8),
+                            if (isModified)
                               _buildTagChip('Changed', AppColors.warning, Icons.edit_note_outlined),
-                            ],
-                            if (isRemoved) ...[
-                              const SizedBox(width: 8),
+                            if (isRemoved)
                               _buildTagChip('Removed', AppColors.error, Icons.remove_circle_outline),
-                            ],
-                            if (stop['isKidFriendly'] == true || stop['is_kid_friendly'] == true) ...[
-                              const SizedBox(width: 8),
+                            if (widget.stop['isKidFriendly'] == true ||
+                                widget.stop['is_kid_friendly'] == true)
                               _buildTagChip('Kid-Friendly', const Color(0xFF2E7D32), Icons.child_care_rounded),
-                            ],
                           ],
                         ),
-                        if (startTime.isNotEmpty)
-                          Text(
-                            startTime,
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              color: isRemoved ? AppColors.textMuted : AppColors.brand,
-                              fontWeight: FontWeight.w500,
+                        const SizedBox(height: 3),
+
+                        // Place Name
+                        Text(
+                          name,
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: isRemoved ? AppColors.textMuted : AppColors.text,
+                            decoration: isRemoved ? TextDecoration.lineThrough : null,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                        // Time, Duration & Cost
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (startTime.isNotEmpty) ...[
+                              Text(
+                                startTime,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: isRemoved ? AppColors.textMuted : AppColors.brand,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (durationMins > 0)
+                                Text(
+                                  '• ${durationMins}m',
+                                  style: GoogleFonts.outfit(fontSize: 11, color: AppColors.textMuted),
+                                ),
+                            ],
+                            if (costStr != null)
+                              Text(
+                                '• $costStr',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: const Color(0xFF059669),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        // Location snippet
+                        if (address.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.place_outlined, size: 11, color: AppColors.textMuted),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: GoogleFonts.outfit(fontSize: 10, color: AppColors.textMuted),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],
                     ),
                   ),
+
+                  // Actions menu
                   if (!isRemoved)
                     IconButton(
                       icon: const Icon(Icons.share_rounded, size: 18, color: AppColors.brand),
                       tooltip: 'Share stop to chat',
-                      onPressed: onShareToChat,
+                      onPressed: widget.onShareToChat,
                     ),
-                  if (canEdit) ...[
-                    if (onEdit != null && !isRemoved)
+                  if (widget.canEdit) ...[
+                    if (widget.onEdit != null && !isRemoved)
                       IconButton(
                         icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSoft),
                         tooltip: 'Edit stop',
-                        onPressed: onEdit,
+                        onPressed: widget.onEdit,
                       ),
-                    if (onMoveUp != null && !isRemoved)
+                    if (widget.onMoveUp != null && !isRemoved)
                       IconButton(
                         icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20, color: AppColors.textMuted),
-                        onPressed: onMoveUp,
+                        onPressed: widget.onMoveUp,
                       ),
-                    if (onMoveDown != null && !isRemoved)
+                    if (widget.onMoveDown != null && !isRemoved)
                       IconButton(
                         icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: AppColors.textMuted),
-                        onPressed: onMoveDown,
+                        onPressed: widget.onMoveDown,
                       ),
-                    if (isRemoved && onRestore != null)
+                    if (isRemoved && widget.onRestore != null)
                       TextButton.icon(
                         icon: const Icon(Icons.undo_rounded, size: 16, color: AppColors.brand),
-                        label: Text('Restore', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand)),
-                        onPressed: onRestore,
+                        label: Text('Restore',
+                            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand)),
+                        onPressed: widget.onRestore,
                       )
-                    else if (onDelete != null)
+                    else if (widget.onDelete != null)
                       IconButton(
                         icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.error),
                         tooltip: 'Remove stop',
-                        onPressed: onDelete,
+                        onPressed: widget.onDelete,
                       ),
                   ],
-                  if (!isRemoved)
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: AppColors.textMuted,
-                    ),
                 ],
               ),
+
+              // Description Snippet
               if (description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.only(left: 36),
-                  child: Text(
-                    description,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      color: AppColors.textMuted,
-                      height: 1.3,
-                      decoration: isRemoved ? TextDecoration.lineThrough : null,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    color: AppColors.textSoft,
+                    height: 1.3,
+                    decoration: isRemoved ? TextDecoration.lineThrough : null,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
+              // Tap hint footer
+              if (!isRemoved) ...[
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Tap for photos & full details',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.brand,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 10,
+                      color: AppColors.brand,
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -2391,21 +2619,21 @@ class _StopCard extends StatelessWidget {
 
   Widget _buildTagChip(String label, Color color, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 3),
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 2),
           Text(
             label,
             style: GoogleFonts.outfit(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w700,
               color: color,
             ),

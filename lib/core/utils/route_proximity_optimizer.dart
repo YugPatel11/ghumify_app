@@ -64,35 +64,64 @@ class RouteProximityOptimizer {
       );
     }
 
+    ItineraryStop? firstCoordStop;
+    for (final s in stops) {
+      if (s.latitude != null && s.longitude != null) {
+        firstCoordStop = s;
+        break;
+      }
+    }
+
+    bool isIntercityStart = false;
+    double effectiveStartLat = startLat;
+    double effectiveStartLng = startLng;
+    String effectiveStartLabel = startPointLabel;
+
+    if (firstCoordStop != null) {
+      final distToFirst = calculateDistanceKm(
+        startLat,
+        startLng,
+        firstCoordStop.latitude!,
+        firstCoordStop.longitude!,
+      );
+      // If start point is > 60 km away (e.g. user is in Delhi and destination is Rajkot ~1374 km away),
+      // the route starts directly from the destination city/first stop, so long-distance travel does not
+      // eat the day's local sightseeing budget or drop stops as overflow.
+      if (distToFirst > 60.0) {
+        isIntercityStart = true;
+        effectiveStartLat = firstCoordStop.latitude!;
+        effectiveStartLng = firstCoordStop.longitude!;
+        effectiveStartLabel = firstCoordStop.name;
+      }
+    }
+
     if (stops.length == 1) {
       final stop = stops.first;
-      final dist = (stop.latitude != null && stop.longitude != null)
+      final dist = (stop.latitude != null && stop.longitude != null && !isIntercityStart)
           ? calculateDistanceKm(startLat, startLng, stop.latitude!, stop.longitude!)
           : 0.0;
       final travelMin = estimateTravelMinutes(dist, travelMode);
       final recalculated = stop.copyWith(
+        startTime: isIntercityStart ? dayStartTime : null,
         distanceFromPrevKm: dist > 0 ? double.parse(dist.toStringAsFixed(1)) : null,
         travelTimeFromPrev: dist > 0 ? formatTravelTime(travelMin, travelMode) : null,
       );
 
       return RouteOptimizationResult(
         orderedStops: [recalculated],
-        startPointMessage: 'Route starts from $startPointLabel',
+        startPointMessage: isIntercityStart
+            ? 'Route starts from ${stop.name} (destination)'
+            : 'Route starts from $startPointLabel',
         totalDistanceKm: dist,
         totalTravelMinutes: travelMin,
       );
     }
 
     // ── STEP 1: Segment stops by fixed anchors ──
-    // Anchored items:
-    // - explicitly anchored (isAnchored == true or isPinned == true)
-    // - travel legs (type == 'travel')
-    // - meeting points
-    // - meal stops within lunch/dinner windows
     final segments = <_RouteSegment>[];
     var currentFreeStops = <ItineraryStop>[];
-    double prevAnchorLat = startLat;
-    double prevAnchorLng = startLng;
+    double prevAnchorLat = effectiveStartLat;
+    double prevAnchorLng = effectiveStartLng;
 
     for (int i = 0; i < stops.length; i++) {
       final stop = stops[i];
@@ -142,20 +171,21 @@ class RouteProximityOptimizer {
       stops: orderedAllStops,
       dayStartTime: dayStartTime,
       travelMode: travelMode,
-      startLat: startLat,
-      startLng: startLng,
+      startLat: effectiveStartLat,
+      startLng: effectiveStartLng,
     );
 
     // ── STEP 4: Time Slot & Duration Recalculation ──
     final timeAdjusted = _recalculateTimeSlots(
       stops: hoursAdjustedStops,
-      startLat: startLat,
-      startLng: startLng,
+      startLat: effectiveStartLat,
+      startLng: effectiveStartLng,
       travelMode: travelMode,
       pace: pace,
       travelers: travelers,
       dayStartTime: dayStartTime,
       dayEndTime: dayEndTime,
+      isIntercityStart: isIntercityStart,
     );
 
     // Calculate total route distance & travel time
@@ -178,7 +208,9 @@ class RouteProximityOptimizer {
 
     return RouteOptimizationResult(
       orderedStops: timeAdjusted.orderedStops,
-      startPointMessage: 'Route starts from $startPointLabel',
+      startPointMessage: isIntercityStart
+          ? 'Route starts from $effectiveStartLabel (destination)'
+          : 'Route starts from $startPointLabel',
       totalDistanceKm: double.parse(totalDist.toStringAsFixed(1)),
       totalTravelMinutes: totalTravel,
       hasDistanceWarning: isDistanceHigh,
@@ -336,6 +368,7 @@ class RouteProximityOptimizer {
     required TravelersModel travelers,
     required String dayStartTime,
     required String dayEndTime,
+    bool isIntercityStart = false,
   }) {
     final result = <ItineraryStop>[];
     final overflow = <ItineraryStop>[];
@@ -366,10 +399,21 @@ class RouteProximityOptimizer {
       if (stop.latitude != null && stop.longitude != null) {
         distKm = calculateDistanceKm(prevLat, prevLng, stop.latitude!, stop.longitude!);
       }
+
+      // If route starts at destination or distance to first stop is an intercity jump (>60km):
+      // The day's local itinerary starts at dayStartTime without 1000+ km travel eating local hours!
+      if (i == 0 && (isIntercityStart || distKm > 60.0)) {
+        distKm = 0.0;
+      }
+
       final travelMin = estimateTravelMinutes(distKm, travelMode);
 
-      // Advance clock by travel time
-      currentMinutes += travelMin;
+      // Advance clock by travel time (first stop starts directly at dayStartTime)
+      if (i == 0 && (isIntercityStart || distKm == 0.0)) {
+        currentMinutes = timeToMinutes(dayStartTime);
+      } else {
+        currentMinutes += travelMin;
+      }
 
       // Handle anchored stop fixed start time if later
       if (stop.isAnchored && stop.startTime.isNotEmpty) {
@@ -385,12 +429,18 @@ class RouteProximityOptimizer {
         dur = 90; // moderate duration for kids
       }
 
+      // Soft compress duration if time is tight to ensure at least 3-4 sightseeing stops fit
+      if (currentMinutes + dur > limitMinutes && result.length < 3) {
+        dur = (dur * 0.7).round().clamp(40, 90);
+      }
+
       final startStr = minutesToTime(currentMinutes);
       final stopEndMinutes = currentMinutes + dur;
       final endStr = minutesToTime(stopEndMinutes);
 
       // Check overflow past day end limit
-      if (currentMinutes >= limitMinutes && !isStopAnchored(stop) && i > 0) {
+      // Only drop stops if we already have at least 3 stops
+      if (currentMinutes >= limitMinutes && !isStopAnchored(stop) && i > 0 && result.length >= 3) {
         overflow.add(stop);
         continue;
       }

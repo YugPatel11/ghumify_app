@@ -142,22 +142,24 @@ class _LoginScreenState extends State<LoginScreen>
                   opacity: _fadeAnim,
                   child: SlideTransition(
                     position: _slideAnim,
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTokens.xl),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgElevated, // Solid premium white
-                        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 40,
-                            offset: const Offset(0, 20),
-                          )
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppTokens.xl),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgElevated, // Solid premium white
+                          borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
+                            )
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: AppTokens.sm),
                           // ── Branding ──
@@ -351,8 +353,9 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: AppTokens.xl),
 
                           // ── Sign up link ──
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Text(
                                 "Don't have an account? ",
@@ -379,9 +382,10 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
   }
 
   void _showForgotPasswordDialog() {

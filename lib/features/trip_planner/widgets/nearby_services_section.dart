@@ -401,8 +401,11 @@ class _NearbyServicesSectionState extends State<NearbyServicesSection> {
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
         children: [
           const Text(
             'SOS Dial:',

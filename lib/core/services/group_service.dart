@@ -1176,6 +1176,12 @@ class GroupService {
     final userData = userDoc.data() as Map<String, dynamic>?;
     final senderName = userData?['name'] ?? user.displayName ?? 'User';
 
+    final mapUrl =
+        'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+    final locationLabel = placeName ??
+        address ??
+        '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
+
     final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
     final message = GroupMessageModel(
       id: msgRef.id,
@@ -1183,19 +1189,20 @@ class GroupService {
       senderName: senderName,
       senderPhotoUrl: user.photoURL,
       type: 'location_pin',
-      content: '📍 Current Location: ${placeName ?? address ?? '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}'}',
+      content: '📍 Current Location: $locationLabel\n$mapUrl',
       metadata: {
         'latitude': latitude,
         'longitude': longitude,
         'address': address,
         'placeName': placeName,
+        'mapUrl': mapUrl,
       },
     );
 
     await msgRef.set(message.toFirestore());
 
     await _groupsRef.doc(groupId).update({
-      'lastMessageText': '📍 Shared location pin',
+      'lastMessageText': '📍 Shared location pin ($locationLabel)',
       'lastMessageSenderName': senderName,
       'lastMessageAt': Timestamp.fromDate(DateTime.now()),
       'updatedAt': Timestamp.fromDate(DateTime.now()),
@@ -1241,6 +1248,9 @@ class GroupService {
         _groupsRef.doc(groupId).collection('live_locations').doc(user.uid);
     await locRef.set(locationModel.toFirestore());
 
+    final mapUrl =
+        'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+
     // Send a live location share announcement card into chat
     final msgRef = _groupsRef.doc(groupId).collection('messages').doc();
     final message = GroupMessageModel(
@@ -1249,12 +1259,13 @@ class GroupService {
       senderName: userName,
       senderPhotoUrl: user.photoURL,
       type: 'live_location_share',
-      content: '📡 Started sharing live location (${duration.inMinutes}m)',
+      content: '📡 Started sharing live location (${duration.inMinutes}m)\n$mapUrl',
       metadata: {
         'durationMinutes': duration.inMinutes,
         'expiresAt': expiresAt.toIso8601String(),
         'latitude': latitude,
         'longitude': longitude,
+        'mapUrl': mapUrl,
       },
     );
 

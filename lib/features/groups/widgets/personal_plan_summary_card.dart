@@ -201,7 +201,9 @@ class _PersonalMemberCard extends StatelessWidget {
           ],
           if (primaryMp != null) ...[
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 InkWell(
                   onTap: () => _launchUrl(primaryMp.googleMapsUrl),
@@ -225,7 +227,6 @@ class _PersonalMemberCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: AppTokens.md),
                 InkWell(
                   onTap: () => _launchUrl(primaryMp.directionsUrl),
                   borderRadius: BorderRadius.circular(AppTokens.radiusPill),

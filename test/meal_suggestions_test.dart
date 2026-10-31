@@ -5,6 +5,7 @@ import 'package:ghumify_app/core/models/itinerary_model.dart';
 import 'package:ghumify_app/core/models/meal_suggestion_model.dart';
 import 'package:ghumify_app/core/models/travelers_model.dart';
 import 'package:ghumify_app/core/services/restaurant_service.dart';
+import 'package:ghumify_app/core/services/gemini_service.dart';
 
 void main() {
   group('MealConfig Tests', () {
@@ -362,6 +363,73 @@ void main() {
       expect(itinerary.mealSuggestions!.lunchAnchorName, 'City Palace');
       expect(itinerary.mealSuggestions!.lunchSuggestions.length, 1);
       expect(itinerary.mealSuggestions!.lunchSuggestions.first.name, 'Baradari Restaurant');
+    });
+  });
+
+  group('Restaurant Exclusion and Multi-Mirror Overpass Reliability', () {
+    test('GeminiService.isRestaurantStop correctly identifies food places and allows sightseeing', () {
+      final restaurantStop1 = ItineraryStop(
+        name: 'The Grand Thakar',
+        type: 'food',
+        startTime: '13:00',
+        endTime: '14:15',
+        durationMinutes: 75,
+      );
+      final restaurantStop2 = ItineraryStop(
+        name: 'Gopi Dining Hall',
+        type: 'place',
+        startTime: '13:00',
+        endTime: '14:00',
+        durationMinutes: 60,
+      );
+      final sightStop1 = ItineraryStop(
+        name: 'Amer Fort',
+        type: 'place',
+        startTime: '09:00',
+        endTime: '11:00',
+        durationMinutes: 120,
+      );
+      final sightStop2 = ItineraryStop(
+        name: 'Kaba Gandhi No Delo',
+        type: 'heritage',
+        startTime: '11:30',
+        endTime: '12:30',
+        durationMinutes: 60,
+      );
+
+      expect(GeminiService.isRestaurantStop(restaurantStop1), isTrue);
+      expect(GeminiService.isRestaurantStop(restaurantStop2), isTrue);
+      expect(GeminiService.isRestaurantStop(sightStop1), isFalse);
+      expect(GeminiService.isRestaurantStop(sightStop2), isFalse);
+    });
+
+    test('Overpass mirrors list has at least 3 distinct fault-tolerant endpoints', () {
+      expect(RestaurantService.overpassMirrors.length, greaterThanOrEqualTo(3));
+      expect(RestaurantService.overpassMirrors, contains('https://overpass.kumi.systems/api/interpreter'));
+      expect(RestaurantService.overpassMirrors, contains('https://overpass.private.coffee/api/interpreter'));
+      expect(RestaurantService.overpassMirrors, contains('https://overpass-api.de/api/interpreter'));
+    });
+
+    test('Focused restaurant query contains only amenity=restaurant', () {
+      final focusedQuery = RestaurantService.buildOverpassRestaurantQuery(
+        latitude: 22.3039,
+        longitude: 70.8022,
+        radiusMeters: 1000,
+        focused: true,
+      );
+      expect(focusedQuery, contains('node["amenity"="restaurant"]'));
+      expect(focusedQuery, isNot(contains('node["amenity"="cafe"]')));
+      expect(focusedQuery, isNot(contains('node["amenity"="fast_food"]')));
+
+      final broadQuery = RestaurantService.buildOverpassRestaurantQuery(
+        latitude: 22.3039,
+        longitude: 70.8022,
+        radiusMeters: 1000,
+        focused: false,
+      );
+      expect(broadQuery, contains('node["amenity"="restaurant"]'));
+      expect(broadQuery, contains('node["amenity"="cafe"]'));
+      expect(broadQuery, contains('node["amenity"="fast_food"]'));
     });
   });
 }

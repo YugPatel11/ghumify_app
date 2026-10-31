@@ -340,6 +340,7 @@ class ExpenseDetailSheet extends StatelessWidget {
     bool highlight = false,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 18, color: AppColors.textMuted),
         const SizedBox(width: 10),
@@ -350,13 +351,16 @@ class ExpenseDetailSheet extends StatelessWidget {
             color: AppColors.textMuted,
           ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
-            color: highlight ? AppColors.brand : AppColors.text,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
+              color: highlight ? AppColors.brand : AppColors.text,
+            ),
           ),
         ),
       ],

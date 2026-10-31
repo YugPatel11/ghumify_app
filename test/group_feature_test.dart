@@ -110,12 +110,13 @@ void main() {
         id: 'msg_loc',
         senderId: 'user_1',
         senderName: 'Aman',
-        content: '📍 Current location',
+        content: '📍 Current Location: India Gate, New Delhi\nhttps://www.google.com/maps/search/?api=1&query=28.6139,77.2090',
         type: 'location_pin',
         metadata: {
           'latitude': 28.6139,
           'longitude': 77.2090,
           'placeName': 'India Gate, New Delhi',
+          'mapUrl': 'https://www.google.com/maps/search/?api=1&query=28.6139,77.2090',
         },
       );
 
@@ -123,6 +124,28 @@ void main() {
       expect(msg.metadata?['latitude'], equals(28.6139));
       expect(msg.metadata?['longitude'], equals(77.2090));
       expect(msg.metadata?['placeName'], equals('India Gate, New Delhi'));
+      expect(msg.metadata?['mapUrl'], contains('maps/search/?api=1&query=28.6139,77.2090'));
+      expect(msg.content, contains('https://www.google.com/maps/search'));
+    });
+
+    test('Live location message stores duration and mapUrl', () {
+      final msg = GroupMessageModel(
+        id: 'msg_live',
+        senderId: 'user_1',
+        senderName: 'Aman',
+        content: '📡 Started sharing live location (60m)\nhttps://www.google.com/maps/search/?api=1&query=28.6139,77.2090',
+        type: 'live_location_share',
+        metadata: {
+          'durationMinutes': 60,
+          'latitude': 28.6139,
+          'longitude': 77.2090,
+          'mapUrl': 'https://www.google.com/maps/search/?api=1&query=28.6139,77.2090',
+        },
+      );
+
+      expect(msg.type, equals('live_location_share'));
+      expect(msg.metadata?['durationMinutes'], equals(60));
+      expect(msg.metadata?['mapUrl'], contains('query=28.6139,77.2090'));
     });
 
     test('Itinerary card message stores stop information', () {

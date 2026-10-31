@@ -53,6 +53,12 @@ class _GroupPlaceDetailSheetState extends State<GroupPlaceDetailSheet> {
       widget.stop['isKidFriendly'] == true || widget.stop['is_kid_friendly'] == true;
   List<dynamic> get _tips => (widget.stop['tips'] as List<dynamic>?) ?? [];
   String get _type => (widget.stop['type'] as String?)?.toUpperCase() ?? 'ATTRACTION';
+  double? get _rating {
+    final r = widget.stop['rating'];
+    if (r is num) return r.toDouble();
+    if (r is String) return double.tryParse(r);
+    return null;
+  }
 
   @override
   void initState() {
@@ -297,6 +303,8 @@ class _GroupPlaceDetailSheetState extends State<GroupPlaceDetailSheet> {
                     runSpacing: 8,
                     children: [
                       _buildInfoPill(Icons.place_rounded, widget.city, AppColors.brand),
+                      if (_rating != null)
+                        _buildInfoPill(Icons.star_rounded, '★ ${_rating!.toStringAsFixed(1)}', const Color(0xFFD97706)),
                       if (timing.isNotEmpty)
                         _buildInfoPill(Icons.schedule_rounded, timing, const Color(0xFF0284C7)),
                       if (widget.itineraryDate != null && widget.itineraryDate!.isNotEmpty)
@@ -741,16 +749,27 @@ class _GroupPlaceDetailSheetState extends State<GroupPlaceDetailSheet> {
             ),
           ),
           const SizedBox(height: 10),
-          if (_cost != null)
-            _buildGridRow(
-              Icons.payments_outlined,
-              'Estimated Cost / Ticket',
-              _cost.toString().startsWith('₹') ? _cost.toString() : '₹$_cost',
-            ),
-          if (_openingHours != null && _openingHours!.isNotEmpty)
-            _buildGridRow(Icons.access_time_rounded, 'Opening Hours', _openingHours!),
-          if (_bestTimeToVisit != null && _bestTimeToVisit!.isNotEmpty)
-            _buildGridRow(Icons.wb_sunny_outlined, 'Best Time to Visit', _bestTimeToVisit!),
+          _buildGridRow(
+            Icons.payments_outlined,
+            'Estimated Cost / Ticket',
+            _cost != null && _cost.toString().trim().isNotEmpty
+                ? (_cost.toString().startsWith('₹') ? _cost.toString() : '₹$_cost')
+                : 'Free entry or on-site',
+          ),
+          _buildGridRow(
+            Icons.access_time_rounded,
+            'Opening Hours',
+            _openingHours != null && _openingHours!.trim().isNotEmpty
+                ? _openingHours!
+                : 'Not available (Check local timings)',
+          ),
+          _buildGridRow(
+            Icons.wb_sunny_outlined,
+            'Best Time to Visit',
+            _bestTimeToVisit != null && _bestTimeToVisit!.trim().isNotEmpty
+                ? _bestTimeToVisit!
+                : 'Morning or late afternoon',
+          ),
         ],
       ),
     );

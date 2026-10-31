@@ -255,7 +255,28 @@ class _GroupChatTabState extends State<GroupChatTab> {
                 ),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  await provider.shareCurrentLocationPin(widget.groupId);
+                  try {
+                    await provider.shareCurrentLocationPin(widget.groupId);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📍 Location pin shared with group!'),
+                          backgroundColor: AppColors.brand,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not share location: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
 
@@ -283,10 +304,31 @@ class _GroupChatTabState extends State<GroupChatTab> {
                 ),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  await provider.startLiveLocationSharing(
-                    widget.groupId,
-                    duration: const Duration(hours: 1),
-                  );
+                  try {
+                    await provider.startLiveLocationSharing(
+                      widget.groupId,
+                      duration: const Duration(hours: 1),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📡 Live location sharing started!'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not start live location: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
 
@@ -512,7 +554,11 @@ class _MessageBubble extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on_rounded, size: 20, color: Colors.white),
+              Icon(
+                Icons.location_on_rounded,
+                size: 20,
+                color: isMe ? Colors.white : AppColors.brand,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -520,7 +566,7 @@ class _MessageBubble extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: isMe ? Colors.white : AppColors.text,
                   ),
                 ),
               ),
@@ -531,7 +577,7 @@ class _MessageBubble extends StatelessWidget {
             address != null ? '$address' : 'Coordinates: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
             style: GoogleFonts.outfit(
               fontSize: 12,
-              color: isMe ? Colors.white.withOpacity(0.9) : AppColors.text,
+              color: isMe ? Colors.white.withOpacity(0.9) : AppColors.textSoft,
             ),
           ),
           const SizedBox(height: 8),
@@ -576,7 +622,11 @@ class _MessageBubble extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.sensors_rounded, size: 20, color: Colors.white),
+              Icon(
+                Icons.sensors_rounded,
+                size: 20,
+                color: isMe ? Colors.white : AppColors.success,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -584,7 +634,7 @@ class _MessageBubble extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: isMe ? Colors.white : AppColors.text,
                   ),
                 ),
               ),
@@ -595,7 +645,7 @@ class _MessageBubble extends StatelessWidget {
             message.content,
             style: GoogleFonts.outfit(
               fontSize: 12,
-              color: isMe ? Colors.white.withOpacity(0.9) : AppColors.text,
+              color: isMe ? Colors.white.withOpacity(0.9) : AppColors.textSoft,
             ),
           ),
           const SizedBox(height: 8),
@@ -719,9 +769,22 @@ class _MessageBubble extends StatelessWidget {
   }
 
   Future<void> _openMaps(double lat, double lng) async {
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
+    try {
+      if (await canLaunchUrl(webUri)) {
+        final ok = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        if (ok) return;
+      }
+      if (await canLaunchUrl(geoUri)) {
+        final ok = await launchUrl(geoUri);
+        if (ok) return;
+      }
+      await launchUrl(webUri, mode: LaunchMode.platformDefault);
+    } catch (_) {
+      try {
+        await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      } catch (_) {}
     }
   }
 

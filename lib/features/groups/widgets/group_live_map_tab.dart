@@ -211,12 +211,16 @@ class _GroupLiveMapTabState extends State<GroupLiveMapTab> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                isSharing ? 'Sharing Live Location' : 'Location Sharing Inactive',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isSharing ? AppColors.success : AppColors.text,
+              Expanded(
+                child: Text(
+                  isSharing ? 'Sharing Live Location' : 'Location Sharing Inactive',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isSharing ? AppColors.success : AppColors.text,
+                  ),
                 ),
               ),
             ],
@@ -250,7 +254,36 @@ class _GroupLiveMapTabState extends State<GroupLiveMapTab> {
                         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                       ),
                     ),
-                    onPressed: () => groupProvider.stopLiveLocationSharing(widget.groupId),
+                    onPressed: () async {
+                      try {
+                        await groupProvider.stopLiveLocationSharing(widget.groupId);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Live location sharing stopped.',
+                                style: GoogleFonts.outfit(),
+                              ),
+                              backgroundColor: AppColors.cardAlt,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Could not stop sharing: $e',
+                                style: GoogleFonts.outfit(),
+                              ),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
                 )
               else ...[
@@ -273,36 +306,54 @@ class _GroupLiveMapTabState extends State<GroupLiveMapTab> {
                   ),
                 ),
                 const SizedBox(width: AppTokens.sm),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.pin_drop_rounded, size: 18),
-                  label: Text(
-                    'Send Pin',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.text,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.pin_drop_rounded, size: 18),
+                    label: Text(
+                      'Send Pin',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  onPressed: () async {
-                    await groupProvider.shareCurrentLocationPin(widget.groupId);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Location pin posted to group chat!',
-                            style: GoogleFonts.outfit(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.text,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                      ),
+                    ),
+                    onPressed: () async {
+                    try {
+                      await groupProvider.shareCurrentLocationPin(widget.groupId);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '📍 Location pin posted to group chat!',
+                              style: GoogleFonts.outfit(),
+                            ),
+                            backgroundColor: AppColors.brand,
+                            behavior: SnackBarBehavior.floating,
                           ),
-                          backgroundColor: AppColors.brand,
-                        ),
-                      );
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Could not share location pin: $e',
+                              style: GoogleFonts.outfit(),
+                            ),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
-              ],
+              ),
+            ],
             ],
           ),
         ],
@@ -341,34 +392,97 @@ class _GroupLiveMapTabState extends State<GroupLiveMapTab> {
               _buildDurationTile(
                 title: '15 Minutes',
                 subtitle: 'Quick meetup or heading to a nearby attraction',
-                onTap: () {
+                onTap: () async {
                   Navigator.of(context).pop();
-                  groupProvider.startLiveLocationSharing(
-                    widget.groupId,
-                    duration: const Duration(minutes: 15),
-                  );
+                  try {
+                    await groupProvider.startLiveLocationSharing(
+                      widget.groupId,
+                      duration: const Duration(minutes: 15),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📡 Live location sharing started (15m)!'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not start live sharing: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
               _buildDurationTile(
                 title: '1 Hour',
                 subtitle: 'Exploring a neighborhood or market together',
-                onTap: () {
+                onTap: () async {
                   Navigator.of(context).pop();
-                  groupProvider.startLiveLocationSharing(
-                    widget.groupId,
-                    duration: const Duration(hours: 1),
-                  );
+                  try {
+                    await groupProvider.startLiveLocationSharing(
+                      widget.groupId,
+                      duration: const Duration(hours: 1),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📡 Live location sharing started (1 hour)!'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not start live sharing: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
               _buildDurationTile(
                 title: '8 Hours',
                 subtitle: 'Full day sightseeing tour with the group',
-                onTap: () {
+                onTap: () async {
                   Navigator.of(context).pop();
-                  groupProvider.startLiveLocationSharing(
-                    widget.groupId,
-                    duration: const Duration(hours: 8),
-                  );
+                  try {
+                    await groupProvider.startLiveLocationSharing(
+                      widget.groupId,
+                      duration: const Duration(hours: 8),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('📡 Live location sharing started (8 hours)!'),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Could not start live sharing: $e'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
               const SizedBox(height: AppTokens.md),
@@ -391,22 +505,25 @@ class _GroupLiveMapTabState extends State<GroupLiveMapTab> {
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: AppColors.border, width: 0.5),
       ),
-      child: ListTile(
-        leading: const Icon(Icons.timer_outlined, color: AppColors.brand),
-        title: Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          leading: const Icon(Icons.timer_outlined, color: AppColors.brand),
+          title: Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
           ),
+          subtitle: Text(
+            subtitle,
+            style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textMuted),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+          onTap: onTap,
         ),
-        subtitle: Text(
-          subtitle,
-          style: GoogleFonts.outfit(fontSize: 12, color: AppColors.textMuted),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
-        onTap: onTap,
       ),
     );
   }
@@ -481,12 +598,16 @@ class _MemberLocationCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      location.userName,
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
+                    Flexible(
+                      child: Text(
+                        location.userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
                       ),
                     ),
                     if (isMe) ...[

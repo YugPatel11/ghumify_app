@@ -123,22 +123,24 @@ class _SignupScreenState extends State<SignupScreen>
                   opacity: _fadeAnim,
                   child: SlideTransition(
                     position: _slideAnim,
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTokens.xl),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgElevated,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 40,
-                            offset: const Offset(0, 20),
-                          )
-                        ],
-                      ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppTokens.xl),
+                        decoration: BoxDecoration(
+                          color: AppColors.bgElevated,
+                          borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
+                            )
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               const SizedBox(height: AppTokens.sm),
                               // ── Branding ──
@@ -267,8 +269,9 @@ class _SignupScreenState extends State<SignupScreen>
                               const SizedBox(height: AppTokens.xl),
 
                               // ── Login link ──
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     'Already have an account? ',
@@ -288,16 +291,17 @@ class _SignupScreenState extends State<SignupScreen>
                               ),
                               const SizedBox(height: AppTokens.xs),
                             ],
-                          ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 }
 

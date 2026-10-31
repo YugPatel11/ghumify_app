@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_tokens.dart';
 import '../../../core/models/itinerary_model.dart';
 import '../../../core/services/place_media_service.dart';
+import '../../groups/widgets/group_place_detail_sheet.dart';
 
 /// Compact, editorial itinerary stop card matching the reference design.
 ///
@@ -52,11 +53,32 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
   bool _hasAttemptedFetch = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadGalleryPhotos();
+  }
+
+  @override
   void didUpdateWidget(covariant ItineraryStopCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isExpanded && !oldWidget.isExpanded && !_hasAttemptedFetch) {
+    if (widget.stop.name != oldWidget.stop.name) {
+      _hasAttemptedFetch = false;
+      _loadGalleryPhotos();
+    } else if (widget.isExpanded && !oldWidget.isExpanded && !_hasAttemptedFetch) {
       _loadGalleryPhotos();
     }
+  }
+
+  void _openPlaceDetailSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => GroupPlaceDetailSheet(
+        stop: widget.stop.toMap(),
+        city: widget.cityName ?? 'Trip',
+      ),
+    );
   }
 
   Future<void> _loadGalleryPhotos() async {
@@ -600,6 +622,25 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
 
           const SizedBox(height: 14),
 
+          // View Place Details Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.info_outline_rounded, size: 14, color: AppColors.brand),
+              label: Text(
+                'View All Place Details & Photos',
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand),
+              ),
+              onPressed: _openPlaceDetailSheet,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.brand, width: 0.8),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
           // 6. Action Buttons: Google Maps, Directions, Pin & Actions
           Row(
             children: [
@@ -660,22 +701,24 @@ class _ItineraryStopCardState extends State<ItineraryStopCard> {
   Widget _buildPracticalDetailsGrid(ItineraryStop stop) {
     final details = <Widget>[];
 
-    if (stop.openingHours != null && stop.openingHours!.isNotEmpty) {
-      details.add(_buildDetailRow(Icons.access_time_rounded, 'Hours', stop.openingHours!));
-    }
-    if (stop.ticketPrice != null && stop.ticketPrice!.isNotEmpty) {
-      details.add(_buildDetailRow(Icons.confirmation_number_outlined, 'Tickets', stop.ticketPrice!));
-    } else if (stop.estimatedCost != null && stop.estimatedCost! > 0) {
-      details.add(_buildDetailRow(Icons.currency_rupee_rounded, 'Cost', '₹${stop.estimatedCost}'));
-    }
-    if (stop.bestTimeToVisit != null && stop.bestTimeToVisit!.isNotEmpty) {
+    final costStr = stop.ticketPrice != null && stop.ticketPrice!.trim().isNotEmpty
+        ? stop.ticketPrice!
+        : (stop.estimatedCost != null && stop.estimatedCost! > 0
+            ? '₹${stop.estimatedCost}'
+            : 'Free entry or on-site');
+    details.add(_buildDetailRow(Icons.currency_rupee_rounded, 'Cost', costStr));
+
+    final hoursStr = stop.openingHours != null && stop.openingHours!.trim().isNotEmpty
+        ? stop.openingHours!
+        : 'Not available (check locally)';
+    details.add(_buildDetailRow(Icons.access_time_rounded, 'Hours', hoursStr));
+
+    if (stop.bestTimeToVisit != null && stop.bestTimeToVisit!.trim().isNotEmpty) {
       details.add(_buildDetailRow(Icons.wb_sunny_outlined, 'Best Time', stop.bestTimeToVisit!));
     }
-    if (stop.childTicketInfo != null && stop.childTicketInfo!.isNotEmpty) {
+    if (stop.childTicketInfo != null && stop.childTicketInfo!.trim().isNotEmpty) {
       details.add(_buildDetailRow(Icons.escalator_warning_rounded, 'Kids', stop.childTicketInfo!));
     }
-
-    if (details.isEmpty) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(10),

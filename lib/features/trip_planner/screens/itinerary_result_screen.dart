@@ -8,6 +8,7 @@ import '../../../app/theme/app_tokens.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/food_preferences.dart';
 import '../../../core/services/gemini_service.dart';
+import '../../../core/services/local_chat/itinerary_editor.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../core/services/places_service.dart';
 import '../../../core/models/itinerary_model.dart';
@@ -66,8 +67,6 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   String? _dinnerAnchorName;
   DateTime? _lunchLastUpdated;
   DateTime? _dinnerLastUpdated;
-  String? _addedLunchRestaurantName;
-  String? _addedDinnerRestaurantName;
 
   @override
   void initState() {
@@ -166,6 +165,13 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
       );
 
       setState(() => _loadingMessage = 'Optimizing route by proximity...');
+      ItineraryStop? refCoordStop;
+      for (final s in itinerary.stops) {
+        if (s.latitude != null && s.longitude != null) {
+          refCoordStop = s;
+          break;
+        }
+      }
       final startPoint = await _locationService.resolveStartPoint(
         city: city,
         userPickedLat: data['startLatitude'] as double?,
@@ -174,6 +180,8 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         hotelLat: data['hotelLatitude'] as double?,
         hotelLng: data['hotelLongitude'] as double?,
         hotelLabel: data['hotelName'] as String?,
+        cityCenterLat: refCoordStop?.latitude ?? (data['latitude'] as double?),
+        cityCenterLng: refCoordStop?.longitude ?? (data['longitude'] as double?),
       );
 
       final optResult = RouteProximityOptimizer.optimizeStopsProximity(
@@ -213,15 +221,16 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   void _initMealSuggestionsFromItinerary() {
     if (_itinerary == null) return;
 
-    // Detect if existing stops already match meal windows or food types
-    for (final stop in _itinerary!.stops) {
-      if (stop.type == 'food') {
-        if (MealConfig.isWithinLunchWindow(stop.startTime)) {
-          _addedLunchRestaurantName = stop.name;
-        } else if (MealConfig.isWithinDinnerWindow(stop.startTime)) {
-          _addedDinnerRestaurantName = stop.name;
-        }
-      }
+    // Filter out any restaurant/food stops so stops list contains strictly sightseeing places
+    final cleanedStops = _itinerary!.stops.where((s) => !GeminiService.isRestaurantStop(s)).toList();
+    if (cleanedStops.length != _itinerary!.stops.length) {
+      final resequenced = ItineraryEditor.resequenceStops(
+        stops: cleanedStops,
+        dayStartTime: _itinerary!.startTime,
+        dayEndTime: _itinerary!.endTime,
+        travelMode: _itinerary!.travelMode,
+      ) ?? cleanedStops;
+      _itinerary = _itinerary!.copyWith(stops: resequenced);
     }
 
     if (_itinerary!.mealSuggestions != null && _itinerary!.mealSuggestions!.isNotEmpty) {
@@ -296,7 +305,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         if (mounted) {
           setState(() {
             _isLoadingLunch = false;
-            _lunchError = 'Could not load lunch suggestions: $e';
+            _lunchError = 'Could not load lunch suggestions. Please check your connection and tap Retry.';
           });
         }
       }
@@ -320,6 +329,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
             travelers: _itinerary!.travelersModel,
             anchorStopName: dinnerAnchor.name,
             forceRefresh: force,
+            excludeNames: _lunchSuggestions.map((s) => s.name),
           );
           if (mounted) {
             setState(() {
@@ -340,7 +350,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
         if (mounted) {
           setState(() {
             _isLoadingDinner = false;
-            _dinnerError = 'Could not load dinner suggestions: $e';
+            _dinnerError = 'Could not load dinner suggestions. Please check your connection and tap Retry.';
           });
         }
       }
@@ -362,120 +372,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
     }
   }
 
-  void _onAddMealToItinerary(MealSuggestionModel restaurant, String mealType) {
-    if (_itinerary == null) return;
-    final isLunch = mealType == MealConfig.lunch;
-    final hasMinors = _itinerary!.isFamilyFriendly;
-    final targetStartTime = isLunch
-        ? MealConfig.lunchDefaultTime
-        : (hasMinors ? MealConfig.dinnerEarlyDefaultTime : MealConfig.dinnerDefaultTime);
-    final duration = isLunch
-        ? MealConfig.lunchDefaultDurationMinutes
-        : MealConfig.dinnerDefaultDurationMinutes;
-    final targetEndTime = MealConfig.minutesToTime(
-        MealConfig.timeToMinutes(targetStartTime) + duration);
 
-    final newMealStop = ItineraryStop(
-      name: restaurant.name,
-      type: 'food',
-      startTime: targetStartTime,
-      endTime: targetEndTime,
-      durationMinutes: duration,
-      latitude: restaurant.latitude,
-      longitude: restaurant.longitude,
-      dietaryType: restaurant.dietaryType,
-      description: '${restaurant.cuisine} • ${restaurant.suggestedReason}',
-      tips: [
-        if (restaurant.openingHours != null) 'Hours: ${restaurant.openingHours}',
-        'Please check opening hours and menu before visiting.',
-        if (_itinerary!.foodPreference == FoodPreference.jain)
-          'Please confirm Jain preparation with the restaurant.',
-      ],
-      isKidFriendly: restaurant.isKidFriendly,
-    );
-
-    final currentStops = List<ItineraryStop>.from(_itinerary!.stops);
-    int existingIdx = -1;
-    for (int i = 0; i < currentStops.length; i++) {
-      final s = currentStops[i];
-      final inWindow = isLunch
-          ? MealConfig.isWithinLunchWindow(s.startTime)
-          : MealConfig.isWithinDinnerWindow(s.startTime);
-      if (inWindow &&
-          (s.type == 'food' ||
-              s.name == restaurant.name ||
-              (isLunch && s.name == _addedLunchRestaurantName) ||
-              (!isLunch && s.name == _addedDinnerRestaurantName))) {
-        existingIdx = i;
-        break;
-      }
-    }
-
-    if (existingIdx >= 0) {
-      currentStops[existingIdx] = newMealStop;
-    } else {
-      final targetMins = MealConfig.timeToMinutes(targetStartTime);
-      int insertIdx = currentStops.length;
-      for (int i = 0; i < currentStops.length; i++) {
-        if (MealConfig.timeToMinutes(currentStops[i].startTime) > targetMins) {
-          insertIdx = i;
-          break;
-        }
-      }
-      currentStops.insert(insertIdx, newMealStop);
-    }
-
-    setState(() {
-      if (isLunch) {
-        _addedLunchRestaurantName = restaurant.name;
-      } else {
-        _addedDinnerRestaurantName = restaurant.name;
-      }
-      _itinerary = _itinerary!.copyWith(stops: currentStops);
-    });
-
-    _syncItineraryIfSaved();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added "${restaurant.name}" to itinerary!'),
-        backgroundColor: AppColors.brand,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Undo',
-          textColor: Colors.white,
-          onPressed: () => _onRemoveMealFromItinerary(mealType),
-        ),
-      ),
-    );
-  }
-
-  void _onRemoveMealFromItinerary(String mealType) {
-    if (_itinerary == null) return;
-    final isLunch = mealType == MealConfig.lunch;
-    final targetName = isLunch ? _addedLunchRestaurantName : _addedDinnerRestaurantName;
-    if (targetName == null) return;
-
-    final currentStops = List<ItineraryStop>.from(_itinerary!.stops);
-    currentStops.removeWhere((s) =>
-        s.name == targetName ||
-        (s.type == 'food' &&
-            (isLunch
-                ? MealConfig.isWithinLunchWindow(s.startTime)
-                : MealConfig.isWithinDinnerWindow(s.startTime))));
-
-    setState(() {
-      if (isLunch) {
-        _addedLunchRestaurantName = null;
-      } else {
-        _addedDinnerRestaurantName = null;
-      }
-      _itinerary = _itinerary!.copyWith(stops: currentStops);
-    });
-
-    _syncItineraryIfSaved();
-  }
 
   Future<void> _syncItineraryIfSaved() async {
     if (_itinerary != null && _itinerary!.isSaved) {
@@ -498,11 +395,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
       foodPreference: itinerary.foodPreference,
       isSavedMode: itinerary.isSaved,
       lastUpdated: _lunchLastUpdated,
-      isAddedToItinerary: _addedLunchRestaurantName != null,
-      addedRestaurantName: _addedLunchRestaurantName,
       onRefresh: () => _fetchMealSuggestions(force: true, mealType: MealConfig.lunch),
-      onAddToItinerary: (restaurant) => _onAddMealToItinerary(restaurant, MealConfig.lunch),
-      onRemoveFromItinerary: () => _onRemoveMealFromItinerary(MealConfig.lunch),
     );
   }
 
@@ -516,11 +409,7 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
       foodPreference: itinerary.foodPreference,
       isSavedMode: itinerary.isSaved,
       lastUpdated: _dinnerLastUpdated,
-      isAddedToItinerary: _addedDinnerRestaurantName != null,
-      addedRestaurantName: _addedDinnerRestaurantName,
       onRefresh: () => _fetchMealSuggestions(force: true, mealType: MealConfig.dinner),
-      onAddToItinerary: (restaurant) => _onAddMealToItinerary(restaurant, MealConfig.dinner),
-      onRemoveFromItinerary: () => _onRemoveMealFromItinerary(MealConfig.dinner),
     );
   }
 
@@ -1546,8 +1435,17 @@ class _ItineraryResultScreenState extends State<ItineraryResultScreen>
   Future<void> _reorderByNearest() async {
     if (_itinerary == null || _itinerary!.stops.isEmpty) return;
 
+    ItineraryStop? refCoordStop;
+    for (final s in _itinerary!.stops) {
+      if (s.latitude != null && s.longitude != null) {
+        refCoordStop = s;
+        break;
+      }
+    }
     final startPoint = await _locationService.resolveStartPoint(
       city: _itinerary!.city,
+      cityCenterLat: refCoordStop?.latitude,
+      cityCenterLng: refCoordStop?.longitude,
     );
 
     final optResult = RouteProximityOptimizer.optimizeStopsProximity(

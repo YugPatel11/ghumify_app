@@ -15,6 +15,7 @@ import '../models/multi_city_trip_model.dart';
 import 'family_travel_service.dart';
 import '../constants/api_keys.dart';
 import 'local_chat/local_chat_assistant.dart';
+import 'local_chat/itinerary_editor.dart';
 import 'places_service.dart';
 
 /// Service for generating AI-powered itineraries and handling chat using Google Gemini.
@@ -25,6 +26,22 @@ class GeminiService {
   final GeminiRestClient _client = GeminiRestClient();
 
   GeminiService();
+
+  /// Check if an itinerary stop is a restaurant or food place
+  static bool isRestaurantStop(ItineraryStop stop) {
+    final typeLower = stop.type.toLowerCase().trim();
+    if (typeLower == 'food' || typeLower == 'restaurant') return true;
+    final nameLower = stop.name.toLowerCase().trim();
+    const markers = [
+      'restaurant', 'cafe', 'café', 'bhojanalaya', 'bhojnalaya',
+      'dhaba', 'dining', 'food court', 'thali', 'bistro', 'bakery',
+      'lunch at', 'dinner at', 'breakfast at',
+    ];
+    for (final m in markers) {
+      if (nameLower.contains(m)) return true;
+    }
+    return false;
+  }
 
   // ═══════════════════════════════════════════════════════
   // SINGLE-DAY ITINERARY
@@ -770,11 +787,11 @@ $dietaryDirective
 RULES:
 1. Create a sequential, time-boxed itinerary from $startTime to $endTime.
 2. Include travel time between stops (realistic for $travelMode in $city).
-3. Include famous tourist places, local food spots, and markets based on interests and food preference.
+3. Include famous tourist attractions, heritage sites, viewpoints, and markets based on interests. Provide 4 to 6 distinct sightseeing/activity stops for a full day plan (or 3 to 5 for relaxed pace), properly distributed across morning, afternoon, and evening. Never generate only 1 or 2 stops for a full day. DO NOT include restaurants, food places, or dining stops in the stops list (meal suggestions are displayed in separate suggestion cards).
 4. Account for opening hours of places.
 5. Add tips for each stop (best photo spots, must-try items, cultural etiquette).
 6. Suggest what to carry based on weather and place types.
-7. For any food stop or meal break, strictly adhere to the Food Preference ($foodPreference). Set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
+7. Strictly do NOT add restaurants or food stops as itinerary stops. Meal suggestions appear in separate cards.
 8. For family trips (with children/minors), ensure "isKidFriendly" is accurately indicated (true/false), and provide "ageRangeRecommendation" ("All ages", "Ages 3-5", etc.), "strollerAccess" ("yes", "no", "partial"), and "childTicketInfo" ("Free under 5", "Please check on arrival", etc.). Never invent ticket prices or rules.
 9. For each stop, provide a "shortLabel" (60 to 80 chars for scannable collapsed view) and a "briefDescription" (200 to 300 chars for expanded view). Keep tips to maximum 2 tips, each under 100 characters.
 10. Give the full itinerary as JSON in this EXACT format:
@@ -784,7 +801,7 @@ RULES:
   "stops": [
     {
       "name": "Place Name",
-      "type": "place|food|market|travel|break",
+      "type": "sightseeing|activity|attraction|market|heritage",
       "startTime": "HH:MM",
       "endTime": "HH:MM",
       "durationMinutes": 90,
@@ -796,7 +813,7 @@ RULES:
       "openingHours": "09:00 - 18:00",
       "ticketPrice": "₹50 per person",
       "bestTimeToVisit": "Morning or Sunset",
-      "dietaryType": "veg",
+      "dietaryType": "all",
       "isKidFriendly": true,
       "ageRangeRecommendation": "All ages",
       "strollerAccess": "yes",
@@ -819,9 +836,9 @@ RULES:
 }
 
 IMPORTANT:
-- Use REAL places, REAL coordinates, and REAL food items famous in $city.
+- Use REAL places, REAL coordinates in $city.
 - Do NOT invent fictional places.
-- Include at least one local food recommendation conforming to the dietary requirement.
+- Do NOT include restaurants or food stops as itinerary stops.
 - Travel time between stops should be realistic.
 - Output ONLY valid JSON, no markdown formatting, no code blocks.
 ''';
@@ -920,14 +937,14 @@ MULTI-DAY PLANNING RULES:
 1. Distribute places intelligently across $numberOfDays days — do NOT dump everything in Day 1.
 2. Group nearby attractions together on the same day to minimize travel.
 3. Avoid unnecessary backtracking — plan a logical geographic flow each day.
-4. Each day should have a clear theme or area focus (e.g., "Day 1: Old City Heritage", "Day 2: Markets & Street Food").
+4. Each day should have a clear theme or area focus (e.g., "Day 1: Old City Heritage", "Day 2: Markets & Viewpoints").
 5. Include realistic travel time between stops for $travelMode.
-6. Include meal breaks (lunch + snack) each day at local food spots matching the food preference ($foodPreference).
+6. DO NOT include restaurants, cafes, or food stops as itinerary stops. Stops must contain ONLY sightseeing/activities/attractions. Meal suggestions are handled separately.
 7. Account for opening hours — temples may close at noon, markets open late.
 8. Pace: $paceDesc. Keep a reasonable number of stops per day.
 9. Include practical tips for each stop.
 10. Save the best sunset/evening activity for the end of each day.
-11. For any food stop or meal break, set "dietaryType" to one of: "veg", "veg_egg", "jain", "non_veg", "all".
+11. Strictly do NOT add restaurants or food places to stops.
 12. For family trips (with children/minors), ensure "isKidFriendly" is accurately set, and provide "ageRangeRecommendation", "strollerAccess", and "childTicketInfo". Never invent ticket prices or rules.
 13. For each stop, provide a "shortLabel" (60 to 80 chars for scannable collapsed view) and a "briefDescription" (200 to 300 chars for expanded view). Keep tips to maximum 2 tips, each under 100 characters.
 
@@ -959,7 +976,7 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
       "stops": [
         {
           "name": "Place Name",
-          "type": "place|food|market|travel|break",
+          "type": "sightseeing|activity|attraction|market|heritage",
           "startTime": "HH:MM",
           "endTime": "HH:MM",
           "durationMinutes": 90,
@@ -971,7 +988,7 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
           "openingHours": "09:00 - 18:00",
           "ticketPrice": "₹50 per person",
           "bestTimeToVisit": "Morning or Sunset",
-          "dietaryType": "veg",
+          "dietaryType": "all",
           "isKidFriendly": true,
           "ageRangeRecommendation": "All ages",
           "strollerAccess": "yes",
@@ -987,10 +1004,10 @@ OUTPUT FORMAT (ONLY valid JSON, no markdown, no code blocks):
 }
 
 IMPORTANT:
-- Use REAL places, REAL coordinates, and REAL food items famous in $city.
+- Use REAL places, REAL coordinates in $city.
 - Do NOT invent fictional places.
 - Each day MUST have unique stops — do NOT repeat places across days.
-- Include at least one local food recommendation per day matching the dietary requirement.
+- Do NOT include restaurants or food places as itinerary stops.
 - Output ONLY valid JSON.
 ''';
   }
@@ -1122,6 +1139,17 @@ CRITICAL INSTRUCTIONS:
         return _validateAndEnrichStop(stop, foodPreference);
       }).toList();
 
+      // Filter out any restaurant or food stops so stops list contains strictly sightseeing/activities
+      final nonFoodStops = initialStops.where((s) => !isRestaurantStop(s)).toList();
+      final stopsToProcess = nonFoodStops.length != initialStops.length
+          ? (ItineraryEditor.resequenceStops(
+                stops: nonFoodStops,
+                dayStartTime: startTime,
+                dayEndTime: endTime,
+                travelMode: travelMode,
+              ) ?? nonFoodStops)
+          : nonFoodStops;
+
       final activeTravelers = travelersData ??
           TravelersModel(
             adults: travelers ?? 1,
@@ -1130,7 +1158,7 @@ CRITICAL INSTRUCTIONS:
 
       // Post-response validation: Kid-friendly enforcement, pace, and banned keyword removal
       final stops = FamilyTravelService.validateAndEnrichStops(
-        initialStops,
+        stopsToProcess,
         activeTravelers,
       );
 
@@ -1230,9 +1258,20 @@ CRITICAL INSTRUCTIONS:
           return _validateAndEnrichStop(stop, foodPreference);
         }).toList();
 
+        // Filter out any restaurant or food stops for each day
+        final nonFoodStops = initialStops.where((s) => !isRestaurantStop(s)).toList();
+        final stopsToProcess = nonFoodStops.length != initialStops.length
+            ? (ItineraryEditor.resequenceStops(
+                  stops: nonFoodStops,
+                  dayStartTime: dailyStartTime,
+                  dayEndTime: dailyEndTime,
+                  travelMode: travelMode,
+                ) ?? nonFoodStops)
+            : nonFoodStops;
+
         // Post-response validation for each day
         final stops = FamilyTravelService.validateAndEnrichStops(
-          initialStops,
+          stopsToProcess,
           activeTravelers,
         );
 
@@ -1591,31 +1630,8 @@ CRITICAL INSTRUCTIONS:
     final rawStops = <ItineraryStop>[];
     int currentMin = startMin;
     int candidateIdx = 0;
-    bool hadLunch = false;
 
     while (currentMin + 60 <= endMin && candidateIdx < candidates.length) {
-      if (!hadLunch && (currentMin >= 12 * 60 + 30 || currentMin >= startMin + 180)) {
-        final lunchEnd = currentMin + 60;
-        rawStops.add(ItineraryStop(
-          placeId: 'offline_lunch_${rawStops.length + 1}',
-          name: 'Lunch at $city Heritage Dining',
-          type: 'food',
-          startTime: _minutesToTimeString(currentMin),
-          endTime: _minutesToTimeString(lunchEnd),
-          durationMinutes: 60,
-          description: 'Authentic local cuisine featuring regional specialties.',
-          dietaryType: foodPreference,
-          isKidFriendly: true,
-          estimatedCost: 350 * effectiveTravelers.totalCount,
-          tips: ['Try the signature local specialty', 'Ask for non-spicy options for kids'],
-          estimatedCrowdLevel: 'moderate',
-          crowdConfidence: 'high',
-          crowdReason: 'Standard lunch hour peak',
-        ));
-        hadLunch = true;
-        currentMin = lunchEnd + travelGap;
-        continue;
-      }
 
       final c = candidates[candidateIdx++];
       final stopEnd = currentMin + visitDuration;

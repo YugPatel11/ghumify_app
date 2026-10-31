@@ -6,43 +6,83 @@ import '../models/place_media_model.dart';
 /// Uses the free Wikimedia Commons API.
 class PlaceMediaService {
   static const String _wikimediaApiUrl = 'https://commons.wikimedia.org/w/api.php';
+  static final Map<String, PlaceMediaModel> _cache = {};
 
   /// Fetches media (images and an optional video intent URL) for a given place.
   /// [placeName] e.g., 'Hawa Mahal', 'City Palace Udaipur'
   Future<PlaceMediaModel> fetchMediaForPlace(String placeName, {String? city}) async {
+    final cacheKey = '${placeName.toLowerCase().trim()}_${city?.toLowerCase().trim() ?? ''}';
+    if (_cache.containsKey(cacheKey)) {
+      return _cache[cacheKey]!;
+    }
+
+    // Clean prefix artifacts like 'Visit ', 'Explore ', 'Breakfast at ', 'Stop 1: '
+    String cleanName = placeName
+        .replaceAll(
+            RegExp(r'^(visit|explore|tour|breakfast at|lunch at|dinner at|stop\s*\d+:?)\s+',
+                caseSensitive: false),
+            '')
+        .replaceAll(RegExp(r'\s*\([^)]*\)$'), '')
+        .trim();
+    if (cleanName.isEmpty) cleanName = placeName.trim();
+
     try {
-      final query = city != null && !placeName.toLowerCase().contains(city.toLowerCase())
-          ? '$placeName $city'
-          : placeName;
+      // Primary query with city
+      final query = city != null && !cleanName.toLowerCase().contains(city.toLowerCase())
+          ? '$cleanName $city'
+          : cleanName;
 
-      // Ensure we don't query empty strings
-      if (query.trim().isEmpty) return PlaceMediaModel.empty(placeName);
+      List<String> images = await _searchWikimedia(query);
 
-      // Wikimedia API parameters to search for images
+      // Fallback 1: try just the cleaned place name without city
+      if (images.isEmpty && city != null) {
+        images = await _searchWikimedia(cleanName);
+      }
+
+      final videoUrl =
+          'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$query tour')}';
+
+      final model = PlaceMediaModel(
+        placeName: placeName,
+        images: images,
+        videoUrl: images.isNotEmpty ? videoUrl : null,
+        source: 'wikimedia',
+      );
+
+      _cache[cacheKey] = model;
+      return model;
+    } catch (_) {
+      // Return empty gracefully on network or parsing error
+    }
+
+    return PlaceMediaModel.empty(placeName);
+  }
+
+  Future<List<String>> _searchWikimedia(String searchTerm) async {
+    if (searchTerm.trim().isEmpty) return [];
+
+    try {
       final Uri url = Uri.parse(_wikimediaApiUrl).replace(queryParameters: {
         'action': 'query',
         'generator': 'search',
-        'gsrsearch': '$query filetype:bitmap',
-        'gsrnamespace': '6', // File namespace
-        'gsrlimit': '5',     // Fetch up to 5 images
+        'gsrsearch': '$searchTerm filetype:bitmap',
+        'gsrnamespace': '6',
+        'gsrlimit': '6',
         'prop': 'imageinfo',
         'iiprop': 'url',
         'format': 'json',
       });
 
-
       final response = await http.get(
         url,
         headers: {'User-Agent': 'GhumifyApp/1.0 (contact@ghumify.com)'},
-      ).timeout(const Duration(seconds: 10));
-      
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final pages = data['query']?['pages'] as Map<String, dynamic>?;
 
-        List<String> images = [];
-
+        final List<String> images = [];
         if (pages != null) {
           pages.forEach((key, value) {
             final imageInfo = value['imageinfo'] as List<dynamic>?;
@@ -50,34 +90,20 @@ class PlaceMediaService {
               final urlStr = imageInfo[0]['url'] as String?;
               if (urlStr != null) {
                 final path = Uri.parse(urlStr).path.toLowerCase();
-                if (path.endsWith('.jpg') || 
-                    path.endsWith('.jpeg') || 
-                    path.endsWith('.png')) {
+                if (path.endsWith('.jpg') ||
+                    path.endsWith('.jpeg') ||
+                    path.endsWith('.png') ||
+                    path.endsWith('.webp')) {
                   images.add(urlStr);
                 }
               }
             }
           });
         }
-        
-
-        // We use an intent URL for videos as they are robust and high quality
-        // without requiring an embedded player or API key for YouTube Data API.
-        final videoUrl = 'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$query tour')}';
-
-
-        return PlaceMediaModel(
-          placeName: placeName,
-          images: images,
-          videoUrl: images.isNotEmpty ? videoUrl : null, // Only show video if it's a valid place with images
-          source: 'wikimedia',
-        );
-      } else {
+        return images;
       }
-    } catch (e) {
-      // Return empty gracefully on network or parsing error
-    }
+    } catch (_) {}
 
-    return PlaceMediaModel.empty(placeName);
+    return [];
   }
 }

@@ -59,8 +59,8 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
     return Scaffold(
       backgroundColor: AppColors.bg,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
+        onPressed: () async {
+          await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => AddExpenseScreen(
                 groupId: widget.groupId,
@@ -69,6 +69,7 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
               ),
             ),
           );
+          if (mounted) setState(() {});
         },
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
@@ -88,11 +89,60 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
             );
           }
 
+          if (expenseSnapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppTokens.lg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        color: AppColors.error, size: 48),
+                    const SizedBox(height: AppTokens.md),
+                    Text(
+                      'Failed to load expenses',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.xs),
+                    Text(
+                      '${expenseSnapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           final allExpenses = expenseSnapshot.data ?? [];
 
           return StreamBuilder<List<SettlementModel>>(
             stream: _expenseService.streamSettlements(widget.groupId),
             builder: (context, settlementSnapshot) {
+              if (settlementSnapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTokens.lg),
+                    child: Text(
+                      'Failed to load settlements: ${settlementSnapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
               final allSettlements = settlementSnapshot.data ?? [];
 
               // Calculate core balances and settle-up transfers
@@ -276,23 +326,21 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header row with Balance Status Badge
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              Expanded(
-                child: Text(
-                  'YOUR EXPENSE BALANCE',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMuted,
-                    letterSpacing: 1.0,
-                  ),
+              Text(
+                'YOUR EXPENSE BALANCE',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted,
+                  letterSpacing: 1.0,
                 ),
               ),
-              const SizedBox(width: AppTokens.xs),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -567,42 +615,44 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
                             : AppColors.border),
                   ),
                 ),
-                child: Row(
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: TextSpan(
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                color: AppColors.text,
-                              ),
-                              children: [
-                                TextSpan(
-                                  text: isMePayer ? 'You' : t.fromUserName,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                const TextSpan(text: ' should pay '),
-                                TextSpan(
-                                  text: isMeReceiver ? 'You' : t.toUserName,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            t.formattedAmount,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
                             style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: isMePayer ? Colors.orange : AppColors.brand,
+                              fontSize: 14,
+                              color: AppColors.text,
                             ),
+                            children: [
+                              TextSpan(
+                                text: isMePayer ? 'You' : t.fromUserName,
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const TextSpan(text: ' should pay '),
+                              TextSpan(
+                                text: isMeReceiver ? 'You' : t.toUserName,
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          t.formattedAmount,
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: isMePayer ? Colors.orange : AppColors.brand,
+                          ),
+                        ),
+                      ],
                     ),
                     if (isMePayer)
                       ElevatedButton.icon(
@@ -808,29 +858,36 @@ class _GroupExpensesTabState extends State<GroupExpensesTab> {
             ),
 
             // Amount & Share Info
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  expense.formattedAmount,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    expense.formattedAmount,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isPartOfSplit
-                      ? 'Your share: ${ExpenseCurrencyHelper.formatPaise(sharePaise)}'
-                      : 'Not in split',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: isPartOfSplit ? AppColors.textSoft : AppColors.textMuted,
+                  const SizedBox(height: 2),
+                  Text(
+                    isPartOfSplit
+                        ? 'Your share: ${ExpenseCurrencyHelper.formatPaise(sharePaise)}'
+                        : 'Not in split',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isPartOfSplit ? AppColors.textSoft : AppColors.textMuted,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

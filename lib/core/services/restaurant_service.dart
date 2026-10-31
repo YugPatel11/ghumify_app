@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../constants/food_preferences.dart';
 import '../constants/meal_config.dart';
@@ -26,13 +27,37 @@ class RestaurantService {
   // In-memory cache for restaurant suggestions
   static final Map<String, _RestaurantCacheEntry> _cache = {};
 
-  /// Build Overpass QL query for restaurants, cafes, and fast-food
+  // In-memory cache for raw elements by coordinates and radius
+  static final Map<String, List<dynamic>> _elementsCache = {};
+
+  /// Alternate reliable Overpass API public mirrors for fault-tolerant fallback
+  static const List<String> overpassMirrors = [
+    'https://overpass.openstreetmap.fr/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+  ];
+
+  /// Build Overpass QL query for restaurants, and optionally cafes and fast-food
   static String buildOverpassRestaurantQuery({
     required double latitude,
     required double longitude,
     required int radiusMeters,
     int timeoutSeconds = 15,
+    bool focused = false,
   }) {
+    if (focused) {
+      return '''
+[out:json][timeout:$timeoutSeconds];
+(
+  node["amenity"="restaurant"](around:$radiusMeters,$latitude,$longitude);
+  way["amenity"="restaurant"](around:$radiusMeters,$latitude,$longitude);
+);
+out center body;
+''';
+    }
+
     return '''
 [out:json][timeout:$timeoutSeconds];
 (
@@ -50,6 +75,7 @@ out center body;
   /// Clear the suggestions cache (useful for testing or forced refresh)
   static void clearCache() {
     _cache.clear();
+    _elementsCache.clear();
   }
 
   /// Get suggestions for a specific meal (Lunch or Dinner) around an anchor stop
@@ -61,6 +87,7 @@ out center body;
     TravelersModel? travelers,
     String? anchorStopName,
     bool forceRefresh = false,
+    Iterable<String>? excludeNames,
   }) async {
     // 1. Round coordinates for privacy & caching (~110m precision)
     final roundedLat = double.parse(latitude.toStringAsFixed(3));
@@ -72,22 +99,33 @@ out center body;
     if (!forceRefresh && _cache.containsKey(cacheKey)) {
       final entry = _cache[cacheKey]!;
       if (DateTime.now().difference(entry.timestamp) < MealConfig.cacheTtl) {
-        return entry.suggestions;
+        final cached = entry.suggestions;
+        if (excludeNames != null && excludeNames.isNotEmpty) {
+          final excludeSet = excludeNames.map((n) => n.toLowerCase().trim()).toSet();
+          final filtered = cached.where((s) => !excludeSet.contains(s.name.toLowerCase().trim())).toList();
+          if (filtered.isNotEmpty) return filtered;
+        } else {
+          return cached;
+        }
       }
     }
 
     // 3. Multi-tier radius widening strategy (1 km -> 2 km -> 3 km -> 5 km)
+    // First tries focused restaurant query; broadens with cafes/fast food if needed
     List<MealSuggestionModel> candidateResults = [];
 
     for (final radius in MealConfig.radiusTiersMeters) {
       try {
-        final rawElements = await _fetchOverpassElements(
+        // Try focused restaurant query first
+        var rawElements = await _fetchOverpassElements(
           latitude: roundedLat,
           longitude: roundedLon,
           radiusMeters: radius,
+          focused: true,
+          forceRefresh: forceRefresh,
         );
 
-        final parsed = _parseAndFilterRestaurants(
+        var parsed = _parseAndFilterRestaurants(
           elements: rawElements,
           originLat: latitude,
           originLon: longitude,
@@ -97,9 +135,29 @@ out center body;
           anchorStopName: anchorStopName,
         );
 
+        // If fewer than 2 results found, broaden with cafes and fast food
+        if (parsed.length < 2) {
+          final broadElements = await _fetchOverpassElements(
+            latitude: roundedLat,
+            longitude: roundedLon,
+            radiusMeters: radius,
+            focused: false,
+            forceRefresh: forceRefresh,
+          );
+          parsed = _parseAndFilterRestaurants(
+            elements: broadElements,
+            originLat: latitude,
+            originLon: longitude,
+            mealType: mealType,
+            foodPreference: normPref,
+            travelers: travelers,
+            anchorStopName: anchorStopName,
+          );
+        }
+
         if (parsed.isNotEmpty) {
           candidateResults = parsed;
-          // If we found at least target count (2 to 3), we have enough
+          // Stop widening when target count (2 to 3) is satisfied
           if (candidateResults.length >= MealConfig.targetSuggestionsCount) {
             break;
           }
@@ -111,15 +169,41 @@ out center body;
         if (_cache.containsKey(cacheKey)) {
           return _cache[cacheKey]!.suggestions;
         }
-        rethrow;
+        // Fall through to try wider radius or Nominatim fallback
       }
     }
 
-    // 4. Rank and curate the best 2 to 3 options
+    // 3b. If Overpass failed or found no candidates, fall back to OpenStreetMap Nominatim search
+    if (candidateResults.isEmpty) {
+      try {
+        candidateResults = await _fetchNominatimRestaurants(
+          originLat: latitude,
+          originLon: longitude,
+          radiusMeters: MealConfig.maxRadiusMeters,
+          mealType: mealType,
+          foodPreference: normPref,
+          travelers: travelers,
+          anchorStopName: anchorStopName,
+          excludeNames: excludeNames,
+        );
+      } catch (_) {}
+    }
+
+    // 3c. If still empty, check if we have any cached entries
+    if (candidateResults.isEmpty && _cache.containsKey(cacheKey)) {
+      return _cache[cacheKey]!.suggestions;
+    }
+
+    if (candidateResults.isEmpty) {
+      throw Exception('Could not find nearby restaurant suggestions.');
+    }
+
+    // 4. Rank and curate the best 2 to 3 options, excluding previously suggested names (e.g. lunch options)
     final ranked = _rankAndDiversify(
       candidateResults,
       foodPreference: normPref,
       travelers: travelers,
+      excludeNames: excludeNames,
     );
 
     final finalSelection = ranked.take(MealConfig.maxSuggestionsCount).toList();
@@ -133,51 +217,175 @@ out center body;
     return finalSelection;
   }
 
-  /// Execute Overpass query with retry handling for 429/504
+  /// Execute Overpass query with multi-mirror failover, timeout, and coordinate caching
   Future<List<dynamic>> _fetchOverpassElements({
     required double latitude,
     required double longitude,
     required int radiusMeters,
+    bool focused = false,
+    bool forceRefresh = false,
     int maxRetries = 2,
   }) async {
+    final roundedLat = double.parse(latitude.toStringAsFixed(3));
+    final roundedLon = double.parse(longitude.toStringAsFixed(3));
+    final elemCacheKey = '${roundedLat}_${roundedLon}_${radiusMeters}_$focused';
+
+    if (!forceRefresh && _elementsCache.containsKey(elemCacheKey)) {
+      return _elementsCache[elemCacheKey]!;
+    }
+
     final query = buildOverpassRestaurantQuery(
       latitude: latitude,
       longitude: longitude,
       radiusMeters: radiusMeters,
+      timeoutSeconds: 8,
+      focused: focused,
     );
 
-    int attempt = 0;
-    while (attempt < maxRetries) {
-      attempt++;
-      try {
-        final response = await http.post(
-          Uri.parse(MealConfig.overpassUrl),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': MealConfig.overpassUserAgent,
-          },
-          body: 'data=${Uri.encodeComponent(query)}',
-        ).timeout(const Duration(seconds: 15));
+    Exception? lastException;
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          return (data['elements'] as List?) ?? [];
-        } else if (response.statusCode == 429 || response.statusCode == 504) {
-          if (attempt < maxRetries) {
-            await Future.delayed(Duration(milliseconds: 800 * attempt));
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (final mirror in overpassMirrors) {
+        try {
+          final response = await http.post(
+            Uri.parse(mirror),
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent': MealConfig.overpassUserAgent,
+            },
+            body: 'data=${Uri.encodeComponent(query)}',
+          ).timeout(const Duration(seconds: 8));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final elements = (data['elements'] as List?) ?? [];
+            _elementsCache[elemCacheKey] = elements;
+            return elements;
+          } else if (response.statusCode == 429 || response.statusCode == 504) {
+            // Rate limit or timeout on mirror, immediately try next mirror
             continue;
           }
-          throw Exception(
-              'Overpass API server busy (HTTP ${response.statusCode})');
-        } else {
-          throw Exception('Overpass API error HTTP ${response.statusCode}');
+        } catch (e) {
+          lastException = e is Exception ? e : Exception(e.toString());
+          // Connection failed on this mirror, immediately failover to next mirror
+          continue;
         }
-      } catch (e) {
-        if (attempt >= maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 600 * attempt));
+      }
+      if (attempt < maxRetries) {
+        await Future.delayed(Duration(milliseconds: 300 * attempt));
       }
     }
-    return [];
+
+    // If all mirrors failed, check if we have any cached elements for this location
+    if (_elementsCache.containsKey(elemCacheKey)) {
+      return _elementsCache[elemCacheKey]!;
+    }
+
+    // Check if any elements exist in cache as offline fallback
+    for (final entry in _elementsCache.entries) {
+      if (entry.value.isNotEmpty) {
+        return entry.value;
+      }
+    }
+
+    throw lastException ??
+        Exception('Unable to reach restaurant servers. Please check your network connection.');
+  }
+
+  /// Fallback restaurant search using OpenStreetMap Nominatim API
+  Future<List<MealSuggestionModel>> _fetchNominatimRestaurants({
+    required double originLat,
+    required double originLon,
+    required int radiusMeters,
+    required String mealType,
+    required String foodPreference,
+    TravelersModel? travelers,
+    String? anchorStopName,
+    Iterable<String>? excludeNames,
+  }) async {
+    final deltaLat = radiusMeters / 111000.0;
+    final deltaLon = radiusMeters / (111000.0 * cos(originLat * pi / 180.0));
+    final minLon = (originLon - deltaLon).toStringAsFixed(4);
+    final maxLat = (originLat + deltaLat).toStringAsFixed(4);
+    final maxLon = (originLon + deltaLon).toStringAsFixed(4);
+    final minLat = (originLat - deltaLat).toStringAsFixed(4);
+
+    final uri = Uri.parse(
+      'https://nominatim.openstreetmap.org/search?format=json&amenity=restaurant&bounded=1&viewbox=$minLon,$maxLat,$maxLon,$minLat&limit=10&addressdetails=1',
+    );
+
+    final response = await http.get(
+      uri,
+      headers: {'User-Agent': MealConfig.overpassUserAgent},
+    ).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      return [];
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is! List) return [];
+
+    final suggestions = <MealSuggestionModel>[];
+    final excludeSet = (excludeNames ?? []).map((e) => e.toLowerCase().trim()).toSet();
+
+    for (final item in data) {
+      if (item is! Map<String, dynamic>) continue;
+      final name = (item['name'] as String? ?? '').trim();
+      if (name.isEmpty || excludeSet.contains(name.toLowerCase())) continue;
+
+      final lat = double.tryParse(item['lat']?.toString() ?? '') ?? 0.0;
+      final lon = double.tryParse(item['lon']?.toString() ?? '') ?? 0.0;
+      if (lat == 0.0 && lon == 0.0) continue;
+
+      final distKm = _locationService.calculateDistance(originLat, originLon, lat, lon);
+      final distMeters = (distKm * 1000).round();
+      final address = item['display_name'] as String? ?? '';
+
+      final badge = foodPreference == FoodPreference.jain
+          ? 'Jain-friendly'
+          : (foodPreference == FoodPreference.veg
+              ? 'Pure Veg'
+              : (foodPreference == FoodPreference.vegEgg
+                  ? 'Veg + Egg'
+                  : (foodPreference == FoodPreference.nonVeg
+                      ? 'Non-Veg'
+                      : 'Restaurant')));
+
+      final reason = _buildSuggestedReason(
+        name: name,
+        dietaryBadge: badge,
+        distanceMeters: distMeters,
+        anchorStopName: anchorStopName,
+        cuisine: 'Local Dining',
+        isKidFriendly: (travelers?.minors ?? 0) > 0,
+        openingStatus: 'Open during meal hours',
+        mealType: mealType,
+      );
+
+      suggestions.add(
+        MealSuggestionModel(
+          id: 'osm_nom_${item['place_id']}',
+          name: name,
+          mealType: mealType,
+          dietaryType: foodPreference,
+          dietaryBadge: badge,
+          cuisine: 'Local Dining',
+          latitude: lat,
+          longitude: lon,
+          distanceMeters: distMeters,
+          walkingMinutes: (distMeters / 80).round().clamp(1, 120),
+          drivingMinutes: (distMeters / 400).round().clamp(2, 60),
+          openingStatus: 'Open during meal hours',
+          address: address,
+          suggestedReason: reason,
+          isKidFriendly: (travelers?.minors ?? 0) > 0,
+          osmId: item['osm_id']?.toString(),
+        ),
+      );
+    }
+
+    return suggestions;
   }
 
   /// Parse elements and strictly enforce dietary compliance and travelers safety
@@ -301,6 +509,8 @@ out center body;
         anchorStopName: anchorStopName,
         cuisine: formattedCuisine,
         isKidFriendly: isKidFriendly,
+        openingStatus: openingStatus,
+        mealType: mealType,
       );
 
       // Phone & address
@@ -514,13 +724,19 @@ out center body;
     List<MealSuggestionModel> candidates, {
     required String foodPreference,
     TravelersModel? travelers,
+    Iterable<String>? excludeNames,
   }) {
     if (candidates.isEmpty) return [];
 
     final hasMinors = (travelers?.minors ?? 0) > 0;
+    final excludeSet = excludeNames?.map((n) => n.toLowerCase().trim()).toSet() ?? {};
+
+    // Filter out excluded names if enough other candidates exist
+    final nonExcluded = candidates.where((c) => !excludeSet.contains(c.name.toLowerCase().trim())).toList();
+    final pool = (nonExcluded.length >= 2) ? nonExcluded : (nonExcluded.isNotEmpty ? nonExcluded : candidates);
 
     // Compute composite score for each candidate
-    final scored = candidates.map((m) {
+    final scored = pool.map((m) {
       // 1. Proximity Score (0.0 to 1.0)
       final proximityScore = (1.0 - (m.distanceMeters / MealConfig.maxRadiusMeters)).clamp(0.0, 1.0);
 
@@ -536,15 +752,21 @@ out center body;
         dietaryScore = 0.7;
       }
 
-      // 3. Rating Score
+      // 3. Rating Score (or quality bonus for named dishes / opening hours)
       final ratingScore = m.rating != null ? (m.rating! / 5.0).clamp(0.0, 1.0) : 0.6;
 
-      // 4. Kid-friendly bonus
+      // 4. Data Richness Bonus: prefer restaurants that have specific cuisine or verified hours
+      double richnessBonus = 0.0;
+      if (m.cuisine.isNotEmpty && m.cuisine != 'Local Dining / Cafe') richnessBonus += 0.08;
+      if (m.openingStatus.contains('Open for') || m.openingStatus.contains('24/7')) richnessBonus += 0.07;
+
+      // 5. Kid-friendly bonus
       final kidBonus = (hasMinors && m.isKidFriendly) ? MealConfig.kidFriendlyBonus : 0.0;
 
       final totalScore = (proximityScore * MealConfig.distanceWeight) +
           (dietaryScore * MealConfig.dietaryMatchWeight) +
           (ratingScore * MealConfig.ratingWeight) +
+          richnessBonus +
           kidBonus;
 
       return m.copyWith(score: totalScore);
@@ -597,7 +819,7 @@ out center body;
         .join(', ');
   }
 
-  /// Build short, informative reason for suggestion
+  /// Build short, informative reason for suggestion based strictly on available data
   String _buildSuggestedReason({
     required String name,
     required String dietaryBadge,
@@ -605,24 +827,55 @@ out center body;
     String? anchorStopName,
     required String cuisine,
     required bool isKidFriendly,
+    String? openingStatus,
+    String? mealType,
   }) {
     final distStr = distanceMeters < 1000
         ? '$distanceMeters m'
         : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
 
-    final nearStr = anchorStopName != null && anchorStopName.isNotEmpty
-        ? ' near $anchorStopName'
-        : '';
+    final nearStr = (anchorStopName != null && anchorStopName.trim().isNotEmpty)
+        ? 'only $distStr from ${anchorStopName.trim()}'
+        : 'only $distStr away';
 
-    if (isKidFriendly) {
-      return '$dietaryBadge • Family-friendly spot, $distStr$nearStr';
+    // 1. Food & cuisine specialty description
+    String foodDesc;
+    final cleanCuisine = cuisine.trim();
+    final isGeneric = cleanCuisine.isEmpty ||
+        cleanCuisine == 'Local Dining / Cafe' ||
+        cleanCuisine == 'Restaurant' ||
+        cleanCuisine == 'Fast Food';
+
+    if (!isGeneric) {
+      if (dietaryBadge == 'Pure Veg' || dietaryBadge == 'Jain Friendly') {
+        foodDesc = 'Serves authentic $cleanCuisine ($dietaryBadge)';
+      } else {
+        foodDesc = 'Serves authentic $cleanCuisine';
+      }
+    } else {
+      if (dietaryBadge == 'Pure Veg') {
+        foodDesc = 'Offers pure vegetarian dining';
+      } else if (dietaryBadge == 'Jain Friendly') {
+        foodDesc = 'Offers authentic Jain-friendly dining';
+      } else {
+        foodDesc = 'Popular local dining';
+      }
     }
 
-    if (cuisine.contains('Thali') || cuisine.contains('Indian')) {
-      return '$dietaryBadge • Popular $cuisine, $distStr$nearStr';
+    // 2. Extra detail from verified data (hours or family seating)
+    final details = <String>[];
+    if (openingStatus != null && openingStatus.toLowerCase().contains('open for')) {
+      details.add('open during ${mealType ?? "meal"} hours');
+    } else if (openingStatus != null && openingStatus.contains('24/7')) {
+      details.add('open 24 hours');
+    } else if (isKidFriendly) {
+      details.add('family-friendly seating');
     }
 
-    return '$dietaryBadge • $distStr$nearStr';
+    if (details.isNotEmpty) {
+      return '$foodDesc, $nearStr, ${details.join(", ")}';
+    }
+    return '$foodDesc, $nearStr';
   }
 
   /// Format address from OSM tags
@@ -663,10 +916,9 @@ out center body;
         ? MealConfig.timeToMinutes(MealConfig.lunchDefaultTime)
         : MealConfig.timeToMinutes(MealConfig.dinnerDefaultTime);
 
-    // 1. Check if a food stop already exists for this meal
+    // 1. Check if a food stop already exists for this meal (backward compatibility)
     for (final stop in stops) {
       if (stop.latitude != null && stop.longitude != null) {
-        final startMins = MealConfig.timeToMinutes(stop.startTime);
         final isMatch = mealType == MealConfig.lunch
             ? MealConfig.isWithinLunchWindow(stop.startTime)
             : MealConfig.isWithinDinnerWindow(stop.startTime);
@@ -681,7 +933,31 @@ out center body;
       }
     }
 
-    // 2. Find the stop active right before or closest to target meal time
+    // 2. For Dinner: Find the last stop or the area where the user will be in the evening (18:00 - 21:00)
+    if (mealType == MealConfig.dinner) {
+      ItineraryStop? eveningStop;
+      ItineraryStop? lastCoordStop;
+      for (final stop in stops) {
+        if (stop.latitude != null && stop.longitude != null) {
+          lastCoordStop = stop;
+          final stopStartMins = MealConfig.timeToMinutes(stop.startTime);
+          final stopEndMins = MealConfig.timeToMinutes(stop.endTime);
+          if (stopStartMins >= 18 * 60 || stopEndMins >= 18 * 60) {
+            eveningStop = stop;
+          }
+        }
+      }
+      final anchor = eveningStop ?? lastCoordStop;
+      if (anchor != null) {
+        return MealAnchorPoint(
+          name: anchor.name,
+          latitude: anchor.latitude!,
+          longitude: anchor.longitude!,
+        );
+      }
+    }
+
+    // 3. For Lunch: Find the stop active right before or closest to target meal time
     ItineraryStop? closestStop;
     int minDiff = 999999;
 
@@ -704,7 +980,7 @@ out center body;
       );
     }
 
-    // 3. Fallback to first stop with coordinates
+    // 4. Fallback to first stop with coordinates
     for (final stop in stops) {
       if (stop.latitude != null && stop.longitude != null) {
         return MealAnchorPoint(

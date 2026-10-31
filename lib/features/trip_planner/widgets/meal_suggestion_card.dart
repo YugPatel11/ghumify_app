@@ -345,21 +345,25 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
   }
 
   Widget _buildRestaurantRow(BuildContext context, MealSuggestionModel item) {
-    final isSelected = widget.isAddedToItinerary && widget.addedRestaurantName == item.name;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(AppTokens.sm + 2),
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.brandSoft.withValues(alpha: 0.4) : AppColors.cardAlt,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(
-          color: isSelected ? AppColors.brand : AppColors.borderLight,
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _launchExternalUrl(item.googleMapsUrl);
+      },
+      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(AppTokens.sm + 2),
+        decoration: BoxDecoration(
+          color: AppColors.cardAlt,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: Border.all(
+            color: AppColors.borderLight,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Row 1: Name and Dietary Badge
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,54 +510,13 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
                   onTap: () => _callPhone(item.phone!),
                   tooltip: 'Call restaurant',
                 ),
-
-              // Add / Added Button
-              if (widget.onAddToItinerary != null)
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    widget.onAddToItinerary!(item);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.brandSoft : AppColors.brand,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusPill),
-                      border: Border.all(
-                        color: isSelected ? AppColors.brand : Colors.transparent,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isSelected ? Icons.check_rounded : Icons.add_rounded,
-                          size: 13,
-                          color: isSelected ? AppColors.brandDeep : Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            isSelected ? 'Added' : 'Add to itinerary',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: isSelected ? AppColors.brandDeep : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDietaryBadge(String dietaryType, String label) {
     final color = FoodPreference.getIndicatorColor(dietaryType);
@@ -688,24 +651,71 @@ class _MealSuggestionCardState extends State<MealSuggestionCard> {
   }
 
   Widget _buildErrorState() {
+    String displayMsg = widget.errorMessage ?? 'Unable to load restaurant suggestions right now.';
+    final lower = displayMsg.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('clientexception') ||
+        lower.contains('connection failed') ||
+        lower.contains('network is unreachable') ||
+        lower.contains('errno') ||
+        lower.contains('overpass') ||
+        lower.contains('timed out')) {
+      displayMsg = 'Could not load ${isLunch ? "lunch" : "dinner"} suggestions due to a network connection issue.';
+    }
+
     return Padding(
-      padding: const EdgeInsets.all(AppTokens.lg),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline_rounded, size: 20, color: AppColors.error),
-          const SizedBox(width: AppTokens.sm),
-          Expanded(
-            child: Text(
-              widget.errorMessage ?? 'Failed to load restaurant suggestions.',
-              style: const TextStyle(fontSize: 12, color: AppColors.error),
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.md, vertical: AppTokens.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppTokens.md),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 22, color: AppColors.error),
+            const SizedBox(width: AppTokens.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayMsg,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Please check your internet connection and tap Retry.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSoft,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (widget.onRefresh != null)
-            TextButton(
-              onPressed: widget.onRefresh,
-              child: const Text('Retry', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            ),
-        ],
+            if (widget.onRefresh != null) ...[
+              const SizedBox(width: AppTokens.sm),
+              FilledButton.icon(
+                onPressed: widget.onRefresh,
+                icon: const Icon(Icons.refresh_rounded, size: 14),
+                label: const Text('Retry', style: TextStyle(fontSize: 12)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

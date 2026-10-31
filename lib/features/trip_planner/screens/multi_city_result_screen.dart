@@ -15,6 +15,7 @@ import '../../../core/models/travel_leg_model.dart';
 import '../../../core/models/travelers_model.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/gemini_service.dart';
+import '../../../core/services/local_chat/itinerary_editor.dart';
 import '../../../core/services/transport_service.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../widgets/travel_leg_card.dart';
@@ -67,8 +68,6 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
   final Map<String, String?> _dayLunchAnchor = {};
   final Map<String, String?> _dayDinnerAnchor = {};
   final Map<String, DateTime?> _dayLastUpdated = {};
-  final Map<String, String?> _dayAddedLunch = {};
-  final Map<String, String?> _dayAddedDinner = {};
   final Set<String> _initializedDays = {};
 
   late AnimationController _animController;
@@ -361,13 +360,19 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
     if (_initializedDays.contains(dayKey)) return;
     _initializedDays.add(dayKey);
 
-    for (final stop in day.stops) {
-      if (stop.type == 'food') {
-        if (MealConfig.isWithinLunchWindow(stop.startTime)) {
-          _dayAddedLunch[dayKey] = stop.name;
-        } else if (MealConfig.isWithinDinnerWindow(stop.startTime)) {
-          _dayAddedDinner[dayKey] = stop.name;
-        }
+    // Filter out any restaurant or food stops for this day
+    final cleanedStops = day.stops.where((s) => !GeminiService.isRestaurantStop(s)).toList();
+    if (cleanedStops.length != day.stops.length) {
+      final resequenced = ItineraryEditor.resequenceStops(
+        stops: cleanedStops,
+        dayStartTime: day.startTime,
+        dayEndTime: day.endTime,
+        travelMode: day.travelMode,
+      ) ?? cleanedStops;
+      day = day.copyWith(stops: resequenced);
+      if (_trip != null) {
+        final updatedDays = _trip!.days.map((d) => (d.id == day.id) ? day : d).toList();
+        _trip = _trip!.copyWith(days: updatedDays);
       }
     }
 
@@ -449,7 +454,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
         if (mounted) {
           setState(() {
             _dayIsLoadingLunch[dayKey] = false;
-            _dayLunchError[dayKey] = 'Could not load lunch suggestions: $e';
+            _dayLunchError[dayKey] = 'Could not load lunch suggestions. Please check your connection and tap Retry.';
           });
         }
       }
@@ -476,6 +481,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
             travelers: _trip!.travelers,
             anchorStopName: dinnerAnchor.name,
             forceRefresh: force,
+            excludeNames: _dayLunchSuggestions[dayKey]?.map((s) => s.name),
           );
           if (mounted) {
             setState(() {
@@ -496,7 +502,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
         if (mounted) {
           setState(() {
             _dayIsLoadingDinner[dayKey] = false;
-            _dayDinnerError[dayKey] = 'Could not load dinner suggestions: $e';
+            _dayDinnerError[dayKey] = 'Could not load dinner suggestions. Please check your connection and tap Retry.';
           });
         }
       }
@@ -526,145 +532,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
     }
   }
 
-  void _onAddMealToCityDayItinerary(
-    String dayKey,
-    ItineraryModel day,
-    MealSuggestionModel restaurant,
-    String mealType,
-  ) {
-    if (_trip == null) return;
-    final dayIdx = _trip!.days.indexWhere(
-        (d) => d.id == day.id || (d.city.toLowerCase() == day.city.toLowerCase() && d.dayNumber == day.dayNumber));
-    if (dayIdx == -1) return;
 
-    final targetDay = _trip!.days[dayIdx];
-    final isLunch = mealType == MealConfig.lunch;
-    final hasMinors = targetDay.isFamilyFriendly;
-    final targetStartTime = isLunch
-        ? MealConfig.lunchDefaultTime
-        : (hasMinors ? MealConfig.dinnerEarlyDefaultTime : MealConfig.dinnerDefaultTime);
-    final duration = isLunch
-        ? MealConfig.lunchDefaultDurationMinutes
-        : MealConfig.dinnerDefaultDurationMinutes;
-    final targetEndTime = MealConfig.minutesToTime(
-        MealConfig.timeToMinutes(targetStartTime) + duration);
-
-    final newMealStop = ItineraryStop(
-      name: restaurant.name,
-      type: 'food',
-      startTime: targetStartTime,
-      endTime: targetEndTime,
-      durationMinutes: duration,
-      latitude: restaurant.latitude,
-      longitude: restaurant.longitude,
-      dietaryType: restaurant.dietaryType,
-      description: '${restaurant.cuisine} • ${restaurant.suggestedReason}',
-      tips: [
-        if (restaurant.openingHours != null) 'Hours: ${restaurant.openingHours}',
-        'Please check opening hours and menu before visiting.',
-        if (targetDay.foodPreference == FoodPreference.jain)
-          'Please confirm Jain preparation with the restaurant.',
-      ],
-      isKidFriendly: restaurant.isKidFriendly,
-    );
-
-    final currentStops = List<ItineraryStop>.from(targetDay.stops);
-    int existingIdx = -1;
-    for (int i = 0; i < currentStops.length; i++) {
-      final s = currentStops[i];
-      final inWindow = isLunch
-          ? MealConfig.isWithinLunchWindow(s.startTime)
-          : MealConfig.isWithinDinnerWindow(s.startTime);
-      if (inWindow &&
-          (s.type == 'food' ||
-              s.name == restaurant.name ||
-              (isLunch && s.name == _dayAddedLunch[dayKey]) ||
-              (!isLunch && s.name == _dayAddedDinner[dayKey]))) {
-        existingIdx = i;
-        break;
-      }
-    }
-
-    if (existingIdx >= 0) {
-      currentStops[existingIdx] = newMealStop;
-    } else {
-      final targetMins = MealConfig.timeToMinutes(targetStartTime);
-      int insertIdx = currentStops.length;
-      for (int i = 0; i < currentStops.length; i++) {
-        if (MealConfig.timeToMinutes(currentStops[i].startTime) > targetMins) {
-          insertIdx = i;
-          break;
-        }
-      }
-      currentStops.insert(insertIdx, newMealStop);
-    }
-
-    final updatedDays = List<ItineraryModel>.from(_trip!.days);
-    updatedDays[dayIdx] = targetDay.copyWith(stops: currentStops);
-
-    setState(() {
-      if (isLunch) {
-        _dayAddedLunch[dayKey] = restaurant.name;
-      } else {
-        _dayAddedDinner[dayKey] = restaurant.name;
-      }
-      _trip = _trip!.copyWith(days: updatedDays);
-    });
-
-    _syncTripIfSaved();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Added "${restaurant.name}" to ${day.city} Day ${day.dayNumber}!'),
-        backgroundColor: AppColors.brand,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'Undo',
-          textColor: Colors.white,
-          onPressed: () => _onRemoveMealFromCityDayItinerary(dayKey, day, mealType),
-        ),
-      ),
-    );
-  }
-
-  void _onRemoveMealFromCityDayItinerary(
-    String dayKey,
-    ItineraryModel day,
-    String mealType,
-  ) {
-    if (_trip == null) return;
-    final dayIdx = _trip!.days.indexWhere(
-        (d) => d.id == day.id || (d.city.toLowerCase() == day.city.toLowerCase() && d.dayNumber == day.dayNumber));
-    if (dayIdx == -1) return;
-
-    final targetDay = _trip!.days[dayIdx];
-    final isLunch = mealType == MealConfig.lunch;
-    final targetName = isLunch ? _dayAddedLunch[dayKey] : _dayAddedDinner[dayKey];
-    if (targetName == null) return;
-
-    final currentStops = List<ItineraryStop>.from(targetDay.stops);
-    currentStops.removeWhere((s) =>
-        s.name == targetName ||
-        (s.type == 'food' &&
-            (isLunch
-                ? MealConfig.isWithinLunchWindow(s.startTime)
-                : MealConfig.isWithinDinnerWindow(s.startTime))));
-
-    final updatedDays = List<ItineraryModel>.from(_trip!.days);
-    updatedDays[dayIdx] = targetDay.copyWith(stops: currentStops);
-
-    setState(() {
-      if (isLunch) {
-        _dayAddedLunch[dayKey] = null;
-      } else {
-        _dayAddedDinner[dayKey] = null;
-      }
-      _trip = _trip!.copyWith(days: updatedDays);
-    });
-
-    _syncTripIfSaved();
-  }
 
   Future<void> _syncTripIfSaved() async {
     if (_trip != null && _isSaved) {
@@ -692,11 +560,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
       foodPreference: _trip?.foodPreference ?? 'all',
       isSavedMode: _isSaved,
       lastUpdated: _dayLastUpdated[dayKey],
-      isAddedToItinerary: _dayAddedLunch[dayKey] != null,
-      addedRestaurantName: _dayAddedLunch[dayKey],
       onRefresh: () => _fetchCityDayMealSuggestions(dayKey, day, city, force: true, mealType: MealConfig.lunch),
-      onAddToItinerary: (restaurant) => _onAddMealToCityDayItinerary(dayKey, day, restaurant, MealConfig.lunch),
-      onRemoveFromItinerary: () => _onRemoveMealFromCityDayItinerary(dayKey, day, MealConfig.lunch),
     );
   }
 
@@ -710,11 +574,7 @@ class _MultiCityResultScreenState extends State<MultiCityResultScreen>
       foodPreference: _trip?.foodPreference ?? 'all',
       isSavedMode: _isSaved,
       lastUpdated: _dayLastUpdated[dayKey],
-      isAddedToItinerary: _dayAddedDinner[dayKey] != null,
-      addedRestaurantName: _dayAddedDinner[dayKey],
       onRefresh: () => _fetchCityDayMealSuggestions(dayKey, day, city, force: true, mealType: MealConfig.dinner),
-      onAddToItinerary: (restaurant) => _onAddMealToCityDayItinerary(dayKey, day, restaurant, MealConfig.dinner),
-      onRemoveFromItinerary: () => _onRemoveMealFromCityDayItinerary(dayKey, day, MealConfig.dinner),
     );
   }
 

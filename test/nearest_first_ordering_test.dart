@@ -501,5 +501,72 @@ void main() {
       expect(stop.displayShortLabel.isNotEmpty, isTrue);
       expect(stop.displayBriefDescription, contains('A long legacy description'));
     });
+
+    test('intercity start (e.g. Delhi to Rajkot 1374 km) does not eat day time budget or drop stops', () {
+      // User is in Delhi (28.6139, 77.2090)
+      const delhiLat = 28.6139;
+      const delhiLng = 77.2090;
+
+      // 4 sightseeing stops in Rajkot (22.28, 70.82)
+      final stops = <ItineraryStop>[
+        ItineraryStop(
+          name: 'Pradhyuman Zoological Park',
+          type: 'sightseeing',
+          startTime: '09:00 AM',
+          endTime: '10:30 AM',
+          latitude: 22.2888,
+          longitude: 70.8104,
+          durationMinutes: 90,
+        ),
+        ItineraryStop(
+          name: 'Watson Museum',
+          type: 'heritage',
+          startTime: '10:45 AM',
+          endTime: '11:45 AM',
+          latitude: 22.3020,
+          longitude: 70.8030,
+          durationMinutes: 60,
+        ),
+        ItineraryStop(
+          name: 'Rotary Dolls Museum',
+          type: 'activity',
+          startTime: '12:00 PM',
+          endTime: '01:00 PM',
+          latitude: 22.2980,
+          longitude: 70.7980,
+          durationMinutes: 60,
+        ),
+        ItineraryStop(
+          name: 'Aji Dam Garden',
+          type: 'sightseeing',
+          startTime: '02:30 PM',
+          endTime: '04:00 PM',
+          latitude: 22.2500,
+          longitude: 70.8300,
+          durationMinutes: 90,
+        ),
+      ];
+
+      final result = RouteProximityOptimizer.optimizeStopsProximity(
+        stops: stops,
+        startLat: delhiLat,
+        startLng: delhiLng,
+        startPointLabel: 'your current location',
+        dayStartTime: '09:00',
+        dayEndTime: '21:00',
+      );
+
+      // Verify that all 4 stops are retained (none dropped as overflow)
+      expect(result.orderedStops.length, 4);
+      expect(result.overflowStops, isEmpty);
+
+      // First stop starts at 09:00 AM, not afternoon
+      expect(result.orderedStops.first.startTime, '09:00 AM');
+      expect(result.orderedStops.first.distanceFromPrevKm, isNull);
+
+      // Subsequent stops proceed chronologically
+      expect(result.orderedStops[1].startTime, isNot('09:00 AM'));
+      expect(result.startPointMessage, contains('destination'));
+    });
   });
 }

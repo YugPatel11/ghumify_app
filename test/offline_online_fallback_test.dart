@@ -26,7 +26,7 @@ void main() {
       expect(itinerary, isNotNull);
       expect(itinerary.city, equals('Jaipur'));
       expect(itinerary.stops.length, greaterThanOrEqualTo(3));
-      expect(itinerary.stops.any((s) => s.type == 'food'), isTrue);
+      expect(itinerary.stops.any((s) => s.type == 'food'), isFalse);
       expect(itinerary.whatToCarry.length, equals(5));
       expect(itinerary.estimatedTotalCost, isNotNull);
       expect(itinerary.crowdModelVersion, equals('v1.0-offline'));
